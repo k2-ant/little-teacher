@@ -1,0 +1,39 @@
+<!DOCTYPE html><html><body style="margin:0;background:#333">
+<canvas id="c"></canvas>
+<script type="module">
+import { Pix } from '../js/raster.js';
+import * as S from '../js/sprites.js';
+// a 64x64 pixel icon: bunny + owl peeking over a desk in front of a tiny whiteboard
+function draw(maskable) {
+  const n = 64;
+  const c = document.createElement('canvas'); c.width = n; c.height = n;
+  const x = c.getContext('2d'); x.imageSmoothingEnabled = false;
+  x.fillStyle = '#f7e6c4'; x.fillRect(0, 0, n, n);
+  x.fillStyle = '#f2dcb3'; for (let i = 2; i < n; i += 9) x.fillRect(i, 0, 3, n);
+  const ins = maskable ? 6 : 0;
+  // whiteboard
+  x.fillStyle = '#6f7b8f'; x.fillRect(9 + ins / 2, 5 + ins, 46 - ins, 24);
+  x.fillStyle = '#c9d3df'; x.fillRect(10 + ins / 2, 6 + ins, 44 - ins, 22);
+  x.fillStyle = '#f8fbff'; x.fillRect(12 + ins / 2, 8 + ins, 40 - ins, 18);
+  const st = S.stamp('star'); x.drawImage(st, 16 + ins / 2, 10 + ins);
+  const h = S.stamp('heart'); x.drawImage(h, 36 - ins / 2, 11 + ins);
+  x.drawImage(S.glyph('A', '#2f7de1', 1), 29, 13 + ins);
+  // floor
+  x.fillStyle = '#dcab70'; x.fillRect(0, 44, n, 20); x.fillStyle = '#bd8650'; for (let y = 50; y < n; y += 7) x.fillRect(0, y, n, 1);
+  const b = S.student('bunny', { eyes: 'happy', mouth: 'open', armL: 'up', armR: 'down', feet: 0, look: 0, blush: true, hide: 0 });
+  x.drawImage(b, 32 - 17, 64 - 42 - 4 - (maskable ? 2 : 0));
+  x.drawImage(S.desk(0), 16, 64 - 22 + 4);
+  return c;
+}
+const out = {};
+for (const [name, size, mask] of [['icon-192', 192, false], ['icon-512', 512, false], ['icon-maskable-512', 512, true], ['apple-touch-icon', 180, false]]) {
+  const src = draw(mask);
+  const c = document.createElement('canvas'); c.width = size; c.height = size;
+  const x = c.getContext('2d'); x.imageSmoothingEnabled = false;
+  x.drawImage(src, 0, 0, size, size);
+  out[name] = c.toDataURL('image/png');
+}
+window.ICONS = out;
+const show = document.getElementById('c'); show.width = 512; show.height = 512;
+const sx = show.getContext('2d'); sx.imageSmoothingEnabled = false; sx.drawImage(draw(false), 0, 0, 512, 512);
+</script></body></html>
