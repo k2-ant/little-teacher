@@ -70,6 +70,29 @@ export const CENTERS = [
 ];
 export const CENTRO_LINES = { start: '¡Hora de centros!', change: '¡Cambio de centro!' };
 
+// ------------------------------------------------------------------ spoken button names + hints (owl = helper voice)
+export const UI_WORDS = {
+  stickers: 'Mis estampas', home: '¡Hora de ir a casa!', bell: '¡A clase!', decorate: 'Decorar', toys: 'Tiempo libre',
+  star: 'Estrella de oro', cardGreen: 'Tarjeta verde', cardRed: 'Tarjeta roja', cdone: 'Terminamos', help: '¿Qué hago?',
+  recess: 'Recreo', snack: 'Merienda', story: 'Cuento', centros: 'Centros',
+  floor: 'Cosas para el piso', wall: 'Cosas para la pared', desk: 'Útiles', paint: 'Pintura', trash: 'Basura',
+  back: 'Regresar', eraser: 'Borrador', wipe: 'Limpiar', letras: 'Letras', numeros: 'Números', silabas: 'Sílabas',
+  next: 'Siguiente', again: 'Otra vez', rug: 'Alfombra',
+};
+export const ITEM_WORDS = {
+  beanbag: 'puf', teddy: 'osito', toybox: 'caja de juguetes', easel: 'caballete', fishtank: 'pecera', globe: 'globo terráqueo',
+  flowers: 'flores', balloons: 'globos', lamp: 'lámpara', rainbow: 'arcoíris', poster: 'cartel', frame: 'cuadro',
+  butterflies: 'mariposas', garland: 'guirnalda', sun: 'sol', moon: 'luna', clock: 'reloj',
+  apple: 'manzana', pencils: 'lápices', books: 'libros', crayons: 'crayones', cactus: 'cactus', snowglobe: 'bola de nieve',
+};
+export const HINTS = {
+  decorate: '¡Decora tu salón!', ring: 'Toca la campana para empezar.', attendance: 'Toca a cada amigo para pasar lista.',
+  mood: '¡Alguien necesita ayuda!', question: '¡Tienen una pregunta!', board: 'Toca el pizarrón para dibujar.',
+  star: 'Dale una estrella a un amigo.', play: '¡Vamos a jugar!', abc: '¡Vamos a escribir letras!', home: 'Cuando termines, toca la casita.',
+  trace: 'Empieza en el punto verde.', shapes: 'Pon cada figura en su lugar.', draw: '¡Dibuja con un marcador!',
+  chart: 'Mueve a tus amigos y toca la campana.', naughty: '¿Quién necesita una tarjeta?',
+};
+
 /** lines spoken by any student */
 export function studentPhrases() {
   const out = new Set([Q_INTRO, ...Q_RIGHT, Q_WRONG, FEEL_CALL, FEEL_Q1, FEEL_Q2, FEEL_DONE]);
@@ -95,5 +118,6 @@ export function narratorPhrases() {
   const out = new Set([SIL_HELLO]);
   for (const c of FAMILIES) for (const v of VOWELS) out.add(c + v);
   for (const w of WORDS) { out.add(w.w); w.s.forEach(x => out.add(x)); }
+  [UI_WORDS, ITEM_WORDS, HINTS].forEach(o => Object.values(o).forEach(x => out.add(x)));
   return [...out];
 }

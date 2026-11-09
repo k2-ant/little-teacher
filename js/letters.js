@@ -9,6 +9,7 @@ import { makeRow } from './row.js';
 import { picture } from './pictures.js';
 import { strokesFor } from './strokes.js';
 import { createSilabas } from './silabas.js';
+import { sayHint, sayUI, drawHand } from './hints.js';
 import { wordSprite } from './i18n.js';
 import { LETTERS, NUMS, FONT, letterName, numberWord, letterWord, letterSentence } from './i18n.js';
 
@@ -261,6 +262,12 @@ export function createLetters(students, hooks) {
       if (G.save.traced[r.ch]) R(c, r.x + r.w - 3, r.y + 1, 2, 2, '#3cb44b');
     }
     row.renderParts(c);
+    // hint: show where to start
+    if (set !== 'ma' && !done && !tracing && si < strokes.length && G.time - idleSince > 7) {
+      const p = strokes[si][prog];
+      drawHand(c, p[0], p[1]);
+      sayHint(owl, 'trace');
+    }
   }
   function againIcon() {
     return cached('again', () => {
@@ -274,6 +281,7 @@ export function createLetters(students, hooks) {
 
   function down(x, y) {
     press = { x, y };
+    idleSince = G.time;
     if (set === 'ma') return;
     if (done || si >= strokes.length) return;
     const g = L.g;
@@ -299,15 +307,16 @@ export function createLetters(students, hooks) {
     if (tracing) { tracing = false; strokeEnd(); for (const s of students) s.look = 0; idleSince = G.time; press = null; return; }
     const p = press; press = null; if (!p) return;
     const { x, y } = p;
-    if (inR(x, y, L.back)) { sfx.whoosh(); hooks.close(); return; }
+    if (inR(x, y, L.back)) { sfx.whoosh(); sayUI(owl, 'back'); hooks.close(); return; }
     for (const t of L.tabs) if (inR(x, y, t)) {
+      sayUI(owl, { abc: 'letras', 123: 'numeros', ma: 'silabas' }[t.id]);
       if (set !== t.id) { set = t.id; resize(); if (set === 'ma') sil.select(sil.gridItems()[0]); else select(items()[0]); }
       return;
     }
     for (const r of gridRects()) if (inR(x, y, r)) { if (set === 'ma') sil.select(r.it); else select(r.ch); return; }
     if (set === 'ma') { if (sil.tap(x, y)) return; const s = row.hit(x, y); if (s) row.tap(s); return; }
-    if (inR(x, y, L.next)) { const it = items(); select(it[(it.indexOf(cur) + 1) % it.length]); return; }
-    if ((done || si > 0) && inR(x, y, L.again)) { select(cur, true); sfx.whoosh(); return; }
+    if (inR(x, y, L.next)) { sayUI(owl, 'next'); const it = items(); select(it[(it.indexOf(cur) + 1) % it.length]); return; }
+    if ((done || si > 0) && inR(x, y, L.again)) { select(cur, true); sfx.whoosh(); sayUI(owl, 'again'); return; }
     if (inR(x, y, L.pic)) { sfx.pop(1.3); speak(row.talker() || owl, isNum() ? numberWord(+cur) : letterSentence(cur), 'here'); return; }
     if (p.onGlyph) return;
     const s = row.hit(x, y); if (s) row.tap(s);

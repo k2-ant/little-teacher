@@ -436,6 +436,7 @@ function icon(name, draw) { return cached('icon:' + name, () => { const p = new 
 export const ICONS = {
   star: () => icon('star', p => { p.map(1, 1, ['.......#.......', '......###......', '......###......', '.....#####.....', '###############', '.#############.', '..###########..', '...#########...', '...#########...', '..#####.#####..', '..####...####..', '.###.......###.', '.##.........##.'].map(r => r), { '#': '#ffd23f' }); p.px(7, 4, '#fff6b8'); p.px(6, 6, '#fff6b8'); p.px(7, 5, '#fff6b8'); }),
   home: () => icon('home', p => {
+    p.ball(14.5, 3.5, 3, 3, '#ffe58a', { hi: false }); p.ell(16, 2.5, 2.2, 2.2, 0);
     for (let i = 0; i < 8; i++) p.hline(8 - i, 9 + i, 2 + i, '#ef6f6c');
     p.rect(3, 9, 12, 7, '#ffe7b8'); p.rect(7, 11, 4, 5, '#a8703f'); p.px(10, 13, '#ffd23f');
     p.rect(12, 2, 2, 4, '#8a5730'); p.rect(4, 10, 2, 2, '#8fd0ff'); p.hline(1, 16, 9, '#c94f4f');
@@ -461,9 +462,10 @@ export const ICONS = {
   }),
   apple: () => icon('apple', p => applePix(p, 3, 3)),
   toys: () => icon('toys', p => {
-    p.ball(6, 11, 4.6, 4.6, '#ef6f6c'); p.px(4, 9, '#ffb3b3');
-    p.rect(10, 4, 6, 6, '#64a8e8'); p.rect(11, 5, 4, 4, '#8fd0ff');
-    p.rect(9, 11, 7, 5, '#ffd23f'); p.rect(10, 12, 5, 3, '#ffe98a');
+    p.vline(3, 3, 16, '#64a8e8'); p.vline(6, 3, 16, '#64a8e8'); for (let y = 5; y < 16; y += 3) p.hline(3, 6, y, '#9fd0ff');
+    p.rect(2, 2, 6, 2, '#ef6f6c');
+    for (let i = 0; i < 11; i++) { p.px(7 + i, 3 + i, '#ffd23f'); p.px(7 + i, 4 + i, '#ffd23f'); p.px(7 + i, 5 + i, '#f5c000'); }
+    p.ball(14, 6, 2.6, 2.6, '#7dd370');
   }),
   eraser: () => icon('eraser', p => {
     for (let i = 0; i < 8; i++) { p.hline(3 + i, 10 + i, 4 + i, i < 3 ? '#6fb6ff' : '#ff9ec4'); }

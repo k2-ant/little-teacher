@@ -12,6 +12,14 @@ Five original pixel-art students come to class:
 
 Louise is the teacher. She stands at the front, waves, claps and points at the board, and she twirls when you tap her. You can drag her anywhere in the room.
 
+## Which version is on the iPad?
+The version number (for example **v1.7**) is in the bottom-right corner of the start screen. See [CHANGELOG.md](CHANGELOG.md) for what's in each version. To release a new version, bump `VERSION` in `js/version.js`; that also refreshes the iPad's offline copy.
+
+## Help for little ones
+- Every button says its name out loud, in the owl's voice.
+- If she pauses, a **pointing hand** shows what to try next and the owl says a short hint ("Toca a cada amigo para pasar lista", "Toca la campana para empezar", "Empieza en el punto verde"…).
+- The **?** button gives a hint any time.
+
 ## ¡Todo en español!
 The whole class is in Spanish, like her DLI classroom: greetings, "¡Presente!", cheers, colours, letters, numbers, words and shapes.
 

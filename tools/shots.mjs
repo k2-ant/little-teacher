@@ -25,6 +25,8 @@ const cssOf = async (scene, x, y) => p.evaluate(([scene, x, y]) => { const v = w
 await tapAt(W / 2, H * 0.58);
 await p.waitForTimeout(500);
 await shot('02a-prep');
+await p.waitForTimeout(3000);
+await shot('02a2-prep-hint');
 const drag = async (a, b) => { await p.mouse.move(a[0], a[1]); await p.mouse.down(); await p.mouse.move((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, { steps: 4 }); await p.mouse.move(b[0], b[1], { steps: 4 }); await p.mouse.up(); await p.waitForTimeout(150); };
 let tray = await p.evaluate(() => window.__ltTray());
 await drag(tray.items[0], [W * 0.12, H * 0.62]);
@@ -69,6 +71,8 @@ await shot('02-morning');
 await p.waitForFunction(() => window.__lt.room.phase === 'class', null, { timeout: 30000 });
 await p.waitForTimeout(400);
 await shot('03-class');
+await p.waitForTimeout(3200);
+await shot('03b-hint');
 // attendance: tap each student
 const studs = await p.evaluate(() => window.__lt.students.map(s => s.kind));
 for (let i = 0; i < 5; i++) {

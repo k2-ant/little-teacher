@@ -5,6 +5,7 @@ import { createClassroom } from './classroom.js';
 import { createBoard, BW, BH } from './board.js';
 import { createLetters } from './letters.js';
 import { createShapes } from './shapes.js';
+import { VERSION } from './version.js';
 import { Pix, cached } from './raster.js';
 
 const canvas = document.getElementById('game');
@@ -24,7 +25,7 @@ const letters = createLetters(students, { close() { go('class'); } });
 const shapes = createShapes(students, { close() { go('class'); } });
 const room = createClassroom(students, {
   boardCanvas: () => board.canvas(),
-  openBoard() { go('board', 'zoom'); },
+  openBoard() { board.opened(); go('board', 'zoom'); },
   openLetters() { letters.open(); go('letters'); },
   openShapes() { shapes.open(); go('shapes'); },
   unlock() { goFullscreen(); },
@@ -180,7 +181,7 @@ requestAnimationFrame(frame);
 
 // offline support
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
-  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js?v=' + VERSION).catch(() => {}));
 }
 // expose a tiny debug hook for automated screenshots
 window.__lt = { G, room, board, students, sfx };

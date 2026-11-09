@@ -297,7 +297,12 @@ export function trayIcon(name) {
     if (name === 'floor') { const c = '#ff8fb8'; p.ball(9, 11, 8, 5, c); p.ball(9, 7.5, 5, 3, lighten(c, 0.2)); }
     if (name === 'wall') { p.rect(2, 2, 14, 14, '#d6a35c'); p.rect(4, 4, 10, 10, '#fffaf0'); heartPix(p, 5, 6); }
     if (name === 'desk') { p.ball(9, 10, 6, 5.4, '#ef4b4b'); p.px(9, 3, '#7a4a2a'); p.ell(12, 3.5, 2, 1, '#6cc44f'); }
-    if (name === 'decorate') { p.rect(2, 3, 11, 6, '#ffd23f'); p.rect(2, 3, 11, 2, '#fff2a0'); p.rect(12, 5, 3, 1, '#9aa7b8'); p.rect(14, 5, 1, 5, '#9aa7b8'); p.rect(7, 10, 8, 1, '#9aa7b8'); p.rect(7, 11, 3, 6, '#ef6f6c'); p.px(3, 10, '#ff8fb8'); p.px(4, 12, '#7ec8ff'); p.px(2, 14, '#7dd370'); }
+    if (name === 'decorate') { // rainbow paintbrush
+      ['#ef6f6c', '#ffa65c', '#ffd23f', '#7dd370', '#64a8e8'].forEach((c, i) => { for (let x = 1; x < 11; x++) p.px(x, 13 - i + Math.round(Math.sin(x / 2) * 1), c); });
+      p.line(10, 9, 16, 2, '#a8703f'); p.line(11, 9, 17, 2, '#c98c55'); p.rect(8, 9, 3, 3, '#9aa7b8'); p.rect(6, 11, 3, 3, '#ff8fb8');
+      return;
+    }
+    if (name === 'decorateOld') { p.rect(2, 3, 11, 6, '#ffd23f'); p.rect(2, 3, 11, 2, '#fff2a0'); p.rect(12, 5, 3, 1, '#9aa7b8'); p.rect(14, 5, 1, 5, '#9aa7b8'); p.rect(7, 10, 8, 1, '#9aa7b8'); p.rect(7, 11, 3, 6, '#ef6f6c'); p.px(3, 10, '#ff8fb8'); p.px(4, 12, '#7ec8ff'); p.px(2, 14, '#7dd370'); }
     if (name === 'cardGreen' || name === 'cardRed') {
       const c = name === 'cardGreen' ? '#3cb44b' : '#ef4b4b';
       p.rect(4, 1, 11, 16, darken(c, 0.25)); p.rect(5, 2, 9, 14, c); p.rect(6, 3, 3, 6, lighten(c, 0.45)); p.px(12, 13, lighten(c, 0.3));
@@ -309,9 +314,10 @@ export function trayIcon(name) {
       p.line(13, 16, 17, 11, '#a8703f');
     }
     if (name === 'aa') { p.rect(1, 2, 16, 14, '#fffaf0'); p.map(3, 5, ['.#.', '#.#', '###', '#.#', '#.#'], { '#': '#ef5b5b' }, 2); p.map(10, 9, ['.##', '#.#', '.##'], { '#': '#2f7de1' }, 2); }
-    if (name === 'centros') {
+    if (name === 'centros') { // a little pocket chart with four stations
+      p.rect(0, 1, 18, 16, '#5f86b8'); p.rect(1, 2, 16, 14, '#dfeefc');
       const cs = ['#ef6f6c', '#64a8e8', '#ffd23f', '#7dd370'];
-      cs.forEach((c, i) => { const x = 1 + (i % 2) * 9, y = 1 + Math.floor(i / 2) * 9; p.rect(x, y, 7, 7, c); p.rect(x + 1, y + 1, 2, 2, lighten(c, 0.5)); });
+      cs.forEach((c, i) => { const x = 2 + i * 4; p.rect(x, 3, 3, 3, c); p.rect(x, 8, 3, 3, '#fff4ee'); p.px(x + 1, 9, '#2b1d2e'); p.rect(x, 12, 3, 1, '#c9dff2'); });
     }
     if (name === 'bell') { p.ball(9, 9, 6, 6.5, '#ffd23f', { clip: { y1: 12 } }); p.rect(2, 12, 14, 2, '#e0a820'); p.ball(9, 15, 1.6, 1.6, '#a8703f'); p.rect(8, 1, 2, 2, '#a8703f'); }
   });
@@ -324,6 +330,15 @@ export function trash(open) {
     if (open) { p.line(2, 7, 16, 0, '#5f96c8'); p.line(2, 8, 17, 1, '#5f96c8'); p.line(3, 8, 17, 2, '#5f96c8'); p.rect(14, 0, 3, 2, '#3f6f9a'); }
     else { p.rect(1, 6, 24, 3, '#5f96c8'); p.rect(10, 4, 6, 2, '#3f6f9a'); }
     p.px(6, 13, '#bfe0f5'); p.px(6, 14, '#bfe0f5'); p.px(6, 15, '#bfe0f5');
+  });
+}
+export function hand() {
+  return mk('hand', 16, 18, p => {
+    const S = '#f6d2b8', SS = '#e7b799';
+    p.rect(1, 1, 3, 9, S); p.px(1, 1, '#fff2e8');               // pointing finger (tip at top-left)
+    p.rect(3, 6, 9, 7, S); p.rect(4, 5, 2, 2, S); p.rect(7, 5, 2, 2, S); p.rect(10, 6, 2, 2, S);
+    p.hline(4, 11, 12, SS); p.px(6, 7, SS); p.px(9, 7, SS);
+    p.rect(4, 13, 9, 4, '#86b2ea'); p.hline(4, 12, 13, '#cfe0f7');   // sleeve like Louise's
   });
 }
 export function swatch(kind, i) {

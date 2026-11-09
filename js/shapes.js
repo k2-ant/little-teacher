@@ -6,6 +6,7 @@ import * as DC from './decor.js';
 import { sfx } from './audio.js';
 import { speak } from './students.js';
 import { makeRow } from './row.js';
+import { sayHint, sayUI, drawHand } from './hints.js';
 import { SHAPES, shapeName, lang, setLang, flag } from './i18n.js';
 
 const COLORS = ['#ef6f6c', '#ffa65c', '#ffd23f', '#7dd370', '#64a8e8', '#b48be6', '#ff8fb8'];
@@ -60,7 +61,7 @@ function btnFrame(w, h, col = '#fff3dc') {
 
 export function createShapes(students, hooks) {
   let V = null, L = {};
-  let holes = [], pieces = [], drag = null, press = null, roundDone = false;
+  let holes = [], pieces = [], drag = null, press = null, roundDone = false, idleSince = 0;
   const row = makeRow(students);
   const teach = { act: null, t0: 0, dur: 0 };
   const tAct = (name, dur = 1.2) => { teach.act = name; teach.t0 = G.time; teach.dur = dur; };
@@ -138,6 +139,13 @@ export function createShapes(students, hooks) {
     row.render(c, W, H);
     D(c, btnFrame(26, 26), L.back.x, L.back.y); D(c, S.ICONS.back(), L.back.x + 4, L.back.y + 3);
     row.renderParts(c);
+    // hint: a hand carries a shape to its hole
+    const free = pieces.find(p => !p.placed);
+    if (free && !drag && !roundDone && G.time - idleSince > 8) {
+      const h = holes[free.hole], k = Math.min(1, ((G.time - idleSince - 8) % 2.4) / 1.6);
+      drawHand(c, free.x + (h.x - free.x) * k, free.y + (h.y - free.y) * k);
+      sayHint(owl, 'shapes');
+    }
   }
   function pieceAt(x, y) {
     for (let k = pieces.length - 1; k >= 0; k--) {
@@ -148,6 +156,7 @@ export function createShapes(students, hooks) {
   }
   function down(x, y) {
     press = { x, y, x0: x, y0: y, moved: false };
+    idleSince = G.time;
     const p = pieceAt(x, y);
     if (p && !p.placed) { press.p = p; drag = { p, ox: p.x - x, oy: p.y - y }; sfx.lift(); }
     else if (p) press.placed = p;
@@ -188,7 +197,7 @@ export function createShapes(students, hooks) {
     }
     const { x, y } = pr;
     if (pr.placed) { pr.placed.pop = G.time + 0.25; sfx.pop(1.2); sayShape(pr.placed.shape); return; }
-    if (inR(x, y, L.back)) { sfx.whoosh(); hooks.close(); return; }
+    if (inR(x, y, L.back)) { sfx.whoosh(); sayUI(owl, 'back'); hooks.close(); return; }
     for (const h of holes) if (Math.hypot(h.x - x, h.y - y) < 14) { sfx.tap(); sayShape(h.shape); return; }
     const s = row.hit(x, y); if (s) row.tap(s);
   }
@@ -196,5 +205,5 @@ export function createShapes(students, hooks) {
     const k = V.s / G.dpr;
     return { pieces: pieces.map(p => ({ shape: p.shape, at: [p.x * k, p.y * k] })), holes: holes.map(h => ({ shape: h.shape, at: [h.x * k, h.y * k] })), back: [(L.back.x + 13) * k, (L.back.y + 13) * k] };
   };
-  return { resize, update, render, down, move, up, open() {}, get view() { return V; } };
+  return { resize, update, render, down, move, up, open() { idleSince = G.time; }, get view() { return V; } };
 }

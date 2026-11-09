@@ -3,6 +3,7 @@ import { Pix, cached, hex, darken, lighten } from './raster.js';
 import * as S from './sprites.js';
 import { WALLS } from './decor.js';
 import { sfx, strokeStart, strokeSpeed, strokeEnd } from './audio.js';
+import { sayHint, sayUI, drawHand } from './hints.js';
 import { act, acting, hop, talk, speak, animalSound, coax, physics, pose, traits, startle, randomCheer } from './students.js';
 
 export const BW = 192, BH = 108;
@@ -80,7 +81,7 @@ export function createBoard(students, hooks) {
   let stroke = null;
   let wipe = null;
   let press = null;
-  let inkSince = 0, lastReact = 0;
+  let inkSince = 0, lastReact = 0, idleSince = 0, drewThisVisit = false;
   const parts = [];
 
   function flush() { if (dirty) { bctx.putImageData(img, 0, 0); dirty = false; } }
@@ -297,16 +298,23 @@ export function createBoard(students, hooks) {
       const im = S.particle(p.kind, p.color);
       D(c, im, p.x - im.width / 2, p.y - im.height / 2);
     }
+    if (!drewThisVisit && !stroke && G.time - idleSince > 8) {
+      const owl = students.find(s => s.kind === 'owl');
+      const k = ((G.time - idleSince) % 3) / 3;
+      drawHand(c, L.bx + BW * (0.3 + 0.4 * k), L.by + BH * (0.5 + Math.sin(k * 6.28) * 0.2));
+      sayHint(owl, 'draw');
+    }
   }
 
   // ---------------------------------------------------------------- input
   const inR = (x, y, r) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
   function down(x, y) {
     press = { x, y };
+    idleSince = G.time;
     const lx = x - L.bx, ly = y - L.by;
     if (lx >= -3 && ly >= -3 && lx < BW + 3 && ly < BH + 3 && !wipe) {
       if (tool === 'stamp') { press.stampAt = { lx, ly, x, y }; return; } // tap = stamp, drag = draw
-      stroke = { x: lx, y: ly, t: G.time };
+      stroke = { x: lx, y: ly, t: G.time }; drewThisVisit = true;
       segment(lx, ly, lx, ly);
       strokeStart(tool === 'erase' ? 'erase' : 'marker');
       return;
@@ -344,10 +352,11 @@ export function createBoard(students, hooks) {
     const p = press; press = null;
     if (!p) return;
     if (p.stampAt) { placeStamp(stampId, Math.max(0, Math.min(BW - 1, p.stampAt.lx)), Math.max(0, Math.min(BH - 1, p.stampAt.ly))); return; }
-    if (p.btn === L.back) { sfx.whoosh(); close(); return; }
-    if (p.btn === L.eraser) { tool = 'erase'; sfx.pop(0.8); return; }
+    const owlS = students.find(s => s.kind === 'owl');
+    if (p.btn === L.back) { sfx.whoosh(); sayUI(owlS, 'back'); close(); return; }
+    if (p.btn === L.eraser) { tool = 'erase'; sfx.pop(0.8); sayUI(owlS, 'eraser'); return; }
     if (p.btn === L.wipeBtn && !wipe) {
-      wipe = { x: -8, last: 0 }; sfx.whoosh();
+      wipe = { x: -8, last: 0 }; sfx.whoosh(); sayUI(owlS, 'wipe');
       for (const s of awake()) { act(s, 'gasp', 0.9); }
       wait(0.7).then(() => { sfx.ooh(1.25); students.forEach(startle); });
       return;
@@ -360,7 +369,7 @@ export function createBoard(students, hooks) {
     }
     if (p.stamp) {
       if (tool === 'stamp' && stampId === p.stamp.id) { tool = 'marker'; sfx.softPop(); }
-      else { tool = 'stamp'; stampId = p.stamp.id; sfx.pop(1.4); }
+      else { tool = 'stamp'; stampId = p.stamp.id; sfx.pop(1.4); speak(owlS, WORDS[p.stamp.id], 'tap'); }
       return;
     }
     if (p.s) tapStudent(p.s);
@@ -382,6 +391,7 @@ export function createBoard(students, hooks) {
   return {
     resize, update, render, down, move, up,
     canvas() { flush(); return cv; },
+    opened() { idleSince = G.time; drewThisVisit = false; },
     rect() { return { x: L.bx, y: L.by, w: BW, h: BH }; },
     get view() { return V; },
   };

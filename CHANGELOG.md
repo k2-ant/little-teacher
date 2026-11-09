@@ -1,0 +1,32 @@
+# Changelog
+
+The version number shows in the bottom-right corner of the start screen (for example `v1.7`).
+
+## v1.7 (2026-11-09)
+- The version number now shows on the start screen.
+- Every button says its name out loud, and decorations and supplies say their names when she places them.
+- A pointing hand and a short spoken hint show what to try next if she's idle, plus a **?** button for a hint any time.
+- Clearer icons for free time, centros, decorate and going home.
+
+## v1.6
+- Green and red behavior cards (tarjetas verdes y rojas). Students sometimes act up.
+- Centros: a pocket chart to assign arte, biblioteca, letras and bloques, then rotate with the bell.
+
+## v1.5
+- Students ask picture questions; feelings (emociones); the sílabas tab with ma-me-mi-mo-mu and the word builder.
+- Fixed the whiteboard getting stuck in stamp mode.
+
+## v1.4
+- Trash can; day of the week (lunes–viernes) with a morning calendar card.
+
+## v1.3
+- All in Spanish with ElevenLabs voices; stroke-by-stroke tracing.
+
+## v1.2
+- Alphabet tracing board, shape sorter, English/Spanish.
+
+## v1.1
+- Getting the room ready (decorating) and Louise as the teacher.
+
+## v1.0
+- First version: classroom, whiteboard, attendance, gold stars, free time, stickers.
