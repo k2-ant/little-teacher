@@ -3,6 +3,8 @@ import { unlock, sfx } from './audio.js';
 import { makeStudents } from './students.js';
 import { createClassroom } from './classroom.js';
 import { createBoard, BW, BH } from './board.js';
+import { createLetters } from './letters.js';
+import { createShapes } from './shapes.js';
 import { Pix, cached } from './raster.js';
 
 const canvas = document.getElementById('game');
@@ -12,18 +14,20 @@ const probe = document.getElementById('safe');
 loadSave();
 const students = makeStudents();
 let mode = 'class';
-let trans = null; // {dir:'in'|'out', t}
+let trans = null; // {from, to, kind:'zoom'|'fade', t}
+const go = (to, kind = 'fade', extra = {}) => { trans = { from: mode, to, kind, t: 0, ...extra }; };
 
-const board = createBoard(students, {
-  close(drew) {
-    trans = { dir: 'out', t: 0, drew };
-  },
-});
+const board = createBoard(students, { close(drew) { go('class', 'zoom', { drew }); } });
+const letters = createLetters(students, { close() { go('class'); } });
+const shapes = createShapes(students, { close() { go('class'); } });
 const room = createClassroom(students, {
   boardCanvas: () => board.canvas(),
-  openBoard() { trans = { dir: 'in', t: 0 }; },
+  openBoard() { go('board', 'zoom'); },
+  openLetters() { letters.open(); go('letters'); },
+  openShapes() { shapes.open(); go('shapes'); },
   unlock() { goFullscreen(); },
 });
+const scenes = { class: room, board, letters, shapes };
 
 function readInsets() {
   const cs = getComputedStyle(probe);
@@ -36,7 +40,7 @@ function resize() {
   canvas.width = G.devW; canvas.height = G.devH;
   canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
   readInsets();
-  room.resize(); board.resize();
+  room.resize(); board.resize(); letters.resize(); shapes.resize();
   ctx.imageSmoothingEnabled = false;
 }
 window.addEventListener('resize', resize);
@@ -47,7 +51,7 @@ const portrait = () => window.innerHeight > window.innerWidth * 1.05;
 
 // ------------------------------------------------------------------ input (one finger at a time)
 let activeId = null;
-function view() { return mode === 'board' ? board : room; }
+function view() { return scenes[mode]; }
 function toLocal(e) {
   const v = view().view;
   return [e.clientX * G.dpr / v.s, e.clientY * G.dpr / v.s];
@@ -95,7 +99,7 @@ function frame(now) {
   G.time += dt;
   tickTimers();
   room.update(dt);
-  if (mode === 'board') board.update(dt);
+  if (mode !== 'class') scenes[mode].update(dt);
   render();
   requestAnimationFrame(frame);
 }
@@ -108,7 +112,17 @@ const ease = (t) => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
 function render() {
   ctx.fillStyle = '#2b1d2e'; ctx.fillRect(0, 0, G.devW, G.devH);
   if (portrait()) { drawRotate(); return; }
+  if (trans && trans.kind === 'fade') {
+    trans.t += 1 / 60 / 0.35;
+    const k = ease(Math.min(1, trans.t));
+    const A = scenes[trans.from], B = scenes[trans.to];
+    A.render(); blit(A.view);
+    B.render(); ctx.globalAlpha = k; blit(B.view); ctx.globalAlpha = 1;
+    if (trans.t >= 1) { mode = trans.to; trans = null; }
+    return;
+  }
   if (trans) {
+    trans.dir = trans.to === 'board' ? 'in' : 'out';
     trans.t += 1 / 60 / 0.45;
     const t = ease(Math.min(1, trans.t));
     const k = trans.dir === 'in' ? t : 1 - t;

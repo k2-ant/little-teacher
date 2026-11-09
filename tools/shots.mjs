@@ -118,6 +118,45 @@ const back = await p.evaluate(() => window.__ltBoardBtn('back'));
 await tapAt(...back);
 await p.waitForTimeout(1200);
 await shot('10-back');
+// alphabet board: open, trace A (in Spanish), then the number 3
+await p.evaluate(() => window.__lt.G.save.lang = 'es');
+await tapAt(...(await p.evaluate(() => window.__ltFurnPt('abc'))));
+await p.waitForTimeout(900);
+let lt = await p.evaluate(() => window.__ltLetters());
+await shot('19-letters-start');
+await p.mouse.move(...lt.cells[0]); await p.mouse.down();
+for (const c of lt.cells) await p.mouse.move(c[0], c[1], { steps: 2 });
+await p.mouse.up();
+await p.waitForTimeout(900);
+await shot('20-letters-done');
+await tapAt(...lt.tabs[1]); await p.waitForTimeout(300);
+lt = await p.evaluate(() => window.__ltLetters());
+await tapAt(...lt.grid[3]); await p.waitForTimeout(300);
+lt = await p.evaluate(() => window.__ltLetters());
+await p.mouse.move(...lt.cells[0]); await p.mouse.down();
+for (const c of lt.cells) await p.mouse.move(c[0], c[1], { steps: 2 });
+await p.mouse.up();
+await p.waitForTimeout(2200);
+await shot('21-numbers-done');
+await tapAt(...lt.back); await p.waitForTimeout(900);
+// shape corner
+await tapAt(...(await p.evaluate(() => window.__ltFurnPt('shapetable'))));
+await p.waitForTimeout(900);
+let sh = await p.evaluate(() => window.__ltShapes());
+await shot('22-shapes-start');
+for (let i = 0; i < 3; i++) {
+  sh = await p.evaluate(() => window.__ltShapes());
+  const pc = sh.pieces[i], hole = sh.holes.find(h => h.shape === pc.shape);
+  await p.mouse.move(...pc.at); await p.mouse.down(); await p.mouse.move(hole.at[0], hole.at[1], { steps: 6 }); await p.mouse.up();
+  await p.waitForTimeout(300);
+}
+sh = await p.evaluate(() => window.__ltShapes());
+const pc3 = sh.pieces[3]; await p.mouse.move(...pc3.at); await p.mouse.down(); await p.mouse.move(pc3.at[0], pc3.at[1] - 60, { steps: 6 });
+await shot('23-shapes-drag');
+await p.mouse.up();
+await p.waitForTimeout(300);
+await tapAt(...sh.back); await p.waitForTimeout(900);
+await p.evaluate(() => window.__lt.G.save.lang = 'en');
 // story time
 const toys = await p.evaluate(() => window.__ltBtn('toys'));
 await tapAt(...toys); await p.waitForTimeout(200);

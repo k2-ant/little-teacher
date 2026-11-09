@@ -83,16 +83,21 @@ function voice({ t = 0, dur = 0.3, f0 = 500, f1, vowel = 'ee', vowel2, vol = 0.2
 let voices = [];
 function loadVoices() { voices = (window.speechSynthesis && speechSynthesis.getVoices()) || []; }
 if (window.speechSynthesis) { loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; }
-function pickVoice() {
+function pickVoice(lang = 'en') {
+  if (lang === 'es') {
+    const es = voices.filter(v => /^es/i.test(v.lang));
+    return es.find(v => /es[-_](MX|US|419)/i.test(v.lang) && /paulina|female|sabina|dalia|helena|m[oó]nica|google/i.test(v.name)) || es.find(v => /es[-_](MX|US|419)/i.test(v.lang)) || es.find(v => /paulina|m[oó]nica|female/i.test(v.name)) || es[0];
+  }
   const en = voices.filter(v => /^en/i.test(v.lang));
   return en.find(v => /samantha|karen|moira|tessa|female|zira|aria|jenny/i.test(v.name)) || en.find(v => v.localService) || en[0];
 }
-export function say(text, pitch = 1.6, rate = 1.05) {
+export function say(text, pitch = 1.6, rate = 1.05, lang = 'en') {
   if (muted) return false;
   if (!window.speechSynthesis) return false;
   try {
     const u = new SpeechSynthesisUtterance(text);
-    const v = pickVoice(); if (v) u.voice = v;
+    const v = pickVoice(lang); if (v) u.voice = v;
+    u.lang = v ? v.lang : (lang === 'es' ? 'es-MX' : 'en-US');
     u.pitch = Math.min(2, pitch); u.rate = rate; u.volume = 0.9;
     speechSynthesis.speak(u);
     return true;
@@ -109,6 +114,7 @@ export const sfx = {
     }
   },
   ding(f = 1046) { if (!ok()) return; tone({ f, dur: 0.9, vol: 0.15, a: 0.002 }); tone({ f: f * 2.76, dur: 0.4, vol: 0.04, a: 0.002 }); },
+  note(f = 784) { if (!ok()) return; tone({ type: 'triangle', f, dur: 0.35, vol: 0.14 }); tone({ f: f * 2, dur: 0.15, vol: 0.04 }); },
   pop(p = 1) { if (!ok()) return; tone({ f: 320 * p, f2: 900 * p, dur: 0.09, vol: 0.28 }); noise({ dur: 0.03, vol: 0.08, f: 3000 }); },
   softPop() { if (!ok()) return; tone({ f: 500, f2: 700, dur: 0.07, vol: 0.12 }); },
   thump() { if (!ok()) return; tone({ f: 140, f2: 70, dur: 0.15, vol: 0.3 }); noise({ dur: 0.06, vol: 0.12, type: 'lowpass', f: 600 }); },

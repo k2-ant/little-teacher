@@ -12,6 +12,13 @@ Five original pixel-art students come to class:
 
 Louise is the teacher. She stands at the front, waves, claps and points at the board, and she twirls when you tap her. You can drag her anywhere in the room.
 
+## English / Spanish (DLI)
+The 🇺🇸/🇲🇽 flag button switches between **English time** and **Spanish time**. Every student line changes language: greetings, "Here!"/"¡Presente!", cheers, colours, stamp names, letters, numbers, words and shapes. The students use the iPad's built-in Spanish voice when it's Spanish time.
+
+## Learning corners
+- **Alphabet board** (chalkboard on the wall): pick A–Z (including Ñ) or 0–10. Trace the big letter and each block lights up in rainbow colours. When it's done, everyone cheers and a student says the word ("A is for apple!" / "¡A de arcoíris!") with a picture. Numbers get counted out loud with stars. Letters she has traced get a green dot.
+- **Shape corner** (the little table): drag shapes into the matching holes of the wooden sorter: circle, square, triangle, rectangle, star, heart, oval and diamond. Each shape's name is said in the current language. A wrong hole just wiggles back; there's no failing. Every round you finish brings new shapes.
+
 ## A day in class
 1. **Get the room ready:** before class the room is empty and the decorate tray is open:
    - 🛋 **floor things:** beanbag, teddy, toy box, easel, fish tank, globe, flowers, balloons, lamp
@@ -56,6 +63,11 @@ Tip: turn on **Guided Access** (Settings → Accessibility → Guided Access) an
 | `js/board.js` | full-screen whiteboard |
 | `js/students.js` | student poses, actions, personality traits |
 | `js/decor.js` | decorations, desk supplies, paint colours, and the teacher (Louise) |
+| `js/i18n.js` | English/Spanish phrases, letter names, words, shape names, font |
+| `js/letters.js` | alphabet & numbers tracing board |
+| `js/shapes.js` | shape sorter |
+| `js/pictures.js` | word pictures for the alphabet |
+| `js/row.js` | the row of watching students used by the learning corners |
 | `js/sprites.js` | all pixel art (students, furniture, icons, stamps, stickers) |
 | `js/raster.js` | tiny no-anti-aliasing pixel rasterizer |
 | `js/audio.js` | synthesized sound effects and speech |

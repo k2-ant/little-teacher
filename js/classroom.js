@@ -5,6 +5,7 @@ import { sfx, hush } from './audio.js';
 import { act, acting, hop, talk, speak, animalSound, coax, physics, walkStep, walkTo, pose, traits, startle, GREETINGS, BYES, randomCheer } from './students.js';
 import { PAGES } from './pages.js';
 import * as DC from './decor.js';
+import { lang, setLang, flag } from './i18n.js';
 
 const R = (c, x, y, w, h, col) => { c.fillStyle = col; c.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); };
 const D = (c, img, x, y) => c.drawImage(img, Math.round(x), Math.round(y));
@@ -69,6 +70,10 @@ export function createClassroom(students, hooks) {
     const t = G.save.furniture.teacher;
     furn.teacher = { id: 'teacher', type: 'teacher', fx: t ? t[0] : -1, fy: t ? t[1] : 0.08, x: 0, y: 0, lift: 0 };
   }
+  for (const id of ['abc', 'shapetable']) {
+    const sv = G.save.furniture[id];
+    furn[id] = { id, type: id, v: 0, fx: sv ? sv[0] : -1, fy: sv ? sv[1] : -1, x: 0, y: 0, lift: 0 };
+  }
   for (const d of G.save.decor) {
     if (!DC.DECOR[d.t]) continue;
     const id = 'd' + (uid++);
@@ -130,6 +135,7 @@ export function createClassroom(students, hooks) {
       { id: 'stickers', x: i.l + 4, y: i.t + 4, w: B, h: B, icon: S.ICONS.stickers },
       { id: 'home', x: V.W - i.r - B - 4, y: i.t + 4, w: B, h: B, icon: S.ICONS.home },
       { id: 'bell', x: V.W - i.r - B - 4, y: i.t + 4, w: B, h: B, icon: () => DC.trayIcon('bell') },
+      { id: 'lang', x: V.W - i.r - 2 * B - 8, y: i.t + 4, w: B, h: B, icon: () => flag(lang()) },
       { id: 'decorate', x: i.l + 4, y: V.H - i.b - B - 4, w: B, h: B, icon: () => DC.trayIcon('decorate') },
       { id: 'toys', x: i.l + 4 + B + 4, y: V.H - i.b - B - 4, w: B, h: B, icon: S.ICONS.toys },
       { id: 'star', x: V.W - i.r - B - 4, y: V.H - i.b - B - 4, w: B, h: B, icon: S.ICONS.star },
@@ -143,6 +149,8 @@ export function createClassroom(students, hooks) {
   }
   function place(f) {
     if (f.type === 'teacher' && f.fx < 0) f.fx = (L.door.x + L.door.w + 17) / V.W;
+    if (f.type === 'abc' && f.fx < 0) { f.fx = ((L.door.x + L.door.w + L.board.x) / 2 + 4) / V.W; f.fy = (L.wallH - 22) / L.wallH; }
+    if (f.type === 'shapetable' && f.fx < 0) { f.fx = 0.8; f.fy = 0.93; }
     const [w] = sizeOf(f);
     f.x = clamp(Math.round(f.fx * V.W), w / 2 + 2, V.W - w / 2 - 2);
     if (layerOf(f) === 'wall') { f.y = Math.round(f.fy * L.wallH); clampItem(f); return; }
@@ -694,6 +702,14 @@ export function createClassroom(students, hooks) {
     const bob = f.pop && G.time < f.pop ? -1 : 0;
     if (layerOf(f) === 'floor') shadow(c, f.x, f.y, w * 0.7);
     D(c, DC.decor(f.type, f.v), f.x - w / 2, f.y - h - lift + bob);
+    if (f.type === 'clock') {
+      const cx = f.x - 0.5, cy = f.y - h / 2 - 0.5 + bob, d = new Date();
+      const hand = (ang, len, col) => { for (let r = 0; r <= len; r += 0.5) R(c, cx + Math.sin(ang) * r, cy - Math.cos(ang) * r, 1, 1, col); };
+      hand((d.getHours() % 12 + d.getMinutes() / 60) * Math.PI / 6, 3.5, '#2b1d2e'); hand(d.getMinutes() * Math.PI / 30, 5.5, '#5a4560');
+    }
+    if ((f.type === 'abc' || f.type === 'shapetable') && phase === 'class' && Math.floor(G.time * 2) % 9 === 0) {
+      D(c, S.particle('spark', '#ffd23f'), f.x + w / 2 - 4, f.y - h - 2 + Math.round(Math.sin(G.time * 8)));
+    }
     if (f.type === 'fishtank' && Math.floor(G.time * 2 + f.x) % 3 === 0) R(c, f.x + 5, f.y - h + 6 - Math.floor(G.time * 6) % 8, 1, 1, '#ffffff');
     if (f.type === 'lamp' && (sky === 'night' || sky === 'sunset' || dusk > 0.1)) { c.fillStyle = 'rgba(255,240,170,0.18)'; c.fillRect(Math.round(f.x - 14), Math.round(f.y - h + 10), 28, h - 10); }
   }
@@ -724,7 +740,7 @@ export function createClassroom(students, hooks) {
   function render() {
     const c = V.ctx, { W, H } = V;
     c.drawImage(bg, 0, 0);
-    drawWindow(c); drawClock(c); drawDoor(c); drawBoard(c);
+    drawWindow(c); drawDoor(c); drawBoard(c);
     // wall decorations
     for (const f of Object.values(furn)) if (layerOf(f) === 'wall' && !(drag && drag.f === f)) drawItem(c, f);
     // rug
@@ -792,9 +808,9 @@ export function createClassroom(students, hooks) {
   }
   function hudVisible() { return phase === 'class' || phase === 'activity' || phase === 'prep'; }
   function shownBtns() {
-    if (phase === 'prep') return btns.filter(b => ['stickers', 'bell', 'decorate'].includes(b.id));
+    if (phase === 'prep') return btns.filter(b => ['stickers', 'bell', 'decorate', 'lang'].includes(b.id));
     if (phase !== 'class' && phase !== 'activity') return [];
-    return btns.filter(b => ['stickers', 'home', 'decorate'].includes(b.id) || (!deco && (b.id === 'star' || b.id === 'toys')) || (recess && b.id === 'toys'));
+    return btns.filter(b => ['stickers', 'home', 'decorate', 'lang'].includes(b.id) || (!deco && (b.id === 'star' || b.id === 'toys')) || (recess && b.id === 'toys'));
   }
   function drawHud(c) {
     if (!hudVisible()) return;
@@ -809,7 +825,8 @@ export function createClassroom(students, hooks) {
       }
       const on = b.id === 'decorate' && deco;
       D(c, btnFrame(b.w, b.h, on ? '#fff6c8' : '#fff3dc', on ? 'on' : ''), b.x, b.y + (press && press.btn === b ? 1 : 0));
-      D(c, b.icon(), b.x + (b.w - 18) / 2, b.y + (b.h - 18) / 2 - 1 + (press && press.btn === b ? 1 : 0));
+      const ic = b.icon();
+      D(c, ic, b.x + (b.w - ic.width) / 2, b.y + (b.h - ic.height) / 2 - 1 + (press && press.btn === b ? 1 : 0));
     }
     if (recess && !deco) { // bell to end recess early
       const b = btns.find(x => x.id === 'toys');
@@ -1180,6 +1197,17 @@ export function createClassroom(students, hooks) {
       sfx.pop();
       const id = p.btn.id;
       if (id === 'decorate') { deco = deco ? null : { tab: 'floor' }; return; }
+      if (id === 'lang') {
+        setLang(lang() === 'en' ? 'es' : 'en');
+        const aw = awake();
+        if (aw.length) {
+          speak(aw.find(s => s.kind === 'owl') || aw[0], lang() === 'es' ? 'Spanish time!' : 'English time!', 'yay');
+          for (const s of aw) { act(s, 'cheer', 1); hop(s, rand(40, 70)); }
+        } else sfx.chime();
+        teacherAct('wave', 1.2);
+        burst('confetti', p.btn.x + 13, p.btn.y + 26, 16, lang() === 'es' ? ['#1f8a4c', '#ffffff', '#d93a3a'] : ['#e0404b', '#ffffff', '#3a5fb0'], { sp: 70, g: 90 });
+        return;
+      }
       if (id === 'bell') { deco = null; startDay(); return; }
       if (id === 'stickers') bookOpen = { page: 0, t: G.time };
       if (id === 'home' && !busy) {
@@ -1214,6 +1242,12 @@ export function createClassroom(students, hooks) {
       burst('heart', p.f.x, p.f.y - 50, 3, ['#ff6f91', '#ff9ec4'], { up: true, sp: 30 });
       return;
     }
+    if (p.f && (p.f.type === 'abc' || p.f.type === 'shapetable')) {
+      if (busy || (phase !== 'class' && phase !== 'prep')) { sfx.tap(); return; }
+      sfx.whoosh(); deco = null;
+      if (p.f.type === 'abc') hooks.openLetters(); else hooks.openShapes();
+      return;
+    }
     if (p.f && (p.f.deco || p.f.type === 'rug')) { cycleVariant(p.f); return; }
     if (p.f) { // tap on furniture: a little wobble/sound
       p.f.lift = 2; setTimeout(() => { p.f.lift = 0; }, 120); sfx.tap();
@@ -1244,6 +1278,7 @@ export function createClassroom(students, hooks) {
   window.__ltBoardPt = () => css(L.board.x + 52, L.board.y + 30);
   window.__ltTray = () => (deco ? { tabs: TABS.map((t, k) => { const r = tabRect(k); return css(r.x + 10, r.y + 10); }), items: trayItems().map(it => css(it.x + it.w / 2, it.y + it.h / 2)) } : null);
   window.__ltDesks = () => desks.map(d => css(d.x, d.y - 18));
+  window.__ltFurnPt = (id) => { const f = furn[id]; const [, h] = sizeOf(f); return css(f.x, f.y - h / 2); };
   window.__ltTeacher = () => css(furn.teacher.x, furn.teacher.y - 30);
   window.__ltMenu = () => (menu ? menu.items.map(m => css(m.x + 24, m.y + 24)) : []);
 

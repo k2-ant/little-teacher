@@ -21,9 +21,13 @@ export const DECOR = {
   garland: { layer: 'wall', w: 48, h: 16, variants: [['#ffd23f'], ['#ff9ec4', '#ffd23f', '#7ec8ff']] },
   sun: { layer: 'wall', w: 22, h: 22, variants: [0] },
   moon: { layer: 'wall', w: 18, h: 18, variants: [0] },
+  clock: { layer: 'wall', w: 19, h: 19, variants: ['#ef6f6c', '#64a8e8', '#7dd370'] },
+  // learning areas (always in the room, can be moved)
+  abc: { layer: 'wall', w: 48, h: 34, variants: [0] },
+  shapetable: { layer: 'floor', w: 34, h: 26, variants: [0] },
 };
 export const FLOOR_ITEMS = ['beanbag', 'teddy', 'toybox', 'easel', 'fishtank', 'globe', 'flowers', 'balloons', 'lamp'];
-export const WALL_ITEMS = ['rainbow', 'poster', 'frame', 'butterflies', 'garland', 'sun', 'moon'];
+export const WALL_ITEMS = ['rainbow', 'poster', 'frame', 'butterflies', 'garland', 'sun', 'moon', 'clock'];
 export const DESK_ITEMS = ['apple', 'pencils', 'books', 'crayons', 'cactus', 'snowglobe'];
 
 export const WALLS = [
@@ -144,6 +148,25 @@ const DRAW = {
     for (let a = 0; a < 12; a++) { const ang = a * Math.PI / 6; p.line(11 + Math.cos(ang) * 6, 11 + Math.sin(ang) * 6, 11 + Math.cos(ang) * 10, 11 + Math.sin(ang) * 10, '#ffb020'); }
     p.ball(11, 11, 6.4, 6.4, '#ffd23f');
     p.px(9, 10, INK); p.px(13, 10, INK); p.px(10, 13, INK); p.px(11, 14, INK); p.px(12, 13, INK); p.px(8, 12, '#ff9fb4'); p.px(14, 12, '#ff9fb4');
+  },
+  clock(p, c) {
+    p.ell(9.5, 9.5, 9.5, 9.5, c); p.ell(9.5, 9.5, 7.6, 7.6, '#fffaf0');
+    for (let k = 0; k < 12; k++) { const a = k * Math.PI / 6; p.px(9.5 + Math.cos(a) * 6.4 - 0.5, 9.5 + Math.sin(a) * 6.4 - 0.5, k % 3 ? '#d8c7a8' : '#7a5b6a'); }
+    p.px(7, 4, '#ffffff'); p.px(6, 5, '#ffffff');
+  },
+  abc(p) {
+    p.rect(0, 0, 48, 34, '#a8703f'); p.hline(0, 47, 0, '#c98c55'); p.rect(2, 2, 44, 30, '#2f6a4f'); p.rect(2, 2, 44, 1, '#3f8a66');
+    const F = { A: ['.#.', '#.#', '###', '#.#', '#.#'], B: ['##.', '#.#', '##.', '#.#', '##.'], C: ['.##', '#..', '#..', '#..', '.##'], 1: ['.#.', '##.', '.#.', '.#.', '###'], 2: ['##.', '..#', '.#.', '#..', '###'], 3: ['##.', '..#', '.#.', '..#', '##.'] };
+    ['A', 'B', 'C'].forEach((ch, i) => p.map(8 + i * 12, 5, F[ch], { '#': ['#ff8f8f', '#ffe066', '#8fd0ff'][i] }, 2));
+    ['1', '2', '3'].forEach((ch, i) => p.map(10 + i * 11, 20, F[ch], { '#': ['#a6e69a', '#ffb3d1', '#d5b8ff'][i] }, 2));
+    p.rect(30, 30, 8, 2, '#ffffff'); p.rect(12, 32, 24, 2, '#8a5730');
+  },
+  shapetable(p) {
+    p.rect(4, 14, 2, 12, '#a8703f'); p.rect(28, 14, 2, 12, '#a8703f');
+    p.ell(17, 13, 16.5, 5.5, '#8fd0c8'); p.ell(17, 12, 16, 4.6, '#b8e6e0');
+    p.ball(8, 8, 3.6, 3.6, '#ef6f6c'); p.rect(14, 5, 6, 6, '#64a8e8'); p.rect(15, 6, 4, 1, '#9fd0ff');
+    for (let i = 0; i < 6; i++) p.hline(26 - Math.floor(i / 1.4), 26 + Math.floor(i / 1.4), 5 + i, '#ffd23f');
+    p.rect(9, 12, 8, 3, '#b48be6'); p.ell(23, 13, 3, 1.6, '#7dd370');
   },
   moon(p) {
     p.ball(9, 9, 8, 8, '#ffe58a'); p.ell(13, 6, 6.4, 6.4, 0);
