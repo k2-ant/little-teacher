@@ -73,6 +73,25 @@ export const CENTERS = [
 ];
 export const CENTRO_LINES = { start: '¡Hora de centros!', change: '¡Cambio de centro!' };
 
+// ---- v1.9 rituals
+// weather at circle time (owl asks + says the sentence, the class echoes the word)
+export const WEATHER = [
+  { id: 'sol', line: '¡Hoy hace sol!', word: '¡Sol!' },
+  { id: 'nubes', line: 'Hoy está nublado.', word: '¡Nubes!' },
+  { id: 'lluvia', line: '¡Hoy llueve!', word: '¡Lluvia!' },
+  { id: 'nieve', line: '¡Hoy nieva!', word: '¡Nieve!' },
+];
+export const WEATHER_ASK = '¿Qué tiempo hace hoy?';
+export const WEATHER_RECESS = { lluvia: '¡Burbujas!', nieve: '¡Hace frío!' };
+// class jobs ("Ayudantes"): the last column is the student who rests today
+export const JOBS = [
+  { id: 'lider', word: 'Líder de la fila' }, { id: 'luces', word: 'Luces' },
+  { id: 'calendario', word: 'Calendario' }, { id: 'plantas', word: 'Plantas' }, { id: 'descanso', word: 'Descanso' },
+];
+export const JOB_LINES = { follow: '¡Síganme!', water: '¡Yo riego las plantas!', lightsOff: '¡Apago la luz!', lightsOn: '¡Prendo la luz!' };
+export const RITUAL_UI = { jobs: 'Ayudantes' }; // merged into UI_WORDS by rituals.js
+export const RITUAL_HINTS = { weather: '¿Qué tiempo hace hoy? Toca un dibujo.', plant: '¡La planta tiene sed!', jobs: '¿Quién ayuda hoy?', jobsChart: 'Mueve a tus amigos a su trabajo.' }; // merged into HINTS
+
 // ------------------------------------------------------------------ spoken button names + hints (owl = helper voice)
 export const UI_WORDS = {
   stickers: 'Mis estampas', home: '¡Hora de ir a casa!', bell: '¡A clase!', decorate: 'Decorar', toys: 'Tiempo libre',
@@ -118,6 +137,7 @@ export function studentPhrases() {
   CENTERS.forEach(c => { out.add(c.id); out.add(c.line); });
   Object.values(CENTRO_LINES).forEach(l => out.add(l));
   out.add(STAR_COUNT_LINE);
+  [...WEATHER.map(w => w.word), ...Object.values(WEATHER_RECESS), ...JOBS.map(j => j.word), ...Object.values(JOB_LINES)].forEach(l => out.add(l));
   return [...out];
 }
 /** lines only the owl (our reading helper) says */
@@ -126,5 +146,6 @@ export function narratorPhrases() {
   for (const c of FAMILIES) for (const v of VOWELS) out.add(c + v);
   for (const w of WORDS) { out.add(w.w); w.s.forEach(x => out.add(x)); }
   [UI_WORDS, ITEM_WORDS, HINTS].forEach(o => Object.values(o).forEach(x => out.add(x)));
+  [WEATHER_ASK, ...WEATHER.map(w => w.line), ...Object.values(RITUAL_UI), ...Object.values(RITUAL_HINTS)].forEach(l => out.add(l));
   return [...out];
 }

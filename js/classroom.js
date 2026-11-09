@@ -9,6 +9,7 @@ import { createQuiz, makeQuestion, feelingsSteps } from './quiz.js';
 import * as LD from './learndata.js';
 import { VERSION } from './version.js';
 import { drawHand } from './hints.js';
+import { createRituals, jobsButtonIcon } from './rituals.js';
 import { wordSprite as wsprite } from './i18n.js';
 import { lang, setLang, flag, DAY_WORDS, DAY_SHORT, DAY_COLORS, dayIndex, daySentence, wordSprite } from './i18n.js';
 
@@ -112,6 +113,7 @@ export function createClassroom(students, hooks) {
   const btnPt = (id) => { const b = btns.find(q => q.id === id); return { x: b.x + 13, y: b.y + 12 }; };
   const ARM_IDS = ['star', 'cardGreen', 'cardRed'];
   function computeHint() {
+    const rh = RT.hint(); if (rh) return rh; // the jobs chart is open
     if (phase === 'prep') {
       if (G.save.decorStamp === prepStamp) {
         // alternate "decorate" and "ring the bell"; start with the bell when the room is already decorated
@@ -142,6 +144,7 @@ export function createClassroom(students, hooks) {
     const carry = (key, btn, s) => { const [hx, hy] = headPos(s); const b = btnPt(btn); return { key, x: b.x, y: b.y, from: b, to: { x: hx, y: hy + 6 }, icon: btn }; };
     const naughty = students.find(s => s.naughty && s.mode !== 'away'); if (naughty) return carry('naughty', 'cardRed', naughty);
     const raised = students.find(s => acting(s, 'raise') && s.mode === 'seated'); if (raised) return at(raised, 'question');
+    const rt = RT.classHint(G.time - (classStart || 0), btnPt, !!deco); if (rt) return rt; // thirsty plant / helpers chart
     const order = ['board', 'star', 'play', 'abc', 'home'];
     for (let k = 0; k < order.length; k++) {
       const key = order[(hintIdx + k) % order.length];
@@ -416,6 +419,7 @@ export function createClassroom(students, hooks) {
       { id: 'cardRed', x: V.W - i.r - 3 * B - 12, y: V.H - i.b - B - 4, w: B, h: B, icon: () => DC.trayIcon('cardRed') },
       { id: 'cdone', x: i.l + 4 + 2 * (B + 4), y: V.H - i.b - B - 4, w: B, h: B, icon: S.ICONS.check },
     ];
+    btns.push({ id: 'jobs', x: i.l + 4 + 3 * (B + 4), y: V.H - i.b - B - 4, w: B, h: B, icon: jobsButtonIcon }); // Ayudantes chart
     const db = btns.find(b => b.id === 'decorate');
     T = { x: db.x + db.w + 3, y: V.H - i.b - 52, h: 50 };
     T.w = V.W - i.r - 2 - T.x;
@@ -482,7 +486,7 @@ export function createClassroom(students, hooks) {
     for (let j = 0; j < 46; j++) {
       const y = wh + 2 + j; if (y >= H) break;
       const x0 = L.win.x - 14 - j * 0.9;
-      c.fillStyle = 'rgba(255,240,190,0.22)'; c.fillRect(Math.round(x0), y, 46 + Math.round(j * 0.3), 1);
+      c.fillStyle = `rgba(255,240,190,${RT.sunPatch()})`; c.fillRect(Math.round(x0), y, 46 + Math.round(j * 0.3), 1);
     }
     // pennant banner
     const bx0 = L.board.x - 6, bx1 = Math.min(L.win.x - 4, W - 36);
@@ -517,7 +521,7 @@ export function createClassroom(students, hooks) {
     if (sky === 'night') {
       D(c, cached('winmoon', () => { const p = new Pix(11, 11); p.ball(5, 5.5, 4.6, 4.6, '#ffe58a', { hi: false }); p.ell(7.5, 3.8, 3.6, 3.6, 0); p.px(3, 5, '#2b1d2e'); return p.canvas(); }), w.x + 33, w.y + 4);
       for (const [x, y] of [[6, 5], [14, 14], [24, 6], [44, 20], [9, 24]]) R(c, w.x + x, w.y + y, 1, 1, Math.floor(t * 2 + x) % 3 ? '#fff6b8' : '#8f93c8');
-    } else {
+    } else if (!RT.windowSky(c, w, sky)) { // cloudy / rainy / snowy days draw their own sky
       const sy = sky === 'sunset' ? 24 : 8;
       R(c, w.x + 36, w.y + sy, 8, 8, '#ffe066'); R(c, w.x + 35, w.y + sy + 1, 10, 6, '#ffe066'); R(c, w.x + 37, w.y + sy + 1, 2, 2, '#fff6c0');
       for (let k = 0; k < 2; k++) {
@@ -530,6 +534,7 @@ export function createClassroom(students, hooks) {
     // hills + tree outside
     R(c, w.x, w.y + w.h - 8, w.w, 8, sky === 'night' ? '#2f5a47' : '#7dc96b');
     R(c, w.x + 6, w.y + w.h - 18, 9, 10, sky === 'night' ? '#244a3a' : '#4fae45'); R(c, w.x + 9, w.y + w.h - 9, 3, 4, '#8a5730');
+    RT.windowFront(c, w); // rain / snow
     // mullions
     R(c, w.x + w.w / 2 - 1, w.y, 2, w.h, '#fffaf0'); R(c, w.x, w.y + w.h / 2 - 1, w.w, 2, '#fffaf0');
     // curtains
@@ -733,6 +738,7 @@ export function createClassroom(students, hooks) {
   }
   async function startDay() {
     busy = true; phase = 'morning'; hurry = false;
+    RT.dayStart();
     sky = 'morning'; duskTarget = 0;
     attendanceDone = false;
     feelT = rand(35, 50);
@@ -743,7 +749,7 @@ export function createClassroom(students, hooks) {
     dayCard = { t0: G.time, day: dayIndex() };
     sfx.chime(); teacherAct('point', 1.4);
     teach.pointRight = furn.calendar.x > furn.teacher.x;
-    wait(0.4).then(() => speak(students[3], daySentence(), 'here'));
+    wait(0.4).then(() => speak(RT.calSpeaker(), daySentence(), 'here')); // the calendar helper
     await hw(3.2);
     for (const s of students) {
       doorTarget = 1; sfx.door();
@@ -779,6 +785,7 @@ export function createClassroom(students, hooks) {
       teacherAct('cheer', 1.2);
       await hw(1.2);
     }
+    await RT.morningWeather(); // circle time: what's the weather today?
     busy = false; phase = 'class'; sky = 'day';
     hintT = 3; classStart = G.time; lastInput = G.time; nextHintAt = G.time + 6;
   }
@@ -801,7 +808,8 @@ export function createClassroom(students, hooks) {
     teacherAct('wave', 3);
     speak(students[3], 'Goodbye, teacher!', 'bye'); sfx.bye(1.2);
     await wait(2.4);
-    for (const s of students) {
+    await RT.leaderGo(); // the line leader goes first: "¡Síganme!"
+    for (const s of RT.lineOrder()) {
       doorTarget = 1;
       walkTo(s, L.doorPt.x + 4, L.doorPt.y + 8, 52).then(() => walkTo(s, L.doorPt.x, L.doorPt.y - 2, 40)).then(() => { s.mode = 'away'; });
       speak(s, BYES[s.kind], 'bye');
@@ -895,6 +903,7 @@ export function createClassroom(students, hooks) {
     for (const s of students) { s.sleep = false; s.hide = 0; s.snack = null; }
     sfx.ding(988);
     recess = { until: G.time + 30, ball: { x: V.W / 2, y: L.floorTop + L.floorH * 0.6, z: 0, vx: 0, vy: 0, vz: 0 } };
+    RT.recessStart(recess);
     speak(students[1], 'Recess! Yay!', 'yay');
     for (const s of students) {
       if (s.mode === 'seated') { Object.assign(s, seat(s)); s.mode = 'stand'; }
@@ -951,6 +960,7 @@ export function createClassroom(students, hooks) {
       }
     }
     centrosTick(dt);
+    RT.update(dt);
     if (calm && !busy && !story && !recess && !bookOpen) {
       feelT -= dt;
       if (feelT < 0) {
@@ -1053,7 +1063,7 @@ export function createClassroom(students, hooks) {
     const lift = f.lift || 0;
     if (f.type === 'desk') return drawDeskUnit(c, f);
     if (f.type === 'rug') { shadow(c, f.x, f.y, 80); return D(c, S.rug(DC.RUGS[G.save.rugV % DC.RUGS.length]), f.x - 42, f.y - 32 - lift); }
-    if (f.type === 'plant') return D(c, S.plant(), f.x - 14, f.y - 38 - lift);
+    if (f.type === 'plant') { D(c, S.plant(), f.x - 14, f.y - 38 - lift); RT.drawPlantExtra(c, f, lift); return; }
     if (f.type === 'shelf') return D(c, S.bookshelf(), f.x - 19, f.y - 46 - lift);
     if (f.type === 'teacher') return drawTeacher(c, f);
     const [w, h] = sizeOf(f);
@@ -1070,6 +1080,7 @@ export function createClassroom(students, hooks) {
       const wd = wordSprite(DAY_SHORT[di], DAY_COLORS[di]);
       D(c, wd, f.x - wd.width / 2, top + 9);
       for (let k = 0; k < 5; k++) R(c, f.x - 12 + k * 5, top + 21, 4, 3, k === di ? DAY_COLORS[k] : '#e6dccb');
+      RT.calBadge(c, f.x + w / 2 - 7, top - 3); // today's weather
     }
     if ((f.type === 'abc' || f.type === 'shapetable') && phase === 'class' && Math.floor(G.time * 2) % 9 === 0) {
       D(c, S.particle('spark', '#ffd23f'), f.x + w / 2 - 4, f.y - h - 2 + Math.round(Math.sin(G.time * 8)));
@@ -1105,6 +1116,7 @@ export function createClassroom(students, hooks) {
     const c = V.ctx, { W, H } = V;
     c.drawImage(bg, 0, 0);
     drawWindow(c); drawDoor(c); drawBoard(c);
+    RT.drawSwitch(c);
     // wall decorations
     for (const f of Object.values(furn)) if (layerOf(f) === 'wall' && !(drag && drag.f === f)) drawItem(c, f);
     // rug
@@ -1122,8 +1134,10 @@ export function createClassroom(students, hooks) {
       else if (o.s) {
         shadow(c, o.s.x, o.s.y, 16);
         drawStudent(c, o.s, o.s.x - S.SW / 2, o.s.y - S.SH);
+        RT.overStudent(c, o.s, o.s.x - S.SW / 2, o.s.y - S.SH - o.s.z);
       } else if (o.ball) {
         const b = o.ball;
+        if (RT.drawBall(c, b)) continue; // rainy recess: a soap bubble
         shadow(c, b.x, b.y, 8);
         D(c, cached('rball', () => { const p = new Pix(10, 10); p.ball(5, 5, 4.6, 4.6, '#ef6f6c'); p.ell(5, 5, 4.6, 4.6, '#ffd23f', { y0: 4, y1: 5 }, true); p.outline(); return p.canvas(); }), b.x - 5, b.y - 10 - b.z);
       }
@@ -1182,7 +1196,7 @@ export function createClassroom(students, hooks) {
   function shownBtns() {
     if (phase === 'prep') return btns.filter(b => ['stickers', 'bell', 'decorate', 'help'].includes(b.id));
     if (phase !== 'class' && phase !== 'activity') return [];
-    return btns.filter(b => ['stickers', 'home', 'decorate', 'help'].includes(b.id) || (!deco && ['star', 'toys', 'cardGreen', 'cardRed'].includes(b.id)) || ((recess || centros) && b.id === 'toys') || (centros && centros.stage === 'run' && b.id === 'cdone'));
+    return btns.filter(b => ['stickers', 'home', 'decorate', 'help'].includes(b.id) || (!deco && ['star', 'toys', 'cardGreen', 'cardRed'].includes(b.id)) || ((recess || centros) && b.id === 'toys') || (centros && centros.stage === 'run' && b.id === 'cdone') || (b.id === 'jobs' && phase === 'class' && !deco));
   }
   function drawHud(c) {
     if (!hudVisible()) return;
@@ -1420,6 +1434,7 @@ export function createClassroom(students, hooks) {
     if (bookOpen) drawStickerBook(c);
     quiz.render(c, V);
     if (centros && centros.stage === 'chart') drawCentrosChart(c);
+    RT.render(c); // weather picker + jobs chart
     drawHint(c);
   }
   function drawStory(c) {
@@ -1513,6 +1528,7 @@ export function createClassroom(students, hooks) {
     press = { x0: x, y0: y, x, y, moved: false, t: G.time };
     lastInput = G.time; hint = null;
     if (quiz.active) { press.quiz = true; return; }
+    if (RT.down(x, y)) { press.rt = true; return; } // weather picker / jobs chart
     if (centros && centros.stage === 'chart') {
       press.cchart = true;
       const f = faceRects().find(r => inRect(x, y, r));
@@ -1557,6 +1573,7 @@ export function createClassroom(students, hooks) {
     }
     if (phase !== 'prep' && inRect(x, y, L.chart)) { press.chart = true; return; }
     if (phase !== 'class' && phase !== 'activity' && phase !== 'prep') return;
+    if (RT.hitSwitch(x, y)) { press.lightSw = true; return; }
     if (!busy && !story) for (const d of desks) {
       if (G.save.deskItems[d.i] && inRect(x, y, { x: d.x + 1, y: d.y - 30, w: 18, h: 16 })) { press.deskItem = d; break; }
     }
@@ -1572,6 +1589,7 @@ export function createClassroom(students, hooks) {
   function move(x, y) {
     if (!press) return;
     press.x = x; press.y = y;
+    if (press.rt) { RT.move(x, y); return; }
     if (press.cchart) { if (centros && centros.drag) { centros.drag.x = x; centros.drag.y = y; } return; }
     if (!press.moved && Math.hypot(x - press.x0, y - press.y0) > 6) {
       press.moved = true;
@@ -1609,6 +1627,7 @@ export function createClassroom(students, hooks) {
   function up() {
     const p = press; press = null;
     if (!p) return;
+    if (p.rt) { RT.up(p.x, p.y, p.moved); return; }
     if (drag) {
       const d = drag; drag = null;
       if (d.kind === 'star') {
@@ -1688,6 +1707,7 @@ export function createClassroom(students, hooks) {
       return;
     }
     if (p.moved) return;
+    if (p.lightSw) { RT.tapSwitch(); return; }
     if (p.upd) { if (!p.updFired) sfx.tap(); return; } // a grown-up holds it for 1.5 s (see update())
     if (p.mus) { const on = G.save.music === false; hooks.setMusic?.(on); persist(); sfx.pop(on ? 1.3 : 0.8); return; }
     if (p.big && inRect(x, y, L.bigBtn)) { sfx.pop(); hooks.unlock?.(); enterPrep(); return; }
@@ -1736,6 +1756,7 @@ export function createClassroom(students, hooks) {
       }
       if (id === 'bell') { deco = null; startDay(); return; }
       if (id === 'cdone') { endCentros(); return; }
+      if (id === 'jobs') { if (!busy) RT.openJobs(); return; }
       if (id === 'cardGreen' || id === 'cardRed') return;
       if (id === 'stickers') bookOpen = { page: 0, t: G.time };
       if (id === 'home' && !busy && G.time > homeArm) { // first tap only asks; the 🏠 pulses for 4 s
@@ -1785,7 +1806,7 @@ export function createClassroom(students, hooks) {
     }
     if (p.f && p.f.type === 'calendar') {
       p.f.pop = G.time + 0.25; sfx.pop(1.2);
-      const t = awake().find(s => s.kind === 'owl') || pick(awake().length ? awake() : students);
+      const t = RT.calHelper(awake()) || awake().find(s => s.kind === 'owl') || pick(awake().length ? awake() : students);
       speak(t, daySentence(), 'here');
       teach.pointRight = p.f.x > furn.teacher.x; teacherAct('point', 1.2);
       burst('spark', p.f.x, p.f.y - 14, 6, [DAY_COLORS[dayIndex()], '#ffd23f']);
@@ -1798,6 +1819,7 @@ export function createClassroom(students, hooks) {
       return;
     }
     if (p.f && (p.f.deco || p.f.type === 'rug')) { cycleVariant(p.f); return; }
+    if (p.f && p.f.type === 'plant' && RT.tapPlant(p.f)) return; // the plant helper waters it
     if (p.f) { // tap on furniture: a little wobble/sound
       p.f.lift = 2; setTimeout(() => { p.f.lift = 0; }, 120); sfx.tap();
       if (p.f.type === 'shelf') sfx.page();
@@ -1823,6 +1845,15 @@ export function createClassroom(students, hooks) {
     teach.pointRight = furn.teacher.x < L.board.x + 52;
     teacherAct('point', 1.6);
   }
+
+  // ---------------------------------------------------------------- v1.9 daily rituals (js/rituals.js)
+  const RT = createRituals({
+    students, furn, V: () => V, L: () => L, phase: () => phase, busy: () => busy, recess: () => recess,
+    burst, headPos, seat, sendToSeat, teacherAct, awake, shadow, miniFace, btnFrame, scaled, sayUI,
+    setDusk: (v) => { duskTarget = v; }, redrawBg: () => { if (V) bg = drawBg(); },
+    pointAt: (x) => { teach.pointRight = x > furn.teacher.x; teacherAct('point', 1.4); },
+    css: (x, y) => [x * V.s / G.dpr, y * V.s / G.dpr], overBtn: (x, y) => shownBtns().some(b => inRect(x, y, b)),
+  });
 
   // hooks for automated screenshot tests
   const css = (x, y) => [x * V.s / G.dpr, y * V.s / G.dpr];

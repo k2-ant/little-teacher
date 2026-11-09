@@ -42,6 +42,9 @@ export function loadSave() {
   s.stickers ||= []; s.furniture ||= {}; s.stars ||= {};
   s.decor ||= []; s.deskItems ||= {}; s.paint ||= { wall: 0, floor: 0 }; s.rugV ||= 0;
   s.decorStamp ||= 0; s.decorSeen ||= 0;
+  // v1.9 rituals: today's weather { day, w } and the class jobs { day, assign: {kind: job}, watered }
+  if (!s.weather || typeof s.weather !== 'object' || typeof s.weather.w !== 'string') s.weather = null;
+  if (!s.jobs || typeof s.jobs !== 'object' || !s.jobs.assign || typeof s.jobs.assign !== 'object') s.jobs = null;
   G.save = s;
   return s;
 }
