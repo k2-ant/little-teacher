@@ -13,10 +13,17 @@ const p = await ctx.newPage();
 const errors = [];
 p.on('pageerror', e => { errors.push(String(e)); console.log('PAGEERROR', String(e)); });
 p.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
-await p.goto('http://localhost:8123/index.html?fast');
+await p.goto(`http://localhost:${process.env.LT_PORT || 8123}/index.html?fast`);
 await p.waitForTimeout(800);
 const W = ctxOpts.viewport.width, H = ctxOpts.viewport.height;
 const shot = async (n) => p.screenshot({ path: `${out}/${which}-${n}.png` });
+// the morning ends at circle time: tap a weather picture when they appear, then wait for class
+const waitMorning = async (timeout, name) => {
+  await p.waitForFunction(() => window.__ltWeather?.() || window.__lt.room.phase === 'class', null, { timeout });
+  const pics = await p.evaluate(() => window.__ltWeather?.());
+  if (pics) { if (name) await shot(name); await p.mouse.move(...pics[0]); await p.mouse.down(); await p.mouse.up(); }
+  await p.waitForFunction(() => window.__lt.room.phase === 'class', null, { timeout });
+};
 await shot('01-title');
 // helpers to convert logical coords of the active view to css px
 const L = async (fn) => p.evaluate(fn);
@@ -68,7 +75,7 @@ await p.waitForTimeout(550);
 await shot('02f-daycard');
 await p.waitForTimeout(1100);
 await shot('02-morning');
-await p.waitForFunction(() => window.__lt.room.phase === 'class', null, { timeout: 30000 });
+await waitMorning(30000, '02g-weather');
 await p.waitForTimeout(400);
 await shot('03-class');
 await p.waitForTimeout(3200);
@@ -277,7 +284,7 @@ await shot('17-night');
 await tapAt(W / 2, H * 0.58);
 await p.waitForTimeout(300);
 await tapAt(...(await p.evaluate(() => window.__ltBtn('bell'))));
-await p.waitForFunction(() => window.__lt.room.phase === 'class', null, { timeout: 40000 });
+await waitMorning(40000);
 const sb = await p.evaluate(() => window.__ltBtn('stickers'));
 await tapAt(...sb); await p.waitForTimeout(400);
 await shot('18-stickerbook');
