@@ -3,7 +3,7 @@ import { Pix, cached, glow, darken, lighten, mix } from './raster.js';
 import * as S from './sprites.js';
 import { sfx, hush } from './audio.js';
 import { act, acting, hop, talk, speak, animalSound, coax, physics, walkStep, walkTo, pose, traits, startle, GREETINGS, BYES, randomCheer } from './students.js';
-import { PAGES } from './pages.js';
+import { BOOKS } from './pages.js';
 import * as DC from './decor.js';
 import { createQuiz, makeQuestion, feelingsSteps } from './quiz.js';
 import * as LD from './learndata.js';
@@ -126,6 +126,7 @@ export function createClassroom(students, hooks) {
     if (centros && centros.stage === 'chart') { const { start } = centrosLayout(); return { key: 'chart', x: start.x + 18, y: start.y + 10 }; }
     if (recess) return { key: 'recessEnd', ...btnPt('toys') };
     if (centros && centros.stage === 'run') return { key: 'centrosEnd', ...btnPt('cdone') };
+    { const v = v19Hint(); if (v) return v; }
     if (story && L.storyBook) return { key: 'storyPage', x: L.storyBook.x + L.storyBook.w - 14, y: L.storyBook.y + L.storyBook.h - 16 };
     if (snackOn) return { key: 'snackWait', x: null };
     if (phase !== 'class' || busy) return null;
@@ -168,7 +169,7 @@ export function createClassroom(students, hooks) {
     if (hint.to) { // carry the star / card from its button to a student
       const k = Math.min(1, ((G.time - hint.t0) % 2.2) / 1.5), e = k * k * (3 - 2 * k);
       const x = hint.from.x + (hint.to.x - hint.from.x) * e, y = hint.from.y + (hint.to.y - hint.from.y) * e;
-      const ic = hint.icon === 'star' ? S.ICONS.star() : DC.trayIcon(hint.icon);
+      const ic = hint.img || (hint.icon === 'star' ? S.ICONS.star() : DC.trayIcon(hint.icon));
       D(c, ic, x - 9, y - 16);
       drawHand(c, x, y);
       return;
@@ -565,7 +566,7 @@ export function createClassroom(students, hooks) {
     R(c, L.clock.x, L.clock.y, 1, 1, '#ef6f6c');
   }
   function drawDoor(c) {
-    const d = L.door;
+    const d = knockShift(L.door);
     R(c, d.x - 3, d.y - 3, d.w + 6, d.h + 3, '#a8703f'); R(c, d.x - 3, d.y - 3, d.w + 6, 1, '#c98c55');
     if (doorOpen > 0.5) {
       R(c, d.x, d.y, d.w, d.h, '#4a3b5c');
@@ -650,6 +651,7 @@ export function createClassroom(students, hooks) {
   // ---------------------------------------------------------------- tapping students
   function tapStudent(s) {
     hintT = Math.min(hintT, 8);
+    if (doorTapStudent(s)) return;
     if (s.mode === 'walk') { hop(s, 60); sfx.boing(); return; }
     if (coax(s)) {
       if (!s.here && s.hide > 0) { // shy turtle peeks out: a moment later she comes all the way out and says ¡Presente!
@@ -737,6 +739,7 @@ export function createClassroom(students, hooks) {
     attendanceDone = false;
     feelT = rand(35, 50);
     for (const s of students) Object.assign(s, { card: 'green', naughty: null, center: undefined, mood: null, mode: 'away', here: false, sleep: false, hide: 0, act: null, bubble: null, glowT: 0, z: 0, vz: 0, snack: null, sleepT: rand(14, 24), wanderT: rand(20, 32), hideT: 0 });
+    planDoor(); // maybe a friend is late today, and 1-2 knocks at the door later
     await hw(0.5);
     sfx.bell();
     await hw(1.2);
@@ -746,6 +749,7 @@ export function createClassroom(students, hooks) {
     wait(0.4).then(() => speak(students[3], daySentence(), 'here'));
     await hw(3.2);
     for (const s of students) {
+      if (s.lateToday) continue;
       doorTarget = 1; sfx.door();
       await hw(0.35);
       s.x = L.doorPt.x; s.y = L.doorPt.y; s.mode = 'walk';
@@ -763,7 +767,7 @@ export function createClassroom(students, hooks) {
       await hw(1.5);
     }
     doorTarget = 0; sfx.door();
-    for (let i = 0; i < 40 && students.some(s => s.mode !== 'seated'); i++) await wait(0.2);
+    for (let i = 0; i < 40 && students.some(s => s.mode !== 'seated' && !s.lateToday); i++) await wait(0.2);
     await hw(0.3);
     speak(students[3], LD.CARD_LINES.allGreen, 'yay');
     for (const s of students) { s.cardT = G.time; burst('spark', desks[s.desk].x - 11, desks[s.desk].y - 10, 3, ['#3cb44b', '#a6e69a']); }
@@ -774,7 +778,7 @@ export function createClassroom(students, hooks) {
       for (const s of students) { s.sleep = false; act(s, 'gasp', 0.9); }
       sfx.ooh(1.25);
       await hw(0.9);
-      for (const s of students) { act(s, 'clap', 1.4); burst('star', ...headPos(s), 2, ['#ffd23f', '#ff9ec4'], { up: true }); }
+      for (const s of students.filter(t => t.mode !== 'away')) { act(s, 'clap', 1.4); burst('star', ...headPos(s), 2, ['#ffd23f', '#ff9ec4'], { up: true }); }
       speak(students[4], 'Ooh, so pretty!', 'yay'); sfx.clap(8, 1);
       teacherAct('cheer', 1.2);
       await hw(1.2);
@@ -832,26 +836,397 @@ export function createClassroom(students, hooks) {
   }
 
   // ---------------------------------------------------------------- free time
-  async function snackTime() {
-    busy = true; phase = 'activity'; snackOn = true;
+  // ================================================================ v1.9 activities
+  // ---------------------------------------------------------------- A5: she serves snack
+  // a tray with five snacks: drag one onto a friend, or tap it (it bobs up) and then tap a friend
+  let serve = null; // { slots:[{k, taken}], served, eating, armed:{i, until}, drag:{i,x,y}, done, hintAt }
+  const SNACK_KINDS = ['bunny', 'puppy', 'turtle', 'owl', 'frog'];
+  const eaters = () => students.filter(s => s.mode !== 'away');
+  const seatedAt = (x, y) => { const d = deskAt(x, y); return d ? students.find(s => s.desk === d.i && s.mode === 'seated') : null; };
+  function snackLayout() {
+    const sw = 24, w = SNACK_KINDS.length * sw + 8;
+    const x0 = Math.round(V.W / 2 - w / 2), y0 = V.H - V.inset.b - 31;
+    return { tray: { x: x0, y: y0, w, h: 28 }, slot: (i) => ({ x: x0 + 4 + i * sw, y: y0 + 2, w: sw, h: 24 }) };
+  }
+  async function serveSnack() {
+    busy = true; phase = 'activity'; snackOn = true; armed = null;
     await gatherSeats();
+    for (const s of students) { s.sleep = false; if (s.hide > 0) s.hide = 0; s.snack = null; s.naughty = null; s.fed = false; }
+    serve = { slots: SNACK_KINDS.map(k => ({ k, taken: false })), served: 0, eating: 0, armed: null, drag: null, done: false, hintAt: G.time + 8 };
     sfx.ding(880);
-    for (const s of students) { s.sleep = false; if (s.hide > 0) s.hide = 0; s.snack = { bites: 0 }; }
-    await wait(0.8);
-    for (const s of students) { act(s, 'gasp', 0.7); }
+    for (const s of awake()) act(s, 'gasp', 0.7);
     speak(students[1], 'Yummy!', 'yay');
-    await wait(1);
+    busy = false; lastInput = G.time;
+  }
+  function giveSnack(i, s) {
+    const slot = serve && serve.slots[i];
+    if (!slot || slot.taken || !s) return false;
+    if (s.fed || s.mode !== 'seated') { act(s, 'happy', 0.8); hop(s, 40); talk(s, 'heart', 1); if (s.fed) speak(s, LD.SNACK_FULL, 'yay'); sfx.softPop(); return false; }
+    slot.taken = true; s.fed = true; serve.served++; serve.eating++;
+    s.sleep = false; if (s.hide > 0) s.hide = 0;
+    s.snack = { bites: 0, k: slot.k };
+    act(s, 'gasp', 0.7); hop(s, 60); sfx.pop(1.2); teacherAct('clap', 0.8);
+    burst('spark', ...headPos(s), 6, ['#ffd23f', '#ffffff', '#ff9ec4'], { sp: 50 });
+    const n = serve.served;
+    wait(0.45).then(() => speak(helper(), LD.COUNT_WORDS[n - 1], 'here')); // the owl counts: uno, dos, tres…
+    munchSnack(s);
+    return true;
+  }
+  async function munchSnack(s) {
+    const sv = serve;
+    await wait(1.0);
     for (let b = 0; b < 3; b++) {
-      for (const s of students) {
-        act(s, 'munch', 1.1);
-        wait(rand(0, 0.5)).then(() => { s.snack.bites = b + 1; sfx.crunch(); const d = desks[s.desk]; burst('crumb', d.x, d.y - 18, 4, ['#e8b06a', '#ff9a3c', '#ff4f6a'], { up: true, sp: 30, g: 140 }); });
-      }
-      await wait(1.5);
+      if (serve !== sv || !s.snack) return;
+      act(s, 'munch', 0.9); s.snack.bites = b + 1; sfx.crunch();
+      const d = desks[s.desk]; burst('crumb', d.x, d.y - 18, 4, ['#e8b06a', '#ff9a3c', '#ff4f6a'], { up: true, sp: 30, g: 140 });
+      await wait(0.85);
     }
-    for (const s of students) { s.snack = null; act(s, 'happy', 1.2); burst('heart', ...headPos(s), 2, ['#ff6f91'], { up: true, sp: 25 }); }
-    sfx.yay(1.2); speak(students[4], 'Thank you!', 'yay');
-    await wait(1.2);
-    busy = false; phase = 'class'; snackOn = false;
+    if (serve !== sv) return;
+    s.snack = null; act(s, 'happy', 1.2); burst('heart', ...headPos(s), 3, ['#ff6f91'], { up: true, sp: 25 });
+    speak(s, pick(LD.SNACK_THANKS), 'yay');
+    sv.eating--;
+    if (sv.served >= eaters().length && sv.eating === 0) snackDone();
+  }
+  async function snackDone() {
+    const sv = serve;
+    if (!sv || sv.done) return;
+    sv.done = true; sv.armed = null;
+    await wait(0.5);
+    sfx.yay(1.2); sfx.chime(); teacherAct('cheer', 1.4);
+    for (const s of awake()) { act(s, 'cheer', 1.3); hop(s, 60); burst('heart', ...headPos(s), 4, ['#ff6f91', '#ff9ec4'], { up: true, sp: 40 }); }
+    await wait(1.8);
+    const pup = students.find(s => s.kind === 'puppy' && s.mode === 'seated');
+    if (serve === sv && pup) { // the puppy comes to beg at the empty tray
+      const { tray } = snackLayout();
+      Object.assign(pup, seat(pup)); pup.mode = 'stand';
+      await walkTo(pup, tray.x + tray.w / 2, tray.y - 1, 70);
+      if (serve !== sv) return;
+      act(pup, 'raise', 2); sfx.woof(); talk(pup, 'heart', 2); hop(pup, 50);
+      await wait(0.6);
+      for (const s of awake()) if (s !== pup && s.mode === 'seated') act(s, 'giggle', 1.4);
+      sfx.giggle(1.2, 5);
+      await wait(1.8);
+    }
+    if (serve !== sv) return;
+    serve = null; snackOn = false;
+    busy = true; await gatherSeats(); busy = false; phase = 'class';
+  }
+  function snackHint() {
+    const i = serve.slots.findIndex(sl => !sl.taken);
+    const s = students.find(t => t.mode === 'seated' && !t.fed);
+    if (i < 0 || !s) return { key: 'snackWait', x: null };
+    const r = snackLayout().slot(i), [hx, hy] = headPos(s);
+    const from = { x: r.x + 12, y: r.y + 14 };
+    return { key: 'snackServe', ...from, from, to: { x: hx, y: hy + 6 }, img: S.snack(serve.slots[i].k, 0) };
+  }
+  function snackDown(x, y) { // true when this press belongs to the snack tray
+    if (!serve || serve.done || (deco && inRect(x, y, T))) return false;
+    const { slot } = snackLayout();
+    const i = serve.slots.findIndex((sl, k) => !sl.taken && inRect(x, y, slot(k)));
+    if (i >= 0) { press.snack = i; return true; }
+    if (serve.armed) {
+      if (shownBtns().some(q => inRect(x, y, q))) { serve.armed = null; return false; }
+      const s = hitStudent(x, y) || seatedAt(x, y);
+      if (s) { press.snackS = s; return true; }
+      serve.armed = null; sfx.softPop(); press.swallow = true; return true;
+    }
+    return false;
+  }
+  function snackMove(x, y) {
+    if (press.snack === undefined) return false;
+    if (!press.moved && Math.hypot(x - press.x0, y - press.y0) > 6) { press.moved = true; sfx.lift(); if (serve) serve.armed = null; }
+    if (press.moved && serve) serve.drag = { i: press.snack, x, y };
+    return true;
+  }
+  function snackUp(p) {
+    if (p.snack === undefined && !p.snackS) return false;
+    const sv = serve; if (!sv) return true;
+    if (p.snackS) { const a = sv.armed; sv.armed = null; if (a && !p.moved) giveSnack(a.i, p.snackS); return true; }
+    const d = sv.drag; sv.drag = null;
+    if (d) { const s = hitStudent(d.x, d.y) || seatedAt(d.x, d.y + 6); if (!giveSnack(p.snack, s) && !s) sfx.softPop(); return true; }
+    // a tap picks the snack up (it bobs over the tray); tap a friend next, or tap it again to put it back
+    if (sv.armed && sv.armed.i === p.snack) { sv.armed = null; sfx.softPop(); return true; }
+    sv.armed = { i: p.snack, until: G.time + 8 }; sfx.lift();
+    const r = snackLayout().slot(p.snack); burst('spark', r.x + 12, r.y + 2, 6, ['#ffd23f', '#ffffff']);
+    return true;
+  }
+  function drawSnackTray(c) {
+    if (!serve) return;
+    const { tray, slot } = snackLayout();
+    c.fillStyle = 'rgba(80,40,30,0.2)'; c.fillRect(tray.x + 3, tray.y + tray.h - 1, tray.w - 6, 3);
+    D(c, btnFrame(tray.w, tray.h, '#d6ecff', 'snacktray'), tray.x, tray.y);
+    R(c, tray.x + 3, tray.y + 3, tray.w - 6, 1, '#ffffff');
+    serve.slots.forEach((sl, i) => {
+      const r = slot(i);
+      R(c, r.x + 4, r.y + 17, 16, 3, '#bcd8ee'); // little plate
+      if (sl.taken || (serve.drag && serve.drag.i === i)) return;
+      const img = scaled(S.snack(sl.k, 0), 2);
+      if (serve.armed && serve.armed.i === i) { c.globalAlpha = 0.35; D(c, img, r.x, r.y - 2); c.globalAlpha = 1; return; }
+      D(c, img, r.x, r.y - 2 + (serve.hintAt < G.time && Math.floor(G.time * 2 + i) % 5 === 0 ? -1 : 0));
+    });
+  }
+  function drawSnackHeld(c) { // the snack being dragged / picked up floats on top of everything
+    if (!serve) return;
+    if (serve.armed && (G.time > serve.armed.until || busy)) serve.armed = null;
+    const pickImg = (i) => scaled(S.snack(serve.slots[i].k, 0), 2);
+    if (serve.drag) {
+      const d = serve.drag, img = pickImg(d.i), hov = hitStudent(d.x, d.y) || seatedAt(d.x, d.y + 6);
+      if (hov && !hov.fed) D(c, glow(img, '#fff6b8', 'snackglow' + d.i), d.x - 13, d.y - 13);
+      D(c, img, d.x - 12, d.y - 12);
+    } else if (serve.armed) {
+      const r = snackLayout().slot(serve.armed.i), img = pickImg(serve.armed.i), bob = Math.round(Math.sin(G.time * 6) * 2);
+      D(c, glow(img, '#fff6b8', 'snackglow' + serve.armed.i), r.x - 1, r.y - 27 + bob);
+      D(c, img, r.x, r.y - 26 + bob);
+      if (Math.random() < 0.08) burst('spark', r.x + 12 + rand(-8, 8), r.y - 16 + bob, 1, ['#ffd23f', '#ffffff'], { sp: 15 });
+    }
+  }
+
+  // ---------------------------------------------------------------- A7: knock-knock, who's at the door?
+  // 1-2 knocks per class day, only in calm class time: a late friend, a parcel with a new decoration, or a ball
+  let door = null; // { queue, nextAt, knock: { kind, n, nextT }, late, bob }
+  let parcel = null, rollBall = null;
+  let doorPlanNext = null; // test hook: force tomorrow's plan
+  function nextGift() {
+    return DC.PARCEL_ITEMS.find(t => !G.save.gifts.includes(t)) || DC.PARCEL_ITEMS.find(t => !Object.values(furn).some(f => f.type === t));
+  }
+  function planDoor() {
+    for (const s of students) s.lateToday = false;
+    let late = null, q;
+    if (doorPlanNext) { q = [...doorPlanNext.q]; late = doorPlanNext.late != null ? students[doorPlanNext.late] : null; doorPlanNext = null; }
+    else {
+      late = Math.random() < 0.25 ? pick(students.filter(s => s !== helper())) : null;
+      const extras = (nextGift() ? ['parcel', 'ball'] : ['ball']).sort(() => Math.random() - 0.5);
+      q = late ? ['late'] : [extras.shift()];
+      if (Math.random() < 0.45 && extras.length) q.push(extras.shift());
+    }
+    if (late) late.lateToday = true;
+    door = { queue: q, nextAt: Infinity, knock: null, late, bob: -9 };
+  }
+  const doorQuiet = () => phase === 'class' && !busy && !quiz.active && !menu && !bookOpen && !drag && !dayCard && !reward
+    && !story && !recess && !centros && !serve && !parcel && !rollBall && !(press && press.moved);
+  function knockShift(d) { // the door jiggles with each knock
+    if (!door || G.time - door.bob > 0.7) return d;
+    return ((G.time - door.bob) % 0.24) < 0.08 ? { ...d, x: d.x + 1 } : d;
+  }
+  function knock() {
+    door.bob = G.time;
+    [0, 0.24, 0.48].forEach(t => wait(t).then(() => { sfx.thump(); burst('spark', L.door.x + L.door.w / 2 + rand(-6, 6), L.door.y + 22 + rand(-6, 6), 2, ['#ffffff', '#ffd23f'], { sp: 25 }); }));
+    for (const s of students) if (s.mode === 'seated' && !s.sleep && !(s.hide > 0) && !s.act) { s.look = -1; act(s, 'look', 1.4); }
+    teach.pointRight = false; teacherAct('point', 1);
+    hint = { key: 'door', x: L.door.x + L.door.w / 2, y: L.door.y + 28, t0: G.time, until: G.time + 6 };
+    if (door.knock.n === 1) wait(0.8).then(() => speak(helper(), LD.HINTS.door, 'tap'));
+  }
+  function doorTick(dt) {
+    if (serve && phase !== 'activity') { serve = null; snackOn = false; } // home pressed mid-snack
+    if (!door) return;
+    if (phase === 'goodbye' || phase === 'reward' || phase === 'night' || phase === 'prep' || phase === 'title') {
+      if (door.late && door.late.mode === 'away' && phase === 'goodbye') door.late.mode = 'seated'; // never came in: at least say goodbye
+      door = null; parcel = null; rollBall = null; return;
+    }
+    if (door.nextAt === Infinity && phase === 'class') door.nextAt = G.time + (door.late ? rand(10, 16) : rand(30, 55));
+    if (parcel) { parcel.x += (parcel.tx - parcel.x) * Math.min(1, dt * 5); }
+    if (rollBall) ballTick(dt);
+    if (!door.knock) {
+      if (door.queue.length && G.time > door.nextAt && doorQuiet()) door.knock = { kind: door.queue.shift(), n: 0, nextT: G.time };
+      return;
+    }
+    const k = door.knock;
+    if (G.time < k.nextT) return;
+    if (!doorQuiet()) { k.nextT = G.time + 2; return; } // wait for a calm moment, never during activities
+    if (k.n >= 3) { // nobody answered: the late friend lets themselves in, other surprises are skipped today
+      door.knock = null; door.nextAt = G.time + rand(50, 80);
+      if (k.kind === 'late') arriveLate();
+      return;
+    }
+    k.n++; k.nextT = G.time + 9;
+    knock();
+  }
+  function answerDoor() {
+    if (!door || !door.knock || door.knock.n === 0 || phase !== 'class' || busy) return false;
+    const kind = door.knock.kind;
+    door.knock = null; door.nextAt = G.time + rand(70, 110); hint = null;
+    for (const s of students) if (s.mode === 'seated' && s.look === -1) s.look = 0;
+    sfx.door(); teach.pointRight = false; teacherAct('wave', 1.2);
+    if (kind === 'late') arriveLate();
+    else if (kind === 'parcel') deliverParcel();
+    else rollInBall();
+    return true;
+  }
+  async function arriveLate() {
+    const s = door && door.late;
+    if (!s || s.mode !== 'away') return;
+    doorTarget = 1; sfx.door();
+    await wait(0.4);
+    s.x = L.doorPt.x; s.y = L.doorPt.y; s.mode = 'walk'; s.lateToday = false;
+    await walkTo(s, L.doorPt.x + 4, L.doorPt.y + 10, 40);
+    act(s, 'sorry', 1.8); talk(s, 'heart', 1.8); speak(s, LD.DOOR_LINES.late, 'here');
+    for (const t of students) if (t !== s && t.mode === 'seated' && !t.sleep && !(t.hide > 0)) { t.look = 0; act(t, 'wave', 1.4); }
+    await wait(1.8);
+    doorTarget = 0; sfx.door();
+    if (s.mode !== 'stand') return;
+    const p = seat(s);
+    walkTo(s, p.x, p.y, 44).then(() => { s.mode = 'seated'; s.look = 0; act(s, 'happy', 1); }); // still needs ¡Presente! on the chart
+  }
+  function deliverParcel() {
+    const type = nextGift();
+    if (!type) { rollInBall(); return; }
+    doorTarget = 1;
+    parcel = { type, x: L.doorPt.x, y: L.doorPt.y + 14, tx: clamp(L.doorPt.x + 62, 30, V.W - 30), ready: false };
+    sfx.whoosh();
+    for (const s of awake()) if (s.mode === 'seated') act(s, 'gasp', 0.9);
+    wait(0.8).then(() => { if (parcel) { parcel.ready = true; sfx.thump(); burst('crumb', parcel.x, parcel.y, 6, ['#d9c3a0', '#c9b08a'], { up: true, sp: 25, g: 100, life: 0.5 }); } doorTarget = 0; sfx.door(); sfx.ooh(1.2); });
+  }
+  function openParcel() {
+    const pc = parcel; parcel = null; hint = null;
+    sfx.fanfare(); teacherAct('cheer', 1.2);
+    burst('confetti', pc.x, pc.y - 12, 34, ['#ef6f6c', '#ffd23f', '#7dd370', '#64a8e8', '#b48be6'], { sp: 90, g: 80, life: 1.5 });
+    if (!G.save.gifts.includes(pc.type)) G.save.gifts.push(pc.type);
+    addDecor(pc.type, pc.x, pc.y - DC.DECOR[pc.type].h / 2); // saves the room too
+    persist();
+    wait(1.6).then(() => {
+      speak(helper(), LD.DOOR_LINES.parcel, 'yay'); sfx.clap(6, 1);
+      for (const s of students) if (s.mode === 'seated' && !s.sleep && !(s.hide > 0)) act(s, 'clap', 1.4);
+    });
+  }
+  function parcelImg() {
+    return cached('parcel', () => {
+      const p = new Pix(18, 17);
+      p.rect(1, 5, 16, 11, '#d9a066'); p.rect(1, 5, 16, 2, '#e8b884'); p.rect(1, 14, 16, 2, '#b8804a');
+      p.rect(8, 5, 2, 11, '#ef6f6c'); p.rect(1, 9, 16, 2, '#ef6f6c');
+      p.ell(6, 3, 3, 2.2, '#ff8fb8'); p.ell(12, 3, 3, 2.2, '#ff8fb8'); p.ball(9, 4, 1.6, 1.6, '#ef6f6c', { hi: false });
+      p.outline(); return p.canvas();
+    });
+  }
+  function rollInBall() {
+    doorTarget = 1;
+    rollBall = { x: L.doorPt.x, y: L.doorPt.y + 6, z: 6, vx: 75, vy: rand(12, 28), vz: 50, state: 'roll', t: 0, pup: null, nudge: 0 };
+    sfx.boing();
+    wait(0.7).then(() => { doorTarget = 0; sfx.door(); });
+    const pup = students.find(s => s.kind === 'puppy' && s.mode === 'seated' && s.here);
+    for (const s of students) if (s.mode === 'seated' && s !== pup && !s.sleep && !(s.hide > 0)) act(s, 'gasp', 0.8);
+    if (pup) {
+      rollBall.pup = pup;
+      wait(0.5).then(() => { if (!rollBall || pup.mode !== 'seated') { ballBack(); return; } Object.assign(pup, seat(pup)); pup.mode = 'stand'; rollBall.up = true; pup.sleep = false; hop(pup, 70); sfx.woof(); talk(pup, 'note', 1.4); });
+    }
+  }
+  function ballTick(dt) {
+    const b = rollBall;
+    if (phase !== 'class' && phase !== 'activity') { rollBall = null; return; }
+    b.t += dt;
+    if (b.state === 'back') { // bounce back out of the door
+      const k = Math.min(1, (G.time - b.t0) / 1.1);
+      b.x = b.fx + (L.doorPt.x - b.fx) * k; b.y = b.fy + (L.doorPt.y + 2 - b.fy) * k; b.z = Math.abs(Math.sin(k * Math.PI * 2.5)) * 10;
+      if (k >= 1) { rollBall = null; doorTarget = 0; sfx.door(); }
+      return;
+    }
+    b.vz -= 300 * dt; b.z += b.vz * dt;
+    if (b.z < 0) { b.z = 0; if (b.vz < -40) { b.vz = -b.vz * 0.5; sfx.tap(); } else b.vz = 0; }
+    b.x += b.vx * dt; b.y += b.vy * dt; b.vx *= 1 - dt * 0.8; b.vy *= 1 - dt * 0.8;
+    b.x = clamp(b.x, 12, V.W - 12); b.y = clamp(b.y, L.floorTop + 10, V.H - 6);
+    const pup = b.pup;
+    if (!pup) { if (b.t > 6) ballBack(); return; }
+    if (!b.up) return; // he jumps up first
+    if (pup.mode === 'held' || pup.mode === 'seated' || phase !== 'class') { ballBack(); return; } // someone put him back
+    const dist = Math.hypot(pup.x - b.x, pup.y - b.y);
+    if (pup.mode === 'stand' && dist > 12) walkTo(pup, clamp(b.x - 9, 14, V.W - 14), b.y, 62);
+    if (pup.mode === 'stand' && dist <= 12) {
+      if (b.state === 'roll') { b.state = 'play'; b.playT = G.time; act(pup, 'happy', 1.4); speak(pup, LD.DOOR_LINES.ball, 'yay'); }
+      b.nudge -= dt;
+      if (b.nudge < 0) { b.nudge = rand(1.4, 2.2); hop(pup, 50); b.vz = 70; sfx.woof(); talk(pup, 'heart', 1); }
+      if (G.time - b.playT > 25) ballBack(); // he gives it back by himself after a while
+    }
+  }
+  function ballBack() {
+    const b = rollBall;
+    if (!b || b.state === 'back') return;
+    b.state = 'back'; b.t0 = G.time; b.fx = b.x; b.fy = b.y; b.vz = 0;
+    doorTarget = 1; sfx.boing(); hint = null;
+    const pup = b.pup;
+    if (pup && (pup.mode === 'stand' || pup.mode === 'walk')) {
+      act(pup, 'cheer', 1.2); hop(pup, 70); wait(1).then(() => { if (pup.mode === 'stand' || pup.mode === 'walk') sendToSeat(pup); });
+    }
+    for (const s of students) if (s.mode === 'seated' && !s.sleep && !(s.hide > 0)) act(s, 'clap', 1);
+  }
+  function doorTapStudent(s) { // tapping the puppy who's playing with the ball sends it back
+    if (!rollBall || rollBall.pup !== s || rollBall.state === 'back') return false;
+    ballBack(); return true;
+  }
+  function v19Down(x, y) {
+    if (busy || phase !== 'class') return false;
+    if (parcel && parcel.ready && Math.abs(x - parcel.x) < 14 && y > parcel.y - 22 && y < parcel.y + 5) { press.v19 = 'parcel'; return true; }
+    if (rollBall && rollBall.state !== 'back' && Math.hypot(x - rollBall.x, y - (rollBall.y - 5 - rollBall.z)) < 13) { press.v19 = 'ball'; return true; }
+    return false;
+  }
+  function v19Tap(what) {
+    if (what === 'parcel' && parcel && parcel.ready) openParcel();
+    if (what === 'ball' && rollBall) ballBack();
+  }
+  function v19Objs(objs) { // y-sorted things on the floor
+    if (rollBall) objs.push({ y: rollBall.y, ball: rollBall });
+    if (parcel) objs.push({ y: parcel.y, draw: (c) => {
+      const hopY = parcel.ready && Math.floor(G.time * 1.5) % 3 === 0 ? -Math.round(Math.abs(Math.sin(G.time * 9)) * 2) : 0;
+      shadow(c, parcel.x, parcel.y, 16); D(c, parcelImg(), parcel.x - 9, parcel.y - 17 + hopY);
+    } });
+  }
+  function v19Tick(dt) { doorTick(dt); snackIdle(); }
+  function snackIdle() { // after 8 s idle the hint hand carries a snack to a hungry friend
+    if (!serve || serve.done || busy || hint || drag || quiz.active || menu || bookOpen) return;
+    if (G.time - lastInput > 8 && G.time > serve.hintAt) { showHint(false); serve.hintAt = G.time + 14; }
+  }
+  function v19Hint() {
+    if (serve && !serve.done) return snackHint();
+    if (story && story.stage === 'choose') { const r = coverRects()[story.def]; return { key: 'storyPick', x: r.x + r.w / 2, y: r.y + r.h / 2 }; }
+    if (phase !== 'class' || busy) return null;
+    if (door && door.knock && door.knock.n > 0) return { key: 'door', x: L.door.x + L.door.w / 2, y: L.door.y + 28 };
+    if (parcel && parcel.ready) return { key: 'parcel', x: parcel.x, y: parcel.y - 6 };
+    if (rollBall && rollBall.pup && rollBall.state === 'play') { const [hx, hy] = headPos(rollBall.pup); return { key: 'ballBack', x: hx, y: hy + 12 }; }
+    return null;
+  }
+
+  // ---------------------------------------------------------------- A4: story books
+  function coverRects() {
+    const cw = 64, ch = 76, gap = 14, tot = BOOKS.length * cw + (BOOKS.length - 1) * gap;
+    const x0 = Math.round(V.W / 2 - tot / 2), y0 = Math.round(V.H / 2 - ch / 2 - 6);
+    return BOOKS.map((_, k) => ({ x: x0 + k * (cw + gap), y: y0, w: cw, h: ch }));
+  }
+  function storyBack() { const r = coverRects()[0]; return { x: Math.max(V.inset.l + 2, r.x - 30), y: Math.max(V.inset.t + 2, r.y - 22), w: 26, h: 26 }; }
+  function storyTap(x, y) {
+    if (story.stage !== 'choose') { turnPage(); return; }
+    if (inRect(x, y, storyBack())) { sfx.whoosh(); sayUI('back'); endStory(); return; }
+    const k = coverRects().findIndex(r => inRect(x, y, r));
+    if (k < 0) { sfx.tap(); return; }
+    story.stage = 'read'; story.book = k; story.page = -1; story.flipT = G.time;
+    sfx.page(); sfx.sparkle();
+    for (const s of students) act(s, 'gasp', 0.9);
+    const st = story;
+    wait(0.4).then(() => { if (story === st && st.page < 0) speak(helper(), LD.BOOK_TEXT[k].title, 'yay'); });
+  }
+  function readPage(b, pg) { // the owl reads one line, then a friend echoes the key word
+    const t = LD.BOOK_TEXT[b], st = story;
+    wait(0.6).then(() => { if (story === st && st.page === pg) speak(helper(), t.lines[pg], 'here'); });
+    wait(2.9).then(() => {
+      if (story !== st || st.page !== pg) return;
+      const kids = students.filter(s => s !== helper() && s.mode !== 'away');
+      if (!kids.length) return;
+      const s = kids[(pg + b * 2) % kids.length];
+      act(s, 'cheer', 1.3); hop(s, 70); speak(s, t.words[pg], 'yay');
+      burst('star', ...headPos(s), 5, ['#ffd23f', '#ff9ec4', '#7ec8ff'], { up: true });
+    });
+  }
+  function drawBookChooser(c) {
+    c.fillStyle = 'rgba(40,30,60,0.45)'; c.fillRect(0, 0, V.W, V.H);
+    coverRects().forEach((r, k) => {
+      const bk = BOOKS[k], bob = k === story.def ? Math.round(Math.sin(G.time * 4) * 1.5) : 0, y = r.y + bob;
+      c.fillStyle = 'rgba(30,20,40,0.3)'; c.fillRect(r.x + 3, y + 4, r.w, r.h);
+      R(c, r.x - 1, y - 1, r.w + 2, r.h + 2, darken(bk.dark, 0.3));
+      R(c, r.x, y, r.w, r.h, bk.color); R(c, r.x, y, 6, r.h, bk.dark); R(c, r.x + 6, y, 1, r.h, lighten(bk.color, 0.4));
+      R(c, r.x + 9, y + 6, 54, 46, '#fffaf0'); D(c, bk.cover(), r.x + 10, y + 7);
+      for (let q = 0; q < 3; q++) D(c, S.particle('star', '#fff6b8'), r.x + 15 + q * 15, y + 60);
+      R(c, r.x + 6, y + r.h - 3, r.w - 7, 2, '#fffaf0');
+      if (k === story.def && Math.random() < 0.06) burst('spark', r.x + rand(0, r.w), y + rand(0, r.h), 1, ['#ffd23f', '#ffffff'], { sp: 15 });
+    });
+    const bk = storyBack();
+    D(c, btnFrame(26, 26), bk.x, bk.y); D(c, S.ICONS.back(), bk.x + 4, bk.y + 3);
   }
   async function storyTime() {
     busy = true; phase = 'activity'; calmMoods();
@@ -860,26 +1235,28 @@ export function createClassroom(students, hooks) {
     for (const s of students) { s.sleep = false; s.hide = 0; s.snack = null; }
     sfx.ding(660);
     await Promise.all(students.map((s, k) => {
+      if (s.mode === 'away') return null;
       if (s.mode === 'seated') { Object.assign(s, seat(s)); s.mode = 'stand'; }
       return walkTo(s, spots[k].x, spots[k].y, 50);
     }));
     for (const s of students) s.look = 0;
-    story = { page: -1, t: G.time, flipT: G.time };
-    sfx.page();
+    story = { stage: 'choose', book: 0, def: dayIndex() % BOOKS.length, page: -1, t: G.time, flipT: G.time }; // pick a book first
+    sfx.page(); wait(0.3).then(() => speak(helper(), LD.HINTS.storyPick, 'tap'));
     busy = false;
   }
   function turnPage() {
-    if (!story) return;
-    if (G.time - story.flipT < 0.6) return;
+    if (!story || story.stage !== 'read') return;
+    if (G.time - story.flipT < 0.9) return;
     story.flipT = G.time;
     story.page++;
     sfx.page();
-    if (story.page >= PAGES.length) { endStory(); return; }
+    if (story.page >= BOOKS[story.book].pages.length) { endStory(); return; }
     const reacts = [['gasp', 'ooh'], ['happy', 'yay'], ['giggle', 'giggle'], ['gasp', 'ooh'], ['clap', 'clap']][story.page];
     wait(0.4).then(() => {
       for (const s of students) act(s, reacts[0], 1.4);
       if (reacts[1] === 'clap') sfx.cheer(1.1); else if (reacts[1] === 'giggle') sfx.giggle(1.2, 6); else sfx[reacts[1]](1.2);
     });
+    readPage(story.book, story.page);
   }
   async function endStory() {
     busy = true;
@@ -951,6 +1328,7 @@ export function createClassroom(students, hooks) {
       }
     }
     centrosTick(dt);
+    v19Tick(dt);
     if (calm && !busy && !story && !recess && !bookOpen) {
       feelT -= dt;
       if (feelT < 0) {
@@ -1032,7 +1410,7 @@ export function createClassroom(students, hooks) {
     const item = G.save.deskItems[d.i];
     D(c, S.desk(d.i, !!item), d.x - S.DESK_W / 2, d.y - S.DESK_H - d.lift);
     if (item) D(c, DC.deskItem(item), d.x + 3, d.y - 28 - d.lift);
-    if (s && s.snack) D(c, S.snack(s.kind, s.snack.bites), d.x - 6, d.y - 26 - d.lift);
+    if (s && s.snack) D(c, S.snack(s.snack.k || s.kind, s.snack.bites), d.x - 6, d.y - 26 - d.lift);
     const owner = students.find(t => t.desk === d.i);
     if (owner && owner.card && owner.mode !== 'away') {
       const cc = owner.card === 'red' ? '#ef4b4b' : '#3cb44b', fl = owner.cardT && G.time - owner.cardT < 0.4;
@@ -1116,6 +1494,7 @@ export function createClassroom(students, hooks) {
     for (const f of Object.values(furn)) if (f.type !== 'rug' && layerOf(f) === 'floor' && !(drag && drag.f === f)) objs.push({ y: f.y, f });
     for (const s of students) if (s.mode !== 'seated' && s.mode !== 'away' && s.mode !== 'held') objs.push({ y: s.y, s });
     if (recess) objs.push({ y: recess.ball.y, ball: recess.ball });
+    v19Objs(objs);
     objs.sort((a, b) => a.y - b.y);
     for (const o of objs) {
       if (o.f) drawItem(c, o.f);
@@ -1126,7 +1505,7 @@ export function createClassroom(students, hooks) {
         const b = o.ball;
         shadow(c, b.x, b.y, 8);
         D(c, cached('rball', () => { const p = new Pix(10, 10); p.ball(5, 5, 4.6, 4.6, '#ef6f6c'); p.ell(5, 5, 4.6, 4.6, '#ffd23f', { y0: 4, y1: 5 }, true); p.outline(); return p.canvas(); }), b.x - 5, b.y - 10 - b.z);
-      }
+      } else if (o.draw) o.draw(c);
     }
     // particles + bubbles
     for (const p of parts) {
@@ -1153,6 +1532,7 @@ export function createClassroom(students, hooks) {
       const tgt = deskAt(held.x, held.y + 8);
       if (tgt) { c.fillStyle = 'rgba(255,230,110,0.5)'; c.fillRect(tgt.x - 17, tgt.y - 4, 34, 3); }
     }
+    drawSnackTray(c);
     drawHud(c);
     drawTrash(c);
     // things being dragged float on top of everything (also the trash can)
@@ -1164,6 +1544,7 @@ export function createClassroom(students, hooks) {
     }
     if (drag && drag.kind === 'new') drawNewGhost(c);
     drawArmed(c);
+    drawSnackHeld(c);
     if (dayCard) drawDayCard(c);
     if (drag && drag.kind === 'star') {
       const st = drag.card ? DC.trayIcon(drag.card === 'green' ? 'cardGreen' : 'cardRed') : S.ICONS.star();
@@ -1182,7 +1563,7 @@ export function createClassroom(students, hooks) {
   function shownBtns() {
     if (phase === 'prep') return btns.filter(b => ['stickers', 'bell', 'decorate', 'help'].includes(b.id));
     if (phase !== 'class' && phase !== 'activity') return [];
-    return btns.filter(b => ['stickers', 'home', 'decorate', 'help'].includes(b.id) || (!deco && ['star', 'toys', 'cardGreen', 'cardRed'].includes(b.id)) || ((recess || centros) && b.id === 'toys') || (centros && centros.stage === 'run' && b.id === 'cdone'));
+    return btns.filter(b => ['stickers', 'home', 'decorate', 'help'].includes(b.id) || (!deco && !serve && ['star', 'toys', 'cardGreen', 'cardRed'].includes(b.id)) || ((recess || centros) && b.id === 'toys') || (centros && centros.stage === 'run' && b.id === 'cdone'));
   }
   function drawHud(c) {
     if (!hudVisible()) return;
@@ -1423,24 +1804,32 @@ export function createClassroom(students, hooks) {
     drawHint(c);
   }
   function drawStory(c) {
-    const { W, H } = V;
-    const bw = 124, bh = 64;
-    const x = Math.round(W / 2 - bw / 2), y = Math.round(H - bh - 10 - V.inset.b);
+    if (story.stage === 'choose') { drawBookChooser(c); return; }
+    const { W, H } = V, bk = BOOKS[story.book];
+    const pw = 104, ph = 88, rw = 46; // the picture is the page art at 2x; the right page shows how far we've read
+    const open = story.page >= 0;
+    const bw = open ? pw + rw + 14 : pw + 18, bh = ph + 12;
+    const x = Math.round(W / 2 - bw / 2), y = clamp(Math.round(L.floorTop - bh / 2 - 4), V.inset.t + 30, Math.max(V.inset.t + 30, H - bh - 4));
     L.storyBook = { x, y, w: bw, h: bh };
-    R(c, x - 2, y - 2, bw + 4, bh + 4, '#7a3f2a'); R(c, x, y, bw, bh, '#c95f4a');
-    R(c, x + 4, y + 3, bw / 2 - 4, bh - 6, '#fffaf0'); R(c, x + bw / 2, y + 3, bw / 2 - 4, bh - 6, '#fff3e0');
-    R(c, x + bw / 2 - 1, y + 2, 2, bh - 4, '#d8c7a8');
-    if (story.page < 0) {
-      // cover: a star
-      R(c, x + 4, y + 3, bw - 8, bh - 6, '#ff9ec4');
-      D(c, scaled(S.ICONS.book(), 2), x + bw / 2 - 18, y + bh / 2 - 18);
+    c.fillStyle = 'rgba(30,20,40,0.3)'; c.fillRect(x + 3, y + 4, bw, bh);
+    R(c, x - 2, y - 2, bw + 4, bh + 4, darken(bk.dark, 0.3)); R(c, x, y, bw, bh, bk.color);
+    if (!open) { // the cover, big
+      R(c, x, y, 7, bh, bk.dark); R(c, x + 7, y, 1, bh, lighten(bk.color, 0.4));
+      R(c, x + 10, y + 4, pw + 4, ph + 4, '#fffaf0'); D(c, scaled(bk.cover(), 2), x + 12, y + 6);
     } else {
-      const pg = PAGES[Math.min(story.page, PAGES.length - 1)]();
-      D(c, pg, x + 6, y + 10);
-      // facing page: a few big "words" of coloured dots, like a picture book with no reading needed
-      for (let k = 0; k <= story.page; k++) D(c, S.particle('star', ['#ffd23f', '#ff6f91', '#64a8e8', '#7dd370', '#b48be6'][k]), x + bw / 2 + 8 + k * 10, y + 28);
+      R(c, x + 4, y + 3, pw + 4, bh - 6, '#fffaf0');
+      const pages = bk.pages;
+      D(c, scaled(pages[Math.min(story.page, pages.length - 1)](), 2), x + 6, y + 6);
+      const rx = x + pw + 8;
+      R(c, rx, y + 3, rw + 2, bh - 6, '#fff3e0'); R(c, rx - 1, y + 2, 2, bh - 4, '#d8c7a8');
+      pages.forEach((_, k) => { // one star per page, lit up to here
+        const sx = rx + 8 + (k % 2) * 18, sy = y + 10 + Math.floor(k / 2) * 18;
+        const on = k <= story.page, img = scaled(S.particle('star', on ? ['#ffd23f', '#ff6f91', '#64a8e8', '#7dd370'][k % 4] : '#e6dccb'), 2);
+        D(c, img, sx, sy - (k === story.page ? Math.round(Math.abs(Math.sin(G.time * 4)) * 2) : 0));
+      });
     }
-    if (Math.floor(G.time * 2) % 2) D(c, S.ICONS.play(), x + bw - 14, y + bh - 14);
+    const k = Math.floor(G.time * 2) % 2;
+    D(c, scaled(S.ICONS.play(), open ? 2 : 1), x + bw - (open ? 42 : 22), y + bh - (open ? 42 : 22) - k);
   }
   function drawReward(c) {
     const { W, H } = V;
@@ -1532,6 +1921,7 @@ export function createClassroom(students, hooks) {
     if (bookOpen) { press.book = true; return; }
     if (menu) { press.menu = true; return; }
     if (phase === 'morning' && !hurry) hurryUp(x, y);
+    if (snackDown(x, y)) return;
     if (armed) { // holding a star / card: the next student tap gets it, a tap anywhere else puts it back
       const b = shownBtns().find(q => inRect(x, y, q));
       if (!b) {
@@ -1561,6 +1951,7 @@ export function createClassroom(students, hooks) {
       if (G.save.deskItems[d.i] && inRect(x, y, { x: d.x + 1, y: d.y - 30, w: 18, h: 16 })) { press.deskItem = d; break; }
     }
     if (press.deskItem) return;
+    if (v19Down(x, y)) return;
     const s = hitStudent(x, y);
     if (s) { press.s = s; return; }
     if (busy) return;
@@ -1572,6 +1963,7 @@ export function createClassroom(students, hooks) {
   function move(x, y) {
     if (!press) return;
     press.x = x; press.y = y;
+    if (snackMove(x, y)) return;
     if (press.cchart) { if (centros && centros.drag) { centros.drag.x = x; centros.drag.y = y; } return; }
     if (!press.moved && Math.hypot(x - press.x0, y - press.y0) > 6) {
       press.moved = true;
@@ -1609,6 +2001,7 @@ export function createClassroom(students, hooks) {
   function up() {
     const p = press; press = null;
     if (!p) return;
+    if (snackUp(p)) return;
     if (drag) {
       const d = drag; drag = null;
       if (d.kind === 'star') {
@@ -1687,6 +2080,7 @@ export function createClassroom(students, hooks) {
       else { const r = students.filter(s => s.center === 1); const t = r.length ? pick(r) : students[3]; act(t, 'happy', 1.2); sfx.page(); speak(t, LD.CENTERS[1].line, 'yay'); }
       return;
     }
+    if (p.v19) { if (!p.moved) v19Tap(p.v19); return; }
     if (p.moved) return;
     if (p.upd) { if (!p.updFired) sfx.tap(); return; } // a grown-up holds it for 1.5 s (see update())
     if (p.mus) { const on = G.save.music === false; hooks.setMusic?.(on); persist(); sfx.pop(on ? 1.3 : 0.8); return; }
@@ -1704,7 +2098,7 @@ export function createClassroom(students, hooks) {
       if (m) { sayUI(m.key); m.go(); }
       return;
     }
-    if (p.story) { turnPage(); return; }
+    if (p.story) { storyTap(x, y); return; }
     if (p.tray) {
       if (p.tab) { deco.tab = p.tab; sfx.pop(1.1); sayUI(p.tab); return; }
       const it = p.trayItem;
@@ -1756,7 +2150,7 @@ export function createClassroom(students, hooks) {
         const x0 = Math.round(V.W / 2 - tot / 2), y0 = Math.round(V.H / 2 - sz / 2);
         menu = { items: [
           { icon: S.ICONS.ball, go: recessTime, key: 'recess' },
-          { icon: S.ICONS.apple, go: snackTime, key: 'snack' },
+          { icon: S.ICONS.apple, go: serveSnack, key: 'snack' },
           { icon: S.ICONS.book, go: storyTime, key: 'story' },
           { icon: () => DC.trayIcon('centros'), go: openCentrosChart, key: 'centros' },
         ].map((m, k) => ({ ...m, x: x0 + k * (sz + gap), y: y0, w: sz, h: sz })) };
@@ -1797,6 +2191,7 @@ export function createClassroom(students, hooks) {
       if (p.f.type === 'abc') hooks.openLetters(); else hooks.openShapes();
       return;
     }
+    if (p.f && p.f.type === 'shelf' && phase === 'class' && !busy) { sfx.page(); sayUI('story'); storyTime(); return; } // pick a story book
     if (p.f && (p.f.deco || p.f.type === 'rug')) { cycleVariant(p.f); return; }
     if (p.f) { // tap on furniture: a little wobble/sound
       p.f.lift = 2; setTimeout(() => { p.f.lift = 0; }, 120); sfx.tap();
@@ -1814,7 +2209,7 @@ export function createClassroom(students, hooks) {
       if (now - lastTap > 0.3) { lastTap = now; hooks.openBoard(L.board, V.s); }
       return;
     }
-    if (p.door) { sfx.door(); }
+    if (p.door) { if (!answerDoor()) sfx.door(); }
   }
 
   function watchBoard() { // after a lesson: students react to the new drawing
@@ -1845,6 +2240,12 @@ export function createClassroom(students, hooks) {
   window.__ltTeacher = () => css(furn.teacher.x, furn.teacher.y - 30);
   window.__ltMenu = () => (menu ? menu.items.map(m => css(m.x + 24, m.y + 24)) : []);
   window.__ltUpd = () => (L.updBtn ? css(L.updBtn.x + 11, L.updBtn.y + 11) : null);
+  // v1.9 activities
+  window.__ltSnack = () => (serve ? { slots: serve.slots.map((sl, i) => { const r = snackLayout().slot(i); return sl.taken ? null : css(r.x + 12, r.y + 12); }), served: serve.served, done: serve.done, armed: !!serve.armed } : null);
+  window.__ltDoorPlan = (q, late) => { doorPlanNext = { q, late }; };
+  window.__ltKnock = (kind) => { if (!door) planDoor(); door.queue.unshift(kind); door.nextAt = G.time; };
+  window.__ltDoor = () => ({ pt: css(L.door.x + L.door.w / 2, L.door.y + 30), door: door && { queue: door.queue, knock: door.knock, late: door.late && door.late.kind }, parcel: parcel && css(parcel.x, parcel.y - 8), ball: rollBall && { state: rollBall.state, pt: css(rollBall.x, rollBall.y - 5 - rollBall.z) } });
+  window.__ltStory = () => (story ? { stage: story.stage, book: story.book, page: story.page, covers: story.stage === 'choose' ? coverRects().map(r => css(r.x + r.w / 2, r.y + r.h / 2)) : null, book_pt: L.storyBook ? css(L.storyBook.x + L.storyBook.w / 2, L.storyBook.y + L.storyBook.h / 2) : null } : null);
 
   return {
     resize, update, render, down, move, up, startDay, watchBoard, startle: () => students.forEach(startle),

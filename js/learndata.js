@@ -99,6 +99,28 @@ export const HINTS = {
   storyPage: 'Toca el libro para pasar la página.', snackWait: 'Espera, están comiendo.',
 };
 
+// ---- v1.9 activities
+// serve snack (students say '¡Gracias!' / '¡Qué rico!'; the owl counts 'uno'…'cinco' — clips exist)
+export const SNACK_THANKS = ['¡Gracias!', '¡Qué rico!'];
+export const COUNT_WORDS = ['uno', 'dos', 'tres', 'cuatro', 'cinco'];
+export const SNACK_FULL = '¡Ya comí!';
+// knock-knock door
+export const DOOR_LINES = { late: '¡Perdón, maestra! Llegué tarde.', ball: '¡Mi pelota!', parcel: '¡Algo nuevo para el salón!' };
+// story books: the owl reads one short line per page, a friend echoes the key word (art: pages.js BOOKS)
+export const BOOK_TEXT = [
+  { title: '¡Pato y la lluvia!', lines: ['Pato sale a jugar.', '¡Ay! Llueve mucho.', 'Pato salta en el charco.', '¡Mira! Un arcoíris.'], words: ['¡Pato!', '¡Llueve!', '¡Salta!', '¡Arcoíris!'] },
+  { title: '¡La semillita!', lines: ['Una semillita duerme.', 'Sale el sol. Cae el agua.', 'Crece, crece, crece.', '¡Una flor muy grande!'], words: ['¡Semillita!', '¡Agua!', '¡Crece!', '¡Flor!'] },
+  { title: '¡El cohete!', lines: ['El cohete está listo.', 'Tres, dos, uno… ¡Despega!', 'Vuela con las estrellas.', '¡Hola, luna!'], words: ['¡Cohete!', '¡Despega!', '¡Estrellas!', '¡Luna!'] },
+];
+export const V19_HINTS = {
+  snackServe: 'Dale la merienda a tus amigos.', door: 'Toc, toc. ¿Quién será?', parcel: '¡Abre la caja!',
+  ballBack: 'Toca al perrito para regresar la pelota.', storyPick: 'Escoge un cuento.',
+};
+Object.assign(HINTS, V19_HINTS);
+Object.assign(ITEM_WORDS, { dino: 'dinosaurio', robot: 'robot', rocket: 'cohete' });
+const V19_STUDENT = () => [...SNACK_THANKS, SNACK_FULL, DOOR_LINES.late, DOOR_LINES.ball, ...BOOK_TEXT.flatMap(b => b.words)];
+const V19_OWL = () => [...COUNT_WORDS, DOOR_LINES.parcel, ...BOOK_TEXT.flatMap(b => [b.title, ...b.lines])];
+
 /** lines spoken by any student */
 export function studentPhrases() {
   const out = new Set([Q_INTRO, ...Q_RIGHT, Q_WRONG, FEEL_CALL, FEEL_Q1, FEEL_Q2, FEEL_DONE]);
@@ -118,6 +140,7 @@ export function studentPhrases() {
   CENTERS.forEach(c => { out.add(c.id); out.add(c.line); });
   Object.values(CENTRO_LINES).forEach(l => out.add(l));
   out.add(STAR_COUNT_LINE);
+  V19_STUDENT().forEach(l => out.add(l));
   return [...out];
 }
 /** lines only the owl (our reading helper) says */
@@ -126,5 +149,6 @@ export function narratorPhrases() {
   for (const c of FAMILIES) for (const v of VOWELS) out.add(c + v);
   for (const w of WORDS) { out.add(w.w); w.s.forEach(x => out.add(x)); }
   [UI_WORDS, ITEM_WORDS, HINTS].forEach(o => Object.values(o).forEach(x => out.add(x)));
+  V19_OWL().forEach(l => out.add(l));
   return [...out];
 }

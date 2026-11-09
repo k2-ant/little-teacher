@@ -26,7 +26,12 @@ export const DECOR = {
   abc: { layer: 'wall', w: 48, h: 34, variants: [0] },
   calendar: { layer: 'wall', w: 26, h: 28, variants: [0] },
   shapetable: { layer: 'floor', w: 34, h: 26, variants: [0] },
+  // v1.9: surprises that arrive in a parcel at the door (not in the tray; unlocked + placed when delivered)
+  dino: { layer: 'floor', w: 28, h: 24, variants: ['#7dd370', '#ff9ec4', '#7ec8ff'], parcel: true },
+  robot: { layer: 'floor', w: 20, h: 30, variants: ['#9fb4cc', '#ffd23f', '#ff9ec4'], parcel: true },
+  rocket: { layer: 'floor', w: 18, h: 36, variants: ['#ef6f6c', '#64a8e8', '#b48be6'], parcel: true },
 };
+export const PARCEL_ITEMS = ['dino', 'robot', 'rocket'];
 export const FLOOR_ITEMS = ['beanbag', 'teddy', 'toybox', 'easel', 'fishtank', 'globe', 'flowers', 'balloons', 'lamp'];
 export const WALL_ITEMS = ['rainbow', 'poster', 'frame', 'butterflies', 'garland', 'sun', 'moon', 'clock'];
 export const DESK_ITEMS = ['apple', 'pencils', 'books', 'crayons', 'cactus', 'snowglobe'];
@@ -174,6 +179,34 @@ const DRAW = {
     p.ball(8, 8, 3.6, 3.6, '#ef6f6c'); p.rect(14, 5, 6, 6, '#64a8e8'); p.rect(15, 6, 4, 1, '#9fd0ff');
     for (let i = 0; i < 6; i++) p.hline(26 - Math.floor(i / 1.4), 26 + Math.floor(i / 1.4), 5 + i, '#ffd23f');
     p.rect(9, 12, 8, 3, '#b48be6'); p.ell(23, 13, 3, 1.6, '#7dd370');
+  },
+  dino(p, c) { // a plush dinosaur
+    const d = darken(c, 0.2), m = lighten(c, 0.45);
+    for (let i = 0; i < 9; i++) p.ell(3 + i * 0.9, 17 - i * 0.5, 2.6 - i * 0.15, 2.2 - i * 0.15, c); // tail
+    p.ball(13, 16, 8, 6, c); p.ell(13, 18, 5, 3, m, null, true);
+    p.rect(8, 20, 4, 4, d); p.rect(15, 20, 4, 4, d);
+    p.rect(19, 6, 4, 10, c); p.ball(22, 6, 5, 4.4, c); p.px(23, 5, INK); p.px(26, 7, d);
+    for (const [x, y] of [[8, 9], [12, 8], [16, 9], [19, 3]]) { p.px(x, y, '#ffd23f'); p.px(x - 1, y + 1, '#ffd23f'); p.px(x + 1, y + 1, '#ffd23f'); }
+    p.px(21, 8, '#ff9fb4');
+  },
+  robot(p, c) { // a toy robot with a blinking antenna
+    const d = darken(c, 0.25);
+    p.vline(10, 0, 3, '#7a6a80'); p.ball(10, 1, 1.6, 1.6, '#ef4b4b', { hi: false });
+    p.rect(3, 4, 15, 10, c); p.rect(3, 4, 15, 1, lighten(c, 0.4));
+    p.rect(5, 6, 4, 4, '#fffaf0'); p.rect(12, 6, 4, 4, '#fffaf0'); p.px(7, 8, INK); p.px(14, 8, INK);
+    p.hline(7, 13, 12, INK);
+    p.rect(4, 15, 13, 10, d); p.rect(7, 17, 7, 6, '#fffaf0'); p.map(8, 18, ['##.##', '#####', '.###.', '..#..'], { '#': '#ef6f6c' });
+    p.rect(0, 16, 3, 7, c); p.rect(18, 16, 3, 7, c);
+    p.rect(5, 25, 4, 5, c); p.rect(12, 25, 4, 5, c);
+  },
+  rocket(p, c) { // a toy rocket on three little feet
+    for (let y = 0; y < 8; y++) p.hline(9 - Math.floor(y * 0.7), 9 + Math.floor(y * 0.7), y + 1, c);
+    p.rect(4, 9, 11, 18, '#fffaf0'); p.rect(4, 9, 2, 18, '#e9dfcf');
+    p.ball(9.5, 15, 3.4, 3.4, '#7ec8ff'); p.px(8, 14, '#ffffff');
+    p.rect(4, 22, 11, 2, c);
+    for (let i = 0; i < 6; i++) { p.hline(0 + Math.floor(i / 2), 4, 21 + i, c); p.hline(15, 18 - Math.floor(i / 2), 21 + i, c); }
+    p.rect(6, 27, 7, 2, '#9aa7b8');
+    p.rect(7, 29, 5, 3, '#ffd23f'); p.rect(8, 32, 3, 3, '#ffa65c'); p.px(9, 35, '#ef6f6c');
   },
   moon(p) {
     p.ball(9, 9, 8, 8, '#ffe58a'); p.ell(13, 6, 6.4, 6.4, 0);
