@@ -61,6 +61,9 @@ export const WORDS = [
 ];
 export const SIL_HELLO = '¡Vamos a leer!';
 
+// ------------------------------------------------------------------ whiteboard
+export const STAR_COUNT_LINE = '¡Cuántas estrellas!';
+
 // ------------------------------------------------------------------ behaviour cards + centros
 export const CARD_LINES = { sorry: 'Lo siento, maestra.', thanks: '¡Gracias, maestra!', allGreen: '¡Todos empiezan en verde!', newDay: '¡Mañana es un nuevo día!' };
 export const NAUGHTY_LINES = { frog: '¡Jajaja!', owl: '¡Yo sé! ¡Yo sé!', bunny: '¡Oye, oye!' };
@@ -91,6 +94,9 @@ export const HINTS = {
   star: 'Dale una estrella a un amigo.', play: '¡Vamos a jugar!', abc: '¡Vamos a escribir letras!', home: 'Cuando termines, toca la casita.',
   trace: 'Empieza en el punto verde.', shapes: 'Pon cada figura en su lugar.', draw: '¡Dibuja con un marcador!',
   chart: 'Mueve a tus amigos y toca la campana.', naughty: '¿Quién necesita una tarjeta?',
+  closeTray: 'Toca el pincel para guardar la bandeja.', homeAsk: '¿Ya nos vamos a casa?',
+  recessEnd: 'Toca la campana para volver a clase.', centrosEnd: 'Toca la palomita para terminar.',
+  storyPage: 'Toca el libro para pasar la página.', snackWait: 'Espera, están comiendo.',
 };
 
 /** lines spoken by any student */
@@ -111,6 +117,7 @@ export function studentPhrases() {
   Object.values(NAUGHTY_LINES).forEach(l => out.add(l));
   CENTERS.forEach(c => { out.add(c.id); out.add(c.line); });
   Object.values(CENTRO_LINES).forEach(l => out.add(l));
+  out.add(STAR_COUNT_LINE);
   return [...out];
 }
 /** lines only the owl (our reading helper) says */

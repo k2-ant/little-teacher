@@ -29,13 +29,23 @@ const room = createClassroom(students, {
   openLetters() { letters.open(); go('letters'); },
   openShapes() { shapes.open(); go('shapes'); },
   unlock() { goFullscreen(); },
+  // grown-up refresh: only when we can really reach the server, so an offline tap never bricks the app.
+  // Returns false (and changes nothing) when offline.
   async forceUpdate() {
+    if (navigator.onLine === false) return false;
     try {
-      const ks = await caches.keys(); await Promise.all(ks.map(k => caches.delete(k)));
+      const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), 5000);
+      // HEAD is not answered by sw.js (it only serves GETs), so this really asks the network
+      const r = await fetch('js/version.js?probe=' + Date.now(), { method: 'HEAD', cache: 'no-store', signal: ctl.signal });
+      clearTimeout(to);
+      if (!r.ok) return false;
+    } catch (e) { return false; }
+    try {
       const regs = navigator.serviceWorker && navigator.serviceWorker.getRegistrations ? await navigator.serviceWorker.getRegistrations() : [];
-      for (const r of regs) await r.unregister();
+      await Promise.race([Promise.all(regs.map(r => r.update().catch(() => {}))), new Promise(res => setTimeout(res, 4000))]);
     } catch (e) { /* ignore */ }
     location.reload();
+    return true;
   },
   setMusic(onOff) { G.save.music = onOff; music.setOn(onOff); },
 });

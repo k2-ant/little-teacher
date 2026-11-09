@@ -99,6 +99,10 @@ export function createClassroom(students, hooks) {
   let story = null, recess = null, centros = null;
   let naughtyT = 55;
   let updateAvail = null, updateChecked = false;
+  let homeArm = 0; // first tap on 🏠 asks "¿Ya nos vamos?"; a second tap before this time goes home
+  let armed = null; // sticky pick-up: tap the star / a card, then tap a student { id, until }
+  let hurry = false; // morning: a tap on the floor speeds everyone up
+  let bellBob = 0, prepHintN = 0, snackOn = false;
   // ---- spoken button names + "what do I do next?" hints
   let lastInput = 0, nextHintAt = 12, hint = null, hintIdx = 0, prepStamp = 0;
   const saidHint = {};
@@ -106,20 +110,37 @@ export function createClassroom(students, hooks) {
   function sayUI(key) { if (LD.UI_WORDS[key]) speak(helper(), LD.UI_WORDS[key], 'tap'); }
   function sayItem(key) { if (LD.ITEM_WORDS[key]) speak(helper(), LD.ITEM_WORDS[key], 'tap'); }
   const btnPt = (id) => { const b = btns.find(q => q.id === id); return { x: b.x + 13, y: b.y + 12 }; };
+  const ARM_IDS = ['star', 'cardGreen', 'cardRed'];
   function computeHint() {
     if (phase === 'prep') {
       if (G.save.decorStamp === prepStamp) {
+        // alternate "decorate" and "ring the bell"; start with the bell when the room is already decorated
+        const ringFirst = G.save.decor.length > 0 || (G.save.day || 1) > 1;
+        const key = (prepHintN++ + (ringFirst ? 1 : 0)) % 2 ? 'ring' : 'decorate';
+        if (key === 'ring') return { key, ...btnPt('bell') };
         if (deco) { const it = trayItems()[0]; return { key: 'decorate', x: it.x + it.w / 2, y: it.y + 8 }; }
         return { key: 'decorate', ...btnPt('decorate') };
       }
       return { key: 'ring', ...btnPt('bell') };
     }
     if (centros && centros.stage === 'chart') { const { start } = centrosLayout(); return { key: 'chart', x: start.x + 18, y: start.y + 10 }; }
+    if (recess) return { key: 'recessEnd', ...btnPt('toys') };
+    if (centros && centros.stage === 'run') return { key: 'centrosEnd', ...btnPt('cdone') };
+    if (story && L.storyBook) return { key: 'storyPage', x: L.storyBook.x + L.storyBook.w - 14, y: L.storyBook.y + L.storyBook.h - 16 };
+    if (snackOn) return { key: 'snackWait', x: null };
     if (phase !== 'class' || busy) return null;
+    const t = classHint();
+    // the open decorate tray hides the star / card / toys buttons: first ask her to put the tray away
+    if (t && deco && ['star', 'play', 'naughty'].includes(t.key)) { const q = btnPt('decorate'); return { key: 'closeTray', x: q.x + 2, y: q.y - 6 }; }
+    return t;
+  }
+  function classHint() {
     const at = (s, key) => { const [x, y] = headPos(s); return { key, x, y: y + 12 }; };
     const absent = students.find(s => !s.here && s.mode === 'seated'); if (absent) return at(absent, 'attendance');
     const moody = students.find(s => s.mood && (s.mode === 'seated' || s.mode === 'stand')); if (moody) return at(moody, 'mood');
-    const naughty = students.find(s => s.naughty && s.mode !== 'away'); if (naughty) return { key: 'naughty', ...btnPt('cardRed') };
+    // star / cards: the hand carries the icon from the button onto a student's head
+    const carry = (key, btn, s) => { const [hx, hy] = headPos(s); const b = btnPt(btn); return { key, x: b.x, y: b.y, from: b, to: { x: hx, y: hy + 6 }, icon: btn }; };
+    const naughty = students.find(s => s.naughty && s.mode !== 'away'); if (naughty) return carry('naughty', 'cardRed', naughty);
     const raised = students.find(s => acting(s, 'raise') && s.mode === 'seated'); if (raised) return at(raised, 'question');
     const order = ['board', 'star', 'play', 'abc', 'home'];
     for (let k = 0; k < order.length; k++) {
@@ -127,7 +148,7 @@ export function createClassroom(students, hooks) {
       if (key === 'home' && G.time - (classStart || 0) < 150) continue;
       hintIdx = (hintIdx + k + 1) % order.length;
       if (key === 'board') return { key, x: L.board.x + L.board.w / 2, y: L.board.y + 30 };
-      if (key === 'star') return { key, ...btnPt('star') };
+      if (key === 'star') { const c = students.filter(s => s.mode === 'seated' && s.here); return c.length ? carry(key, 'star', pick(c)) : { key, ...btnPt('star') }; }
       if (key === 'play') return { key, ...btnPt('toys') };
       if (key === 'abc') { const f = furn.abc, [, h] = sizeOf(f); return { key, x: f.x, y: f.y - h / 2 }; }
       if (key === 'home') return { key, ...btnPt('home') };
@@ -137,13 +158,35 @@ export function createClassroom(students, hooks) {
   let classStart = 0;
   function showHint(force) {
     const t = computeHint(); if (!t) return;
-    hint = { ...t, until: G.time + 6 };
+    hint = { ...t, t0: G.time, until: G.time + 6 };
     if (force || !saidHint[t.key] || G.time - saidHint[t.key] > 45) { saidHint[t.key] = G.time; speak(helper(), LD.HINTS[t.key], 'tap'); }
   }
   function drawHint(c) {
     if (!hint) return;
     if (G.time > hint.until) { hint = null; return; }
+    if (hint.x == null) return; // spoken only
+    if (hint.to) { // carry the star / card from its button to a student
+      const k = Math.min(1, ((G.time - hint.t0) % 2.2) / 1.5), e = k * k * (3 - 2 * k);
+      const x = hint.from.x + (hint.to.x - hint.from.x) * e, y = hint.from.y + (hint.to.y - hint.from.y) * e;
+      const ic = hint.icon === 'star' ? S.ICONS.star() : DC.trayIcon(hint.icon);
+      D(c, ic, x - 9, y - 16);
+      drawHand(c, x, y);
+      return;
+    }
     drawHand(c, hint.x, hint.y);
+  }
+  function drawArmed(c) { // a picked-up star / card bobs above its button until she taps a student
+    if (!armed) return;
+    const b = shownBtns().find(q => q.id === armed.id);
+    if (!b || G.time > armed.until || busy || quiz.active || menu || bookOpen || story) { armed = null; return; }
+    const ic = armed.id === 'star' ? S.ICONS.star() : DC.trayIcon(armed.id);
+    const bob = Math.round(Math.sin(G.time * 6) * 2);
+    D(c, glow(btnFrame(b.w, b.h, '#fff6c8', 'on'), '#ffd23f', 'homeglow'), b.x - 2, b.y - 2);
+    D(c, btnFrame(b.w, b.h, '#fff6c8', 'on'), b.x, b.y);
+    c.globalAlpha = 0.35; D(c, ic, b.x + (b.w - ic.width) / 2, b.y + (b.h - ic.height) / 2 - 1); c.globalAlpha = 1;
+    D(c, glow(ic, '#fff6b8', 'armed' + armed.id), b.x + b.w / 2 - 11, b.y - 24 + bob);
+    D(c, ic, b.x + b.w / 2 - 9, b.y - 22 + bob);
+    if (Math.random() < 0.08) burst('spark', b.x + b.w / 2 + rand(-8, 8), b.y - 14 + bob, 1, ['#ffd23f', '#ffffff'], { sp: 15 });
   }
   let reward = null, bookOpen = null;
   let hintT = 6;
@@ -255,9 +298,12 @@ export function createClassroom(students, hooks) {
     const k = Math.sin(G.time * 5) > 0.3 ? 1 : 0;
     D(c, btnFrame(start.w, start.h, k ? '#fff6c8' : '#fff3dc', 'cstart'), start.x, start.y - k);
     D(c, cached('bellicon', bellIcon), start.x + 9, start.y + 7 - k);
+    const bk = chartBack();
+    D(c, btnFrame(26, 26), bk.x, bk.y); D(c, S.ICONS.back(), bk.x + 4, bk.y + 3);
   }
+  function chartBack() { const { P } = centrosLayout(); return { x: Math.max(V.inset.l + 2, P.x - 12), y: Math.max(V.inset.t + 2, P.y - 12), w: 26, h: 26 }; }
   function runCentros() {
-    centros.stage = 'run'; phase = 'activity';
+    centros.stage = 'run'; phase = 'activity'; calmMoods();
     speak(students[3], LD.CENTRO_LINES.start, 'yay'); sfx.bell();
     for (const s of students) { s.sleep = false; s.hide = 0; s.snack = null; s.naughty = null; }
     sendToCenters();
@@ -362,7 +408,7 @@ export function createClassroom(students, hooks) {
       { id: 'stickers', x: i.l + 4, y: i.t + 4, w: B, h: B, icon: S.ICONS.stickers },
       { id: 'home', x: V.W - i.r - B - 4, y: i.t + 4, w: B, h: B, icon: S.ICONS.home },
       { id: 'bell', x: V.W - i.r - B - 4, y: i.t + 4, w: B, h: B, icon: () => DC.trayIcon('bell') },
-      { id: 'help', x: V.W - i.r - 2 * B - 8, y: i.t + 4, w: B, h: B, icon: () => S.bubble('q') },
+      { id: 'help', x: V.W - i.r - 3 * B - 12, y: i.t + 4, w: B, h: B, icon: () => S.bubble('q') }, // a gap away from 🏠
       { id: 'decorate', x: i.l + 4, y: V.H - i.b - B - 4, w: B, h: B, icon: () => DC.trayIcon('decorate') },
       { id: 'toys', x: i.l + 4 + B + 4, y: V.H - i.b - B - 4, w: B, h: B, icon: S.ICONS.toys },
       { id: 'star', x: V.W - i.r - B - 4, y: V.H - i.b - B - 4, w: B, h: B, icon: S.ICONS.star },
@@ -578,7 +624,7 @@ export function createClassroom(students, hooks) {
     const order = students.filter(s => s.mode !== 'away').sort((a, b) => sortY(b) - sortY(a));
     for (const s of order) {
       const r = spriteRect(s);
-      const top = r.y + (s.kind === 'turtle' && s.hide > 0 ? 22 : 6) - s.z;
+      const top = r.y + (s.kind === 'turtle' && s.hide > 0 ? 14 : 6) - s.z;
       const bottom = s.mode === 'seated' ? r.y + S.SH - 6 : r.y + S.SH;
       if (x >= r.x + 5 && x <= r.x + S.SW - 5 && y >= top && y <= bottom - s.z) return s;
     }
@@ -606,7 +652,10 @@ export function createClassroom(students, hooks) {
     hintT = Math.min(hintT, 8);
     if (s.mode === 'walk') { hop(s, 60); sfx.boing(); return; }
     if (coax(s)) {
-      if (!s.here && !s.sleep && !(s.hide > 0)) markHere(s, 0.5);
+      if (!s.here && s.hide > 0) { // shy turtle peeks out: a moment later she comes all the way out and says ¡Presente!
+        s.here = true;
+        wait(0.6).then(() => { if (s.hide > 0) { s.hide = 0; s.hideT = rand(30, 50); sfx.boing(); } s.here = false; markHere(s, 0); });
+      } else if (!s.here && !s.sleep && !(s.hide > 0)) markHere(s, 0.5);
       return;
     }
     if (!s.here) { markHere(s, 0); return; }
@@ -648,7 +697,12 @@ export function createClassroom(students, hooks) {
     const p = seat(s);
     walkTo(s, p.x, p.y, 46).then(() => { s.mode = 'seated'; s.look = 0; if (s.kind === 'puppy') s.naughty = null; });
   }
+  // feelings can only be helped in class: an activity (or going back to the seats) clears them
+  function calmMoods() {
+    for (const s of students) if (s.mood) { s.mood = null; if (s.bubble && s.bubble.kind.startsWith('m:')) s.bubble = null; }
+  }
   async function gatherSeats() {
+    calmMoods();
     for (const s of students) if (s.mode !== 'seated' && s.mode !== 'away') sendToSeat(s);
     for (let i = 0; i < 60 && students.some(s => s.mode !== 'seated' && s.mode !== 'away'); i++) await wait(0.15);
   }
@@ -668,28 +722,37 @@ export function createClassroom(students, hooks) {
   }
 
   // ---------------------------------------------------------------- the daily loop
+  // morning waits that shrink to half once she taps to hurry everyone along
+  async function hw(sec) { const t0 = G.time; while (G.time - t0 < (hurry ? sec / 2 : sec)) await wait(0.05); }
+  function hurryUp(x, y) {
+    hurry = true;
+    sfx.pop(1.25); teacherAct('clap', 1);
+    burst('spark', x, y, 6, ['#ffd23f', '#ffffff']);
+    for (const s of students) if (s.mode === 'walk') s.speed *= 1.8;
+    if (dayCard && G.time - dayCard.t0 < 2.4) dayCard.t0 = G.time - 2.4;
+  }
   async function startDay() {
-    busy = true; phase = 'morning';
+    busy = true; phase = 'morning'; hurry = false;
     sky = 'morning'; duskTarget = 0;
     attendanceDone = false;
     feelT = rand(35, 50);
     for (const s of students) Object.assign(s, { card: 'green', naughty: null, center: undefined, mood: null, mode: 'away', here: false, sleep: false, hide: 0, act: null, bubble: null, glowT: 0, z: 0, vz: 0, snack: null, sleepT: rand(14, 24), wanderT: rand(20, 32), hideT: 0 });
-    await wait(0.5);
+    await hw(0.5);
     sfx.bell();
-    await wait(1.2);
+    await hw(1.2);
     dayCard = { t0: G.time, day: dayIndex() };
     sfx.chime(); teacherAct('point', 1.4);
     teach.pointRight = furn.calendar.x > furn.teacher.x;
     wait(0.4).then(() => speak(students[3], daySentence(), 'here'));
-    await wait(3.2);
+    await hw(3.2);
     for (const s of students) {
       doorTarget = 1; sfx.door();
-      await wait(0.35);
+      await hw(0.35);
       s.x = L.doorPt.x; s.y = L.doorPt.y; s.mode = 'walk';
       const p = seat(s);
       // walk out of the door, then to the seat
-      await walkTo(s, L.doorPt.x + 4, L.doorPt.y + 8, 40);
-      walkTo(s, p.x, p.y, 44).then(() => {
+      await walkTo(s, L.doorPt.x + 4, L.doorPt.y + 8, hurry ? 72 : 40);
+      walkTo(s, p.x, p.y, hurry ? 80 : 44).then(() => {
         s.mode = 'seated'; s.look = 0;
         act(s, 'wave', 1.6); talk(s, 'sun', 1.8); teacherAct('wave', 1.4);
         if (G.save.deskItems[s.desk]) wait(1.7).then(() => talk(s, 'heart', 1.4));
@@ -697,24 +760,24 @@ export function createClassroom(students, hooks) {
         if (s.kind === 'turtle') wait(1.8).then(() => { s.hide = 1; s.hideT = rand(30, 45); sfx.softPop(); });
         if (s.kind === 'bunny') s.sleepT = rand(8, 14);
       });
-      await wait(1.5);
+      await hw(1.5);
     }
     doorTarget = 0; sfx.door();
     for (let i = 0; i < 40 && students.some(s => s.mode !== 'seated'); i++) await wait(0.2);
-    await wait(0.3);
+    await hw(0.3);
     speak(students[3], LD.CARD_LINES.allGreen, 'yay');
     for (const s of students) { s.cardT = G.time; burst('spark', desks[s.desk].x - 11, desks[s.desk].y - 10, 3, ['#3cb44b', '#a6e69a']); }
-    await wait(1.8);
+    await hw(1.8);
     if (G.save.decorStamp !== G.save.decorSeen) { // they notice what she did to the room!
       G.save.decorSeen = G.save.decorStamp; persist();
-      await wait(0.4);
+      await hw(0.4);
       for (const s of students) { s.sleep = false; act(s, 'gasp', 0.9); }
       sfx.ooh(1.25);
-      await wait(0.9);
+      await hw(0.9);
       for (const s of students) { act(s, 'clap', 1.4); burst('star', ...headPos(s), 2, ['#ffd23f', '#ff9ec4'], { up: true }); }
       speak(students[4], 'Ooh, so pretty!', 'yay'); sfx.clap(8, 1);
       teacherAct('cheer', 1.2);
-      await wait(1.2);
+      await hw(1.2);
     }
     busy = false; phase = 'class'; sky = 'day';
     hintT = 3; classStart = G.time; lastInput = G.time; nextHintAt = G.time + 6;
@@ -770,7 +833,7 @@ export function createClassroom(students, hooks) {
 
   // ---------------------------------------------------------------- free time
   async function snackTime() {
-    busy = true; phase = 'activity';
+    busy = true; phase = 'activity'; snackOn = true;
     await gatherSeats();
     sfx.ding(880);
     for (const s of students) { s.sleep = false; if (s.hide > 0) s.hide = 0; s.snack = { bites: 0 }; }
@@ -788,10 +851,10 @@ export function createClassroom(students, hooks) {
     for (const s of students) { s.snack = null; act(s, 'happy', 1.2); burst('heart', ...headPos(s), 2, ['#ff6f91'], { up: true, sp: 25 }); }
     sfx.yay(1.2); speak(students[4], 'Thank you!', 'yay');
     await wait(1.2);
-    busy = false; phase = 'class';
+    busy = false; phase = 'class'; snackOn = false;
   }
   async function storyTime() {
-    busy = true; phase = 'activity';
+    busy = true; phase = 'activity'; calmMoods();
     const rug = furn.rug;
     const spots = [-30, -15, 0, 15, 30].map((dx, k) => ({ x: clamp(rug.x + dx, 14, V.W - 14), y: clamp(rug.y - 12 - [0, 3, 4, 3, 0][k], L.floorTop + 14, V.H - 2) }));
     for (const s of students) { s.sleep = false; s.hide = 0; s.snack = null; }
@@ -828,7 +891,7 @@ export function createClassroom(students, hooks) {
     busy = false; phase = 'class';
   }
   async function recessTime() {
-    busy = true; phase = 'activity';
+    busy = true; phase = 'activity'; calmMoods();
     for (const s of students) { s.sleep = false; s.hide = 0; s.snack = null; }
     sfx.ding(988);
     recess = { until: G.time + 30, ball: { x: V.W / 2, y: L.floorTop + L.floorH * 0.6, z: 0, vx: 0, vy: 0, vz: 0 } };
@@ -857,9 +920,18 @@ export function createClassroom(students, hooks) {
     teach.blinkT -= dt; if (teach.blinkT < 0) { teach.blink = 0.14; teach.blinkT = rand(2, 5); } if (teach.blink > 0) teach.blink -= dt;
     if (teach.z > 0 || teach.vz > 0) { teach.vz -= 380 * dt; teach.z += teach.vz * dt; if (teach.z <= 0) { teach.z = 0; teach.vz = 0; } }
     doorOpen += (doorTarget - doorOpen) * Math.min(1, dt * 10);
+    if (press && press.upd && !press.updFired) { // grown-up refresh needs a 1.5 s hold on the button
+      const r = L.updBtn;
+      if (!inRect(press.x, press.y, { x: r.x - 8, y: r.y - 8, w: r.w + 16, h: r.h + 16 })) press.upd = false;
+      else if (performance.now() - press.updT0 > 1500) {
+        press.updFired = true; sfx.chime();
+        Promise.resolve(hooks.forceUpdate ? hooks.forceUpdate() : false).then(ok => { if (ok === false) sayNo(); }).catch(sayNo);
+      }
+    }
     dusk += (duskTarget - dusk) * Math.min(1, dt * 1.5);
     if (phase === 'class') hintT -= dt; if (hintT < 0) hintT = rand(10, 16);
-    if ((phase === 'prep' || phase === 'class' || (centros && centros.stage === 'chart')) && !drag && !quiz.active && !menu && !bookOpen && !story && !reward && !dayCard && !busy) {
+    const hintable = phase === 'prep' || phase === 'class' || (centros && centros.stage === 'chart') || (phase === 'activity' && (story || recess || (centros && centros.stage === 'run')));
+    if (hintable && !drag && !quiz.active && !menu && !bookOpen && !reward && !dayCard && !busy) {
       if (G.time - lastInput > 9 && G.time > nextHintAt && !hint) { showHint(false); nextHintAt = G.time + 16; }
     }
     const calm = phase === 'class' && !drag && !quiz.active;
@@ -1056,14 +1128,6 @@ export function createClassroom(students, hooks) {
         D(c, cached('rball', () => { const p = new Pix(10, 10); p.ball(5, 5, 4.6, 4.6, '#ef6f6c'); p.ell(5, 5, 4.6, 4.6, '#ffd23f', { y0: 4, y1: 5 }, true); p.outline(); return p.canvas(); }), b.x - 5, b.y - 10 - b.z);
       }
     }
-    // things being dragged float on top
-    if (drag && drag.f) {
-      const f = drag.f;
-      if (layerOf(f) === 'floor') shadow(c, f.x, f.y, sizeOf(f)[0] * 0.8);
-      drawItem(c, f);
-      if (deco && overTray(drag.px, drag.py) && f.deco) drawPoofHint(c, f);
-    }
-    if (drag && drag.kind === 'new') drawNewGhost(c);
     // particles + bubbles
     for (const p of parts) {
       if (p.life - p.t < 0.25 && Math.floor(p.t * 20) % 2) continue;
@@ -1091,6 +1155,15 @@ export function createClassroom(students, hooks) {
     }
     drawHud(c);
     drawTrash(c);
+    // things being dragged float on top of everything (also the trash can)
+    if (drag && drag.f) {
+      const f = drag.f;
+      if (layerOf(f) === 'floor') shadow(c, f.x, f.y, sizeOf(f)[0] * 0.8);
+      drawItem(c, f);
+      if (deco && overTray(drag.px, drag.py) && f.deco) drawPoofHint(c, f);
+    }
+    if (drag && drag.kind === 'new') drawNewGhost(c);
+    drawArmed(c);
     if (dayCard) drawDayCard(c);
     if (drag && drag.kind === 'star') {
       const st = drag.card ? DC.trayIcon(drag.card === 'green' ? 'cardGreen' : 'cardRed') : S.ICONS.star();
@@ -1117,9 +1190,16 @@ export function createClassroom(students, hooks) {
     for (const b of shownBtns()) {
       if (b.id === 'toys' && (story || recess || centros)) continue;
       if (b.id === 'bell') { // big pulsing "start class" bell
-        const k = Math.sin(G.time * 5) > 0.3 ? 1 : 0;
+        const k = G.time < bellBob ? Math.round(Math.abs(Math.sin(G.time * 12)) * 3) : Math.sin(G.time * 5) > 0.3 ? 1 : 0;
         D(c, btnFrame(b.w, b.h, k ? '#fff6c8' : '#fff3dc'), b.x, b.y - k);
         D(c, b.icon(), b.x + 4, b.y + 3 - k + (Math.floor(G.time * 6) % 2 && k ? 1 : 0));
+        continue;
+      }
+      if (b.id === 'home' && G.time < homeArm) { // asked "¿Ya nos vamos a casa?": tap again to go
+        const k = Math.round(Math.abs(Math.sin(G.time * 7)) * 2);
+        D(c, glow(btnFrame(b.w, b.h, '#fff6c8', 'on'), '#ffd23f', 'homeglow'), b.x - 2, b.y - 2 - k);
+        D(c, btnFrame(b.w, b.h, '#fff6c8', 'on'), b.x, b.y - k);
+        const ic = b.icon(); D(c, ic, b.x + (b.w - ic.width) / 2, b.y + (b.h - ic.height) / 2 - 1 - k);
         continue;
       }
       const on = b.id === 'decorate' && deco;
@@ -1144,6 +1224,7 @@ export function createClassroom(students, hooks) {
       if (s.here) D(c, cached('tick', () => { const p = new Pix(6, 5); p.line(0, 2, 2, 4, '#3cb44b'); p.line(2, 4, 5, 0, '#3cb44b'); p.line(1, 2, 2, 3, '#3cb44b'); return p.canvas(); }), ch.x + 9 + k * 14, ch.y + 10);
     });
   }
+  function sayNo() { sfx.thump(); setTimeout(() => sfx.thump(), 170); } // "not now" (e.g. offline refresh)
   function bellIcon() {
     const p = new Pix(18, 18);
     p.ball(9, 9, 6, 6.5, '#ffd23f', { clip: { y1: 12 } }); p.rect(2, 12, 14, 2, '#e0a820'); p.ball(9, 15, 1.6, 1.6, '#a8703f'); p.rect(8, 1, 2, 2, '#a8703f');
@@ -1242,7 +1323,8 @@ export function createClassroom(students, hooks) {
 
   // ---------------------------------------------------------------- trash can
   function trashRect() { return { x: Math.round(V.W / 2 - 13), y: (deco ? T.y : V.H - V.inset.b) - 34, w: 26, h: 30 }; }
-  function trashing() { return drag && ((drag.kind === 'furn' && drag.f.deco) || drag.kind === 'new'); }
+  // only things already in the room can be thrown away; a fresh drag from the tray never is
+  function trashing() { return drag && ((drag.kind === 'furn' && drag.f.deco) || (drag.kind === 'new' && drag.from !== undefined)); }
   function overTrash(x, y) { if (!trashing()) return false; return nearTrash(x, y); }
   function nearTrash(x, y) { const r = trashRect(); return x >= r.x - 10 && x <= r.x + r.w + 10 && y >= r.y - 10 && y <= r.y + r.h + 8; }
   function drawTrash(c) {
@@ -1301,7 +1383,12 @@ export function createClassroom(students, hooks) {
         L.updBtn = { x: vx - 24, y: vy - 8, w: 22, h: 22 };
         const glowOn = updateAvail && Math.floor(G.time * 3) % 2;
         D(c, btnFrame(22, 22, glowOn ? '#fff3a0' : '#fff3dc', 'upd' + !!glowOn), L.updBtn.x, L.updBtn.y);
-        D(c, cached('updicon', () => { const p = new Pix(16, 16); for (let a = -2.6; a < 2.0; a += 0.06) { p.px(8 + Math.cos(a) * 5.5, 8 + Math.sin(a) * 5.5, '#3cb44b'); p.px(8 + Math.cos(a) * 4.6, 8 + Math.sin(a) * 4.6, '#3cb44b'); } p.map(10, 1, ['###', '.##', '..#'], { '#': '#3cb44b' }); p.outline(); return p.canvas(); }), L.updBtn.x + 3, L.updBtn.y + 2);
+        // grey, for grown-ups (not the green of Play or the letters' ↻); hold 1.5 s, a ring fills while held
+        D(c, cached('updicon2', () => { const p = new Pix(16, 16), g = '#9a8ea0'; for (let a = -2.6; a < 2.0; a += 0.06) { p.px(8 + Math.cos(a) * 5.5, 8 + Math.sin(a) * 5.5, g); p.px(8 + Math.cos(a) * 4.6, 8 + Math.sin(a) * 4.6, g); } p.map(10, 1, ['###', '.##', '..#'], { '#': g }); return p.canvas(); }), L.updBtn.x + 3, L.updBtn.y + 2);
+        if (press && press.upd) {
+          const k = Math.min(1, (performance.now() - press.updT0) / 1500), cx = L.updBtn.x + 11, cy = L.updBtn.y + 11;
+          for (let a = 0; a < k * Math.PI * 2; a += 0.05) for (const rr of [12, 13]) R(c, cx + Math.sin(a) * rr - 0.5, cy - Math.cos(a) * rr - 0.5, 1, 1, k >= 1 ? '#7a5bc0' : '#8a7a90');
+        }
         L.musBtn = { x: W - V.inset.r - 26, y: V.inset.t + 4, w: 22, h: 22 };
         const mOn = G.save.music !== false;
         D(c, btnFrame(22, 22, '#fff3dc', 'mus'), L.musBtn.x, L.musBtn.y);
@@ -1409,8 +1496,9 @@ export function createClassroom(students, hooks) {
     }
     // page arrows when needed + close button
     const pages = Math.max(1, Math.ceil(all.length / pageSize));
-    L.bookClose = { x: x + bw - 14, y: y - 12, w: 26, h: 26 };
-    D(c, btnFrame(26, 26), L.bookClose.x, L.bookClose.y); D(c, S.ICONS.check(), L.bookClose.x + 4, L.bookClose.y + 3);
+    L.bookRect = { x: x - 3, y: y - 3, w: bw + 6, h: bh + 6 };
+    L.bookBack = { x: Math.max(V.inset.l + 2, x - 12), y: Math.max(V.inset.t + 2, y - 12), w: 26, h: 26 };
+    D(c, btnFrame(26, 26), L.bookBack.x, L.bookBack.y); D(c, S.ICONS.back(), L.bookBack.x + 4, L.bookBack.y + 3);
     L.bookNext = pages > 1 ? { x: x + bw - 12, y: y + bh - 14, w: 26, h: 26 } : null;
     if (L.bookNext) { D(c, btnFrame(26, 26), L.bookNext.x, L.bookNext.y); D(c, S.ICONS.play(), L.bookNext.x + 4, L.bookNext.y + 3); }
   }
@@ -1436,14 +1524,24 @@ export function createClassroom(students, hooks) {
       if (sg) { press.sign = sg; return; }
     }
     if (phase === 'title' || phase === 'night') {
-      if (L.updBtn && inRect(x, y, L.updBtn)) { press.upd = true; return; }
+      if (L.updBtn && inRect(x, y, L.updBtn)) { press.upd = true; press.updT0 = performance.now(); return; }
       if (L.musBtn && inRect(x, y, L.musBtn)) { press.mus = true; return; }
       if (L.bigBtn && inRect(x, y, L.bigBtn)) press.big = true; return;
     }
     if (reward) { press.reward = true; return; }
     if (bookOpen) { press.book = true; return; }
     if (menu) { press.menu = true; return; }
-    if (story) { press.story = true; return; }
+    if (phase === 'morning' && !hurry) hurryUp(x, y);
+    if (armed) { // holding a star / card: the next student tap gets it, a tap anywhere else puts it back
+      const b = shownBtns().find(q => inRect(x, y, q));
+      if (!b) {
+        const s = hitStudent(x, y);
+        if (s) { press.armedS = s; return; }
+        armed = null; sfx.softPop(); press.swallow = true; return;
+      }
+      if (!ARM_IDS.includes(b.id)) armed = null;
+    }
+    if (story && !shownBtns().some(q => inRect(x, y, q) && ['help', 'home', 'stickers'].includes(q.id))) { press.story = true; return; }
     for (const b of shownBtns()) if (inRect(x, y, b)) {
       press.btn = b;
       if (b.id === 'star' && !busy) { drag = { kind: 'star', x, y }; sfx.lift(); }
@@ -1515,16 +1613,15 @@ export function createClassroom(students, hooks) {
       const d = drag; drag = null;
       if (d.kind === 'star') {
         const s = hitStudent(d.x, d.y);
-        if (s && !p.moved) { /* tapped the jar without dragging */ }
-        if (s && d.card) giveCard(s, d.card);
-        else if (s) awardStar(s);
-        else if (!p.moved || inRect(d.x, d.y, p.btn)) { // quick tap on the jar: show the star wiggling as a hint
-          sfx.tap(); burst('spark', p.btn.x + 13, p.btn.y + 13, 6, ['#ffd23f']);
+        if (s && p.moved) { armed = null; if (d.card) giveCard(s, d.card); else awardStar(s); }
+        else if (!p.moved || inRect(d.x, d.y, p.btn)) { // a tap picks the star / card up (tap a student next); tap again to put it back
+          if (armed && armed.id === p.btn.id) { armed = null; sfx.softPop(); }
+          else { armed = { id: p.btn.id, t0: G.time, until: G.time + 6 }; sfx.lift(); burst('spark', p.btn.x + 13, p.btn.y + 2, 6, [p.btn.id === 'cardRed' ? '#ef4b4b' : p.btn.id === 'cardGreen' ? '#3cb44b' : '#ffd23f', '#ffffff']); }
         } else sfx.softPop();
         return;
       }
       if (d.kind === 'new') {
-        if (nearTrash(d.px, d.py)) { trashIt(d.px, d.py); if (d.from !== undefined) { G.save.decorStamp++; persist(); } return; }
+        if (d.from !== undefined && nearTrash(d.px, d.py)) { trashIt(d.px, d.py); G.save.decorStamp++; persist(); return; }
         if (d.desk) {
           const tgt = deskAt(d.px, d.py + 6);
           if (d.from !== undefined && (!tgt || tgt.i === d.from)) { G.save.deskItems[d.from] = d.type; persist(); sfx.softPop(); return; }
@@ -1562,7 +1659,12 @@ export function createClassroom(students, hooks) {
       }
     }
     const { x, y } = p;
+    if (p.swallow) return;
     if (p.quiz) { quiz.tap(x, y); return; }
+    if (p.armedS) {
+      if (!p.moved && armed) { const a = armed; armed = null; if (a.id === 'star') awardStar(p.armedS); else giveCard(p.armedS, a.id === 'cardGreen' ? 'green' : 'red'); }
+      return;
+    }
     if (p.cchart) {
       const { cols, start, P } = centrosLayout();
       if (centros.drag) {
@@ -1570,6 +1672,7 @@ export function createClassroom(students, hooks) {
         if (col) { centros.assign[centros.drag.s.kind] = col.ci; sfx.pop(1.2); speak(centros.drag.s, LD.CENTERS[col.ci].id, 'here'); }
         centros.drag = null; return;
       }
+      if (inRect(x, y, chartBack())) { centros = null; sfx.whoosh(); sayUI('back'); return; }
       if (inRect(x, y, start)) { runCentros(); return; }
       const col = cols.find(cl => inRect(x, y, { x: cl.x, y: cl.y, w: cl.w, h: 26 }));
       if (col) { sfx.pop(); speak(students[3], LD.CENTERS[col.ci].id, 'here'); return; }
@@ -1585,13 +1688,14 @@ export function createClassroom(students, hooks) {
       return;
     }
     if (p.moved) return;
-    if (p.upd) { sfx.chime(); hooks.forceUpdate?.(); return; }
+    if (p.upd) { if (!p.updFired) sfx.tap(); return; } // a grown-up holds it for 1.5 s (see update())
     if (p.mus) { const on = G.save.music === false; hooks.setMusic?.(on); persist(); sfx.pop(on ? 1.3 : 0.8); return; }
     if (p.big && inRect(x, y, L.bigBtn)) { sfx.pop(); hooks.unlock?.(); enterPrep(); return; }
     if (p.reward) { if (!reward.collected && G.time - reward.t > 0.6) collectReward(); return; }
     if (p.book) {
-      if (inRect(x, y, L.bookClose)) { sfx.pop(); bookOpen = null; }
-      else if (L.bookNext && inRect(x, y, L.bookNext)) { sfx.page(); bookOpen.page = (bookOpen.page + 1) % Math.max(1, Math.ceil(G.save.stickers.length / 18)); }
+      if (L.bookNext && inRect(x, y, L.bookNext)) { sfx.page(); bookOpen.page = (bookOpen.page + 1) % Math.max(1, Math.ceil(G.save.stickers.length / 18)); }
+      else if (inRect(x, y, L.bookBack)) { sfx.whoosh(); sayUI('back'); bookOpen = null; }
+      else if (!inRect(x, y, L.bookRect)) { sfx.pop(); bookOpen = null; } // tap outside the book closes it
       return;
     }
     if (p.menu) {
@@ -1616,7 +1720,7 @@ export function createClassroom(students, hooks) {
     if (p.btn) {
       sfx.pop();
       const id = p.btn.id;
-      if (!['star', 'cardGreen', 'cardRed', 'help'].includes(id) && !(id === 'toys' && (recess || centros))) sayUI(id);
+      if (!['star', 'cardGreen', 'cardRed', 'help', 'home'].includes(id) && !(id === 'toys' && (recess || centros))) sayUI(id);
       if (id === 'help') { hint = null; showHint(true); return; }
       if (id === 'decorate') { deco = deco ? null : { tab: 'floor' }; return; }
       if (id === 'lang') {
@@ -1634,7 +1738,12 @@ export function createClassroom(students, hooks) {
       if (id === 'cdone') { endCentros(); return; }
       if (id === 'cardGreen' || id === 'cardRed') return;
       if (id === 'stickers') bookOpen = { page: 0, t: G.time };
+      if (id === 'home' && !busy && G.time > homeArm) { // first tap only asks; the 🏠 pulses for 4 s
+        homeArm = G.time + 4; teacherAct('wave', 1.6); speak(helper(), LD.HINTS.homeAsk, 'tap');
+        return;
+      }
       if (id === 'home' && !busy) {
+        homeArm = 0; sayUI('home');
         if (story) story = null;
         if (recess) recess = null;
         if (centros) { centros = null; }
@@ -1694,6 +1803,11 @@ export function createClassroom(students, hooks) {
       if (p.f.type === 'shelf') sfx.page();
       return;
     }
+    if (p.board && phase === 'prep') { // the board opens once class starts: point at the bell
+      sfx.tap(); bellBob = G.time + 1.8; speak(helper(), LD.HINTS.ring, 'tap');
+      hint = { key: 'ring', ...btnPt('bell'), t0: G.time, until: G.time + 3 };
+      return;
+    }
     if (p.board && (phase === 'class') && !busy) {
       sfx.whoosh();
       const now = G.time;
@@ -1730,6 +1844,7 @@ export function createClassroom(students, hooks) {
   window.__ltHint = () => ({ hint, lastInput, nextHintAt, time: G.time, phase, busy, story: !!story, reward: !!reward, dayCard: !!dayCard, menu: !!menu, book: !!bookOpen, q: quiz.active });
   window.__ltTeacher = () => css(furn.teacher.x, furn.teacher.y - 30);
   window.__ltMenu = () => (menu ? menu.items.map(m => css(m.x + 24, m.y + 24)) : []);
+  window.__ltUpd = () => (L.updBtn ? css(L.updBtn.x + 11, L.updBtn.y + 11) : null);
 
   return {
     resize, update, render, down, move, up, startDay, watchBoard, startle: () => students.forEach(startle),

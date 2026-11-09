@@ -260,7 +260,7 @@ await shot('14-recess');
 await tapAt(...toys); // bell ends recess
 await p.waitForFunction(() => window.__lt.room.phase === 'class', null, { timeout: 30000 });
 const home = await p.evaluate(() => window.__ltBtn('home'));
-await tapAt(...home);
+await tapAt(...home); await p.waitForTimeout(300); await tapAt(...home); // 🏠 asks first, the second tap goes home
 await p.waitForTimeout(2600);
 await shot('15-goodbye');
 await p.waitForFunction(() => window.__lt.room.phase === 'reward', null, { timeout: 40000 });
