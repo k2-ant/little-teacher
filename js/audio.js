@@ -96,9 +96,18 @@ function getBuf(url) {
   loading.set(url, p);
   return p;
 }
+// ElevenLabs voices on disk (audio/<folder>/). v2.0's new students borrow one of them at another playback
+// rate (pitch + tempo) until they get their own: measured median pitch of the clips is puppy ~230 Hz,
+// turtle ~330, frog ~365, owl ~445, bunny ~470. So the bear is the puppy slowed down (~195 Hz, the lowest and
+// slowest), the mouse is the bunny sped up (~555 Hz, the highest and quickest), and the cat is the turtle's
+// boyish voice a bit brighter and quicker (~375 Hz) - a different speaker from the girlish frog it sits next to.
+export const VOICE_FOLDERS = ['bunny', 'puppy', 'turtle', 'owl', 'frog'];
+export const BORROWED_VOICE = { cat: ['turtle', 1.12], bear: ['puppy', 0.84], mouse: ['bunny', 1.18] };
 /** play a recorded line for a student. Returns false if there is no clip (caller falls back to speech). */
 export function playClip(kind, key, rate = 1) {
-  const url = clipUrl(kind, key);
+  const bv = BORROWED_VOICE[kind];
+  const url = clipUrl(bv ? bv[0] : kind, key);
+  if (bv) rate *= bv[1];
   if (!url || !ac) return false;
   if (muted) return true;
   getBuf(url).then(b => {
@@ -118,7 +127,7 @@ export async function prefetchClips() {
   if (!clipMap) await loadClips();
   if (!clipMap) return;
   const urls = [];
-  for (const kind of ['bunny', 'puppy', 'turtle', 'owl', 'frog']) for (const [key, slug] of Object.entries(clipMap)) if (kind === 'owl' || !owlOnly.has(key)) urls.push(`audio/${kind}/${slug}.mp3`);
+  for (const kind of VOICE_FOLDERS) for (const [key, slug] of Object.entries(clipMap)) if (kind === 'owl' || !owlOnly.has(key)) urls.push(`audio/${kind}/${slug}.mp3`);
   const workers = Array.from({ length: 3 }, async () => { while (urls.length) { const u = urls.shift(); try { await fetch(u); } catch (e) { /* offline */ } } });
   await Promise.all(workers);
 }
@@ -214,6 +223,27 @@ export const sfx = {
     for (let i = 0; i < 2; i++) for (let j = 0; j < 5; j++) tone({ type: 'square', f: 260 + j * 6, t: i * 0.25 + j * 0.03, dur: 0.025, vol: 0.06 });
   },
   hum() { if (!ok()) return; voice({ f0: 300, f1: 360, vowel: 'oo', dur: 0.4, vol: 0.18 }); },
+  // v2.0 animal voices: cat, bear, mouse
+  meow(p = 1) { // "mi-aau": up, then a soft fall
+    if (!ok()) return;
+    voice({ dur: 0.16, f0: 560 * p, f1: 780 * p, vowel: 'ee', vowel2: 'ah', vol: 0.16, vib: 0, scale: 1.4 });
+    voice({ t: 0.14, dur: 0.34, f0: 780 * p, f1: 500 * p, vowel: 'ah', vowel2: 'oo', vol: 0.15, vib: 6, scale: 1.4 });
+  },
+  purr() { // soft rumbly flutter, in and out
+    if (!ok()) return;
+    const n = 24;
+    for (let i = 0; i < n; i++) noise({ t: i * 0.038, dur: 0.03, vol: 0.012 + 0.05 * Math.sin(Math.PI * (i % 12) / 12), type: 'lowpass', f: 420, a: 0.004 });
+    tone({ type: 'triangle', f: 52, dur: 0.9, vol: 0.05, a: 0.1 });
+  },
+  rumble() { // the bear's gentle "mm-hmm" hum, never scary
+    if (!ok()) return;
+    voice({ dur: 0.32, f0: 150, f1: 175, vowel: 'oh', vowel2: 'oo', vol: 0.18, vib: 9, scale: 0.9 });
+    voice({ t: 0.3, dur: 0.42, f0: 175, f1: 130, vowel: 'oo', vol: 0.16, vib: 7, scale: 0.9 });
+  },
+  squeakMouse(p = 1) { // two tiny "eek!"s, higher and quicker than the bunny's squeak
+    if (!ok()) return;
+    for (let i = 0; i < 2; i++) { tone({ type: 'triangle', f: 2300 * p, f2: 3100 * p, t: i * 0.09, dur: 0.055, vol: 0.1 }); tone({ f: 4600 * p, t: i * 0.09, dur: 0.03, vol: 0.02 }); }
+  },
   snore() { if (!ok()) return; noise({ dur: 1.1, vol: 0.035, type: 'lowpass', f: 350, f2: 700, a: 0.5 }); },
   crunch() { if (!ok()) return; for (let i = 0; i < 3; i++) noise({ t: i * 0.07, dur: 0.06, vol: 0.14, f: 2000 + Math.random() * 1500, q: 0.6 }); },
   whoosh() { if (!ok()) return; noise({ dur: 0.55, vol: 0.22, f: 300, f2: 3500, q: 1.4, a: 0.12 }); },

@@ -161,7 +161,7 @@ function wateringCan() {
 export function scarf(kind) {
   return cached('rtscarf' + kind, () => {
     const p = new Pix(22, 9);
-    const c = { bunny: '#ef4b4b', puppy: '#64a8e8', turtle: '#ffd23f', owl: '#b48be6', frog: '#ff8fb8' }[kind] || ['#ff9a2e', '#3cb44b', '#ff5fa8', '#2f7de1'][kind.length % 4];
+    const c = { bunny: '#ef4b4b', puppy: '#64a8e8', turtle: '#ffd23f', owl: '#b48be6', frog: '#ff8fb8', cat: '#7dd370', bear: '#ef7a63', mouse: '#ffd23f' }[kind] || '#ef4b4b';
     p.rect(1, 0, 20, 3, c); for (let x = 2; x < 21; x += 3) p.vline(x, 0, 2, lighten(c, 0.4));
     p.rect(14, 2, 3, 6, c); p.hline(14, 16, 8, darken(c, 0.2)); p.px(15, 4, lighten(c, 0.4));
     p.outline(); return p.canvas();
@@ -193,7 +193,7 @@ export function createRituals(ctx) {
   function jobs() {
     const kinds = students.map(s => s.kind), n = LD.JOBS.length;
     let J = G.save.jobs;
-    const ok = J && kinds.every(k => Number.isInteger(J.assign[k]) && J.assign[k] >= 0 && J.assign[k] < n) && new Set(kinds.map(k => J.assign[k])).size === kinds.length;
+    const ok = J && kinds.every(k => Number.isInteger(J.assign[k]) && J.assign[k] >= 0 && J.assign[k] < n) && new Set(kinds.map(k => J.assign[k])).size === Math.min(kinds.length, n); // v2.0: with more friends than jobs, some share a job
     if (!ok) { J = G.save.jobs = { day: today(), assign: Object.fromEntries(kinds.map((k, i) => [k, (i + today() - 1) % n])), watered: 0 }; persist(); }
     else if (J.day !== today()) { // a new school day: everyone moves to the next job
       const step = today() > J.day ? today() - J.day : 1;
@@ -437,7 +437,7 @@ export function createRituals(ctx) {
   /** scarves on snowy days, the line leader's flag, the watering can */
   function overStudent(c, s, x, y) {
     if (weather() === 'nieve' && s.mode !== 'seated' && !(s.hide > 0)) {
-      const ny = { bunny: 25, puppy: 25, turtle: 25, owl: 26, frog: 25 }[s.kind] ?? 25;
+      const ny = { bunny: 25, puppy: 25, turtle: 25, owl: 26, frog: 25, cat: 25, bear: 25, mouse: 28 }[s.kind] ?? 25;
       D(c, scarf(s.kind), x + 6, y + ny);
     }
     if (ctx.phase() === 'goodbye' && s.mode !== 'seated' && s === holder('lider')) D(c, leaderFlag(), x + 25, y - 8 + Math.round(Math.sin(G.time * 6)));

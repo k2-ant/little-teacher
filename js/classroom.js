@@ -985,7 +985,7 @@ export function createClassroom(students, hooks) {
   // ---------------------------------------------------------------- A5: she serves snack
   // a tray with five snacks: drag one onto a friend, or tap it (it bobs up) and then tap a friend
   let serve = null; // { slots:[{k, taken}], served, eating, armed:{i, until}, drag:{i,x,y}, done, hintAt }
-  const SNACK_KINDS = ['bunny', 'puppy', 'turtle', 'owl', 'frog'];
+  const SNACK_KINDS = S.KINDS; // one snack per student (v2.0: follows the roster)
   const eaters = () => students.filter(s => s.mode !== 'away');
   const seatedAt = (x, y) => { const d = deskAt(x, y); return d ? students.find(s => s.desk === d.i && s.mode === 'seated') : null; };
   function snackLayout() {

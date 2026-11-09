@@ -1,11 +1,58 @@
 <!DOCTYPE html><html><body style="margin:0;background:#f7e6c4"><canvas id="c" width="900" height="560"></canvas>
 <script type="module">
+// preview.html            teacher + decorations
+// preview.html?students   every student in every pose / mood / state (+ snacks, crowns, chart faces); &z=4 sets the zoom
 import * as D from '../js/decor.js';
-const c = document.getElementById('c').getContext('2d'); c.imageSmoothingEnabled = false;
-const poses = [{}, { armL: 'wave1' }, { armL: 'clap', armR: 'clap', mouth: 'open' }, { armL: 'point', eyes: 'open', mouth: 'open' }, { eyes: 'blink', armL: 'down', armR: 'down', mouth: 'smile' }];
-poses.forEach((st, i) => c.drawImage(D.teacher({ eyes: 'happy', mouth: 'grin', armL: 'down', armR: 'down', ...st }), 10 + i * 100, 10, 90, 168));
-let x = 10, y = 200;
-for (const t of [...D.FLOOR_ITEMS, ...D.WALL_ITEMS]) { const im = D.decor(t, 0); c.drawImage(im, x, y + (48 - im.height) * 3, im.width * 3, im.height * 3); x += im.width * 3 + 12; if (x > 760) { x = 10; y += 160; } }
-D.DESK_ITEMS.forEach((d, i) => c.drawImage(D.deskItem(d), 520 + i * 60, 480, 42, 36));
-window.done = 1;
+import * as S from '../js/sprites.js';
+const q = new URLSearchParams(location.search);
+const cv = document.getElementById('c');
+let c = cv.getContext('2d'); c.imageSmoothingEnabled = false;
+if (q.has('students')) {
+  const Z = +(q.get('z') || 4);
+  const base = { eyes: 'open', mouth: 'smile', armL: 'down', armR: 'down', feet: 0, look: 0, blush: true, hide: 0, wag: false, earUp: false };
+  // the same states students.js pose() produces
+  const POSES = [
+    ['idle', {}], ['blink', { eyes: 'blink' }], ['look L', { look: -1 }], ['walk', { feet: 1, wag: true }], ['walk2', { feet: 2 }],
+    ['raise', { armL: 'up', earUp: true, mouth: 'open' }], ['here', { armL: 'wave1', mouth: 'open', earUp: true }], ['wave', { armL: 'wave2', eyes: 'happy', mouth: 'open' }],
+    ['clap', { armL: 'clap', armR: 'clap', eyes: 'happy', mouth: 'open' }], ['front', { armL: 'front', armR: 'front', eyes: 'happy', mouth: 'open' }],
+    ['cheer', { armL: 'up', armR: 'up', eyes: 'happy', mouth: 'open', earUp: true, wag: true }], ['gasp', { armL: 'front', armR: 'front', eyes: 'wide', mouth: 'o', earUp: true }],
+    ['giggle', { eyes: 'happy', mouth: 'grin', armL: 'front', armR: 'front' }], ['munch', { eyes: 'happy', mouth: 'munch', armL: 'front', armR: 'front' }],
+    ['yawn', { eyes: 'closed', mouth: 'open', armL: 'up', armR: 'up' }], ['sleep', { eyes: 'closed', mouth: 'o' }],
+    ['swivel', { look: 1, eyes: 'wide', mouth: 'o', earUp: true }], ['sorry', { mouth: 'frown', mood: 'sad' }],
+    ['triste', { mouth: 'frown', mood: 'sad' }], ['enojado', { mouth: 'frown', mood: 'angry' }], ['asustado', { eyes: 'wide', mouth: 'o', mood: 'scared' }],
+    ['cansado', { eyes: 'sleepy', mouth: 'o' }], ['flat', { mouth: 'flat' }], ['hide', { hide: 1 }], ['peek', { hide: 0.5 }], ['crown', {}],
+  ];
+  const kinds = S.ALL_KINDS, cw = 38, ch = 50, top = 12, left = 30;
+  const cols = POSES.length + 3;
+  cv.width = (left + cols * cw) * Z; cv.height = (top + kinds.length * ch + 4) * Z;
+  c = cv.getContext('2d'); c.imageSmoothingEnabled = false; c.scale(Z, Z);
+  c.font = '5px sans-serif'; c.fillStyle = '#5a3e5e';
+  POSES.forEach(([n], i) => c.fillText(n, left + i * cw + 2, 8));
+  c.fillText('snack 0-3', left + POSES.length * cw + 2, 8); c.fillText('chart', left + (POSES.length + 2) * cw + 2, 8);
+  kinds.forEach((k, r) => {
+    const y = top + r * ch;
+    c.fillStyle = r % 2 ? '#f2dcb4' : '#f7e6c4'; c.fillRect(0, y - 2, cv.width, ch);
+    c.fillStyle = '#5a3e5e'; c.fillText(k, 2, y + 24);
+    c.fillStyle = '#dca46a'; c.fillRect(left, y + 42, POSES.length * cw, 2); // the desk / ledge line
+    POSES.forEach(([n, st], i) => {
+      const s = { ...base, tongue: k === 'puppy', ...st };
+      const x = left + i * cw;
+      c.drawImage(S.student(k, s), x, y);
+      if (n === 'crown') { const o = S.CROWN_AT[k]; c.drawImage(S.crown(), x + o[0] - 1, y + o[1] - 1); }
+      if (n === 'hide' && (k === 'turtle' || k === 'mouse')) { c.drawImage(S.crown(), x + 11, y + S.CROWN_HIDE[k] - 1); }
+      if (n === 'triste') c.drawImage(S.bubbleImg('m:triste'), x + 20, y - 6);
+    });
+    const sx = left + POSES.length * cw;
+    for (let b = 0; b < 4; b++) c.drawImage(S.snack(k, b), sx + (b % 2) * 15, y + 4 + Math.floor(b / 2) * 16);
+    c.drawImage(S.miniFace(k, true), sx + 2 * cw, y + 6); c.drawImage(S.miniFace(k, false), sx + 2 * cw + 16, y + 6);
+  });
+  window.done = 1;
+} else {
+  const poses = [{}, { armL: 'wave1' }, { armL: 'clap', armR: 'clap', mouth: 'open' }, { armL: 'point', eyes: 'open', mouth: 'open' }, { eyes: 'blink', armL: 'down', armR: 'down', mouth: 'smile' }];
+  poses.forEach((st, i) => c.drawImage(D.teacher({ eyes: 'happy', mouth: 'grin', armL: 'down', armR: 'down', ...st }), 10 + i * 100, 10, 90, 168));
+  let x = 10, y = 200;
+  for (const t of [...D.FLOOR_ITEMS, ...D.WALL_ITEMS]) { const im = D.decor(t, 0); c.drawImage(im, x, y + (48 - im.height) * 3, im.width * 3, im.height * 3); x += im.width * 3 + 12; if (x > 760) { x = 10; y += 160; } }
+  D.DESK_ITEMS.forEach((d, i) => c.drawImage(D.deskItem(d), 520 + i * 60, 480, 42, 36));
+  window.done = 1;
+}
 </script></body></html>

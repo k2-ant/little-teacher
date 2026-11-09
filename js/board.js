@@ -128,8 +128,9 @@ export function createBoard(students, hooks) {
     }
     // students along the bottom
     L.ledge = H - 7 - Math.min(inset.b, 4);
-    const sp = Math.min(48, Math.floor((W - inset.l - inset.r - 20) / 5));
-    L.seats = students.map((s, k) => ({ x: Math.round(W / 2 + (k - 2) * sp) }));
+    const n = students.length;
+    const sp = Math.min(48, Math.floor((W - inset.l - inset.r - 20) / n));
+    L.seats = students.map((s, k) => ({ x: Math.round(W / 2 + (k - (n - 1) / 2) * sp) }));
     return V;
   }
 
@@ -256,7 +257,7 @@ export function createBoard(students, hooks) {
         traits(s, dt, { sounds: !stroke });
         if (sm === 'walk') { s.mode = 'seated'; s.target = null; s.onArrive?.(); s.onArrive = null; }
       }
-      if (s.kind === 'bunny' && s.sleep && Math.random() < dt * 0.9) {
+      if (s.sleep && Math.random() < dt * 0.9) {
         const r = studentRect(s.idx);
         parts.push({ kind: 'z', color: '#6f8fd6', x: r.x + 22, y: r.y + 8, vx: rand(4, 9), vy: -14, g: 0, life: 1.4, t: 0 });
       }

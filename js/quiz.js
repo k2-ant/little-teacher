@@ -81,7 +81,7 @@ export function makeQuestion(asker, students) {
     return { prompt: LD.COUNT_Q, stars: n, options: nums.map(k => ({ img: wordSprite(String(k), '#2f7de1', 4), say: numberWord(k), right: k === n })) };
   }
   if (kind === 'animal') {
-    const kinds = Object.keys(LD.ANIMAL_QS), a = pick(kinds);
+    const kinds = Object.keys(LD.ANIMAL_QS).filter(k => S.KINDS.includes(k)), a = pick(kinds);
     const opts = shuffle([a, ...sample(kinds, 2, a)]);
     return { prompt: LD.ANIMAL_QS[a], options: opts.map(k => ({ img: S.student(k, { eyes: 'happy', mouth: 'smile', armL: 'down', armR: 'down', feet: 0, look: 0, blush: true, hide: 0, tongue: k === 'puppy' }), say: LD.ANIMAL_WORD[k], right: k === a })) };
   }
