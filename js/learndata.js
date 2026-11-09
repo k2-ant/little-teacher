@@ -154,6 +154,28 @@ Object.assign(ITEM_WORDS, { dino: 'dinosaurio', robot: 'robot', rocket: 'cohete'
 const V19_STUDENT = () => [...SNACK_THANKS, SNACK_FULL, DOOR_LINES.late, DOOR_LINES.ball, ...BOOK_TEXT.flatMap(b => b.words)];
 const V19_OWL = () => [...COUNT_WORDS, DOOR_LINES.parcel, ...BOOK_TEXT.flatMap(b => [b.title, ...b.lines])];
 
+// ---- v2.0 schedule
+// the "Horario" cards (names spoken by the owl when a card is tapped) and '¡Es hora de…!' for each block
+export const SCHED_NAMES = {
+  b_decorar: 'Decorar', b_manana: 'Trabajo de la mañana', b_calendario: 'Calendario', b_alfabeto: 'Alfabeto', b_recreo: 'Recreo',
+  b_lectura: 'Lectura con maestra', b_heggerty: 'Heggerty', b_sla: 'Ese, ele, a', b_centros: 'Centros de aprendizaje',
+  b_almuerzo: 'Almuerzo', b_lector: 'Lector misterioso', b_casa: 'Casa',
+  pizarra: 'Pizarra', figuras: 'Figuras', emociones: 'Emociones', lector: 'Lector misterioso',
+};
+export const SCHED_SAY = {
+  decorar: '¡Vamos a decorar el salón!', manana: '¡Es hora del trabajo de la mañana!', calendario: '¡Es hora del calendario!',
+  alfabeto: '¡Es hora del alfabeto!', recreo: '¡Es hora del recreo!', lectura: '¡Es hora de lectura con maestra!',
+  heggerty: '¡Es hora de Heggerty!', sla: '¡Es hora de ese, ele, a!', centros: '¡Es hora de centros de aprendizaje!',
+  almuerzo: '¡Es hora del almuerzo!', lector: '¡Es hora del lector misterioso!', casa: '¡Es hora de ir a casa!',
+};
+export const SCHED_HINTS = {
+  next: 'Toca la flecha para seguir.', choice: 'Toca una tarjeta para empezar.', attendanceBig: 'Toca a cada amigo para pasar lista.',
+};
+export const MYSTERY_LINES = { guest: '¡Hola, niños! Soy el lector misterioso.', kid: '¡Es mi abuelita!' };
+Object.assign(UI_WORDS, SCHED_NAMES, { snack: 'Almuerzo' });
+Object.assign(HINTS, SCHED_HINTS, { snackServe: 'Dale el almuerzo a tus amigos.' });
+const V20_OWL = () => [...Object.values(SCHED_SAY), MYSTERY_LINES.guest];
+
 /** lines spoken by any student */
 export function studentPhrases() {
   const out = new Set([Q_INTRO, ...Q_RIGHT, Q_WRONG, FEEL_CALL, FEEL_Q1, FEEL_Q2, FEEL_DONE]);
@@ -186,6 +208,7 @@ export function narratorPhrases() {
   for (const w of WORDS) { out.add(w.w); w.s.forEach(x => out.add(x)); }
   [UI_WORDS, ITEM_WORDS, HINTS].forEach(o => Object.values(o).forEach(x => out.add(x)));
   V19_OWL().forEach(l => out.add(l));
+  V20_OWL().forEach(l => out.add(l));
   Object.values(ALIVE_OWL).forEach(x => out.add(x));
   [WEATHER_ASK, ...WEATHER.map(w => w.line), ...Object.values(RITUAL_UI), ...Object.values(RITUAL_HINTS)].forEach(l => out.add(l));
   Object.values(YARD_HINTS).forEach(l => out.add(l));

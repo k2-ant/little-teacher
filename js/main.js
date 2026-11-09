@@ -28,7 +28,7 @@ const yard = createPlayground(students, { close() { go('class'); } }); // v2.0: 
 const room = createClassroom(students, {
   boardCanvas: () => board.canvas(),
   openBoard() { board.opened(); go('board', 'zoom'); },
-  openLetters() { letters.open(); go('letters'); },
+  openLetters(tab) { letters.open(tab); go('letters'); },
   openShapes() { shapes.open(); go('shapes'); },
   // recess: the class walks out to the playground; resolves when the whistle has called everyone back in
   openYard(kids) { return new Promise(res => { yard.open(kids, res); go('yard'); }); },
@@ -157,7 +157,8 @@ function render() {
     const rv = room.view, bv = board.view;
     room.render(); blit(rv);
     // zoom the drawing from the wall board to the full-screen board
-    const b0 = { x: (Math.round(rv.W / 2 - 52) + 4) * rv.s, y: (12 + 4) * rv.s, w: 96 * rv.s, h: 54 * rv.s };
+    const ba = room.boardAt ? room.boardAt() : { x: Math.round(rv.W / 2 - 52) + 4, y: 16 };
+    const b0 = { x: ba.x * rv.s, y: ba.y * rv.s, w: 96 * rv.s, h: 54 * rv.s };
     const br = board.rect();
     const b1 = { x: br.x * bv.s, y: br.y * bv.s, w: BW * bv.s, h: BH * bv.s };
     if (k > 0.55) {

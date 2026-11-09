@@ -120,6 +120,7 @@ Tip: turn on **Guided Access** (Settings → Accessibility → Guided Access) an
 | `js/classroom.js` | the room, furniture, daily loop, free time, HUD, sticker book |
 | `js/board.js` | full-screen whiteboard |
 | `js/rituals.js` | weather at circle time and the Ayudantes jobs chart |
+| `js/schedule.js` | the day as a picture schedule ("Horario"): cards, clothespin, ▶ siguiente, block flow |
 | `js/pages.js` | story books |
 | `js/quiz.js` | students' questions and feelings check-ins |
 | `js/students.js` | student poses, actions, personality traits |
