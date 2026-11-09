@@ -13,41 +13,41 @@ import { createRituals, jobsButtonIcon } from './rituals.js';
 import { wordSprite as wsprite } from './i18n.js';
 import { lang, setLang, flag, DAY_WORDS, DAY_SHORT, DAY_COLORS, dayIndex, daySentence, wordSprite } from './i18n.js';
 import { LETTERS, letterSentence } from './i18n.js';
-import { tapEscalate, crowned } from './students.js';
+import { tapEscalate, crowned, naughtyAct } from './students.js';
 import { createSchedule, blockIcon } from './schedule.js';
 
 const R = (c, x, y, w, h, col) => { c.fillStyle = col; c.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); };
 const D = (c, img, x, y) => c.drawImage(img, Math.round(x), Math.round(y));
 
 const FURN_DEFAULT = {
-  desk0: [0.30, 0.34], desk1: [0.50, 0.34], desk2: [0.70, 0.34], desk3: [0.40, 0.77], desk4: [0.60, 0.77],
-  rug: [0.15, 0.93], plant: [0.93, 0.62], shelf: [0.9, 0.13],
+  // v2.0: eight desks, two staggered rows of four (the Horario now takes the left edge of the screen)
+  desk0: [0.32, 0.32], desk1: [0.48, 0.32], desk2: [0.64, 0.32], desk3: [0.80, 0.32],
+  desk4: [0.235, 0.72], desk5: [0.395, 0.72], desk6: [0.555, 0.72], desk7: [0.715, 0.72],
+  rug: [0.15, 0.93], plant: [0.06, 0.45], shelf: [0.93, 0.13], // v2.0: the plant moved by the door to make room for desk 7
 };
 const FURN_SIZE = { desk: [S.DESK_W, S.DESK_H], rug: [84, 32], plant: [28, 38], shelf: [38, 46], teacher: [22, DC.TH] };
 const sizeOf = (f) => FURN_SIZE[f.type] || [DC.DECOR[f.type].w, DC.DECOR[f.type].h];
 const layerOf = (f) => (DC.DECOR[f.type] ? DC.DECOR[f.type].layer : 'floor');
 let uid = 0;
 
-// ------------------------------------------------------------------ mini faces for the attendance chart
-function miniFace(kind, on) {
-  return cached('mini' + kind + on, () => {
-    const p = new Pix(13, 13);
-    const C = S.PAL[kind];
-    const g = (c) => on ? c : darken(lighten(c, 0.5), 0.15);
-    if (kind === 'bunny') { p.ell(4.5, 3, 1.5, 3.4, g(C.fur)); p.ell(8.5, 3, 1.5, 3.4, g(C.fur)); p.px(4, 2, g(C.inner)); p.px(8, 2, g(C.inner)); }
-    if (kind === 'owl') { p.ell(3, 3.5, 1.5, 2, g(C.fur)); p.ell(10, 3.5, 1.5, 2, g(C.fur)); }
-    if (kind === 'frog') { p.ell(4, 4.5, 2.4, 2.2, g(C.fur)); p.ell(9, 4.5, 2.4, 2.2, g(C.fur)); }
-    p.ball(6.5, 7.5, 5.5, 4.6, g(C.fur), { hi: false });
-    if (kind === 'puppy') { p.ell(1.6, 7, 1.5, 3, g(C.ear)); p.ell(11.4, 7, 1.5, 3, g(C.ear)); }
-    if (kind === 'turtle') p.ell(6.5, 4.6, 5, 2.4, g(C.accent), { y1: 4 });
-    if (kind === 'owl') { p.ell(4.5, 7.5, 2, 2, g(C.disk)); p.ell(8.5, 7.5, 2, 2, g(C.disk)); p.px(6, 9, g('#ffae4a')); }
-    const e = on ? S.INK : '#9a8d98';
-    if (kind === 'frog') { p.px(4, 4, e); p.px(9, 4, e); } else { p.px(4, 7, e); p.px(8, 7, e); }
-    if (on) { p.px(5, 10, S.INK); p.px(6, 10, S.INK); p.px(7, 10, S.INK); }
-    p.outline();
-    return p.canvas();
-  });
+// v2.0: from five desks to eight. A desk she moved keeps its spot if it's clear of the other desks' new spots
+// (and of the shape table, plant and shelf); every other desk takes its new spot. Runs once per save.
+function migrateDesks(n) {
+  if (G.save.deskN === n) return;
+  const F = G.save.furniture, ids = Array.from({ length: n }, (_, i) => 'desk' + i);
+  const near = (a, b) => Math.abs(a[0] - b[0]) < 0.13 && Math.abs(a[1] - b[1]) < 0.3;
+  const taken = [F.shapetable || [0.9, 0.62], F.plant || FURN_DEFAULT.plant, F.shelf || FURN_DEFAULT.shelf];
+  for (const id of ids) {
+    const sv = F[id], others = ids.filter(o => o !== id).map(o => FURN_DEFAULT[o]);
+    if (Array.isArray(sv) && sv.length === 2 && sv.every(Number.isFinite) && ![...taken, ...others].some(q => near(q, sv))) taken.push(sv);
+    else delete F[id];
+  }
+  for (const k of Object.keys(F)) if (/^desk\d+$/.test(k) && !ids.includes(k)) delete F[k];
+  G.save.deskN = n; persist();
 }
+
+// ------------------------------------------------------------------ mini faces for the attendance chart (all eight friends: sprites.js)
+const miniFace = (kind, on) => S.miniFace(kind, on);
 function btnFrame(w, h, col = '#fff3dc', key = '') {
   return cached('btn' + w + 'x' + h + col + key, () => {
     const p = new Pix(w, h);
@@ -69,6 +69,7 @@ export function createClassroom(students, hooks) {
   const L = {};
   let bg = null;
   const furn = {};
+  migrateDesks(students.length);
   for (const id of Object.keys(FURN_DEFAULT)) {
     const type = id.startsWith('desk') ? 'desk' : id;
     const saved = G.save.furniture[id];
@@ -88,10 +89,14 @@ export function createClassroom(students, hooks) {
     const id = 'd' + (uid++);
     furn[id] = { id, type: d.t, deco: true, v: d.v || 0, fx: d.fx, fy: d.fy, x: 0, y: 0, lift: 0 };
   }
-  if (G.save.seats) students.forEach(s => { if (G.save.seats[s.kind] !== undefined) s.desk = G.save.seats[s.kind]; });
+  if (G.save.seats) { // saved seats (v1.9 saves only know five friends): keep valid, unique ones, the rest get a free desk
+    const used = new Set();
+    for (const s of students) { const d = G.save.seats[s.kind]; s.desk = Number.isInteger(d) && d >= 0 && d < students.length && !used.has(d) ? d : -1; if (s.desk >= 0) used.add(s.desk); }
+    for (const s of students) if (s.desk < 0) { s.desk = used.has(s.idx) ? students.findIndex((_, k) => !used.has(k)) : s.idx; used.add(s.desk); }
+  }
   students.forEach(s => { s.stars = G.save.stars[s.kind] || 0; });
 
-  const desks = [0, 1, 2, 3, 4].map(i => furn['desk' + i]);
+  const desks = students.map((_, i) => furn['desk' + i]);
   const parts = [];
   let phase = 'title';
   let busy = false;
@@ -244,6 +249,7 @@ export function createClassroom(students, hooks) {
       if (s.kind === 'owl') { act(s, 'cheer', 1.2); hop(s, 70); if (Math.random() < 0.55) speak(s, LD.NAUGHTY_LINES.owl, 'yay'); }
       if (s.kind === 'bunny') { act(s, 'wave', 1.6); s.look = Math.random() < 0.5 ? -1 : 1; if (Math.random() < 0.45) speak(s, LD.NAUGHTY_LINES.bunny, 'here'); }
       if (s.kind === 'turtle') shellPlay(s);
+      naughtyAct(s); // v2.0: cat swats, bear rubs his tummy, mouse zooms around
     }
   }
 
@@ -253,10 +259,11 @@ export function createClassroom(students, hooks) {
     const W = V.W;
     let x, y;
     if (ci === 0) { x = clamp(L.board.x + L.board.w + 16, 20, W - 40); y = L.floorTop + 16; }
-    if (ci === 1) { x = furn.rug.x; y = furn.rug.y - 12; }
+    if (ci === 1) { const nb = btns.find(b => b.id === 'next'); y = Math.min(furn.rug.y - 12, nb.y - 4); x = y > nb.y - 30 ? Math.max(furn.rug.x, nb.x + nb.w + 22) : furn.rug.x; } // on the rug, not behind ▶
     if (ci === 2) { x = furn.abc.x; y = L.floorTop + 14; }
     if (ci === 3) { x = furn.shapetable.x; y = furn.shapetable.y - 20; }
-    return { x: clamp(x + (k - (n - 1) / 2) * 18, 14, W - 14), y: clamp(y, L.floorTop + 12, V.H - 4) };
+    const per = n > 4 ? Math.ceil(n / 2) : n, r = Math.floor(k / per), m = r ? n - per : per, j = k - r * per; // a crowded centro: two rows
+    return { x: clamp(x + (j - (m - 1) / 2) * 18 + r * 9, 14, W - 14), y: clamp(y + r * 12, L.floorTop + 12, V.H - 4) };
   }
   function openCentrosChart() {
     const assign = {};
@@ -276,7 +283,9 @@ export function createClassroom(students, hooks) {
     const { cols } = centrosLayout(), out = [];
     for (const col of cols) {
       const ks = students.filter(s => centros.assign[s.kind] === col.ci);
-      ks.forEach((s, j) => out.push({ s, x: col.x + col.w / 2 - 13, y: col.y + 30 + j * 30, w: 26, h: 26 }));
+      const two = ks.length > 3 && col.w >= 52, per = two ? 2 : 1, rows = Math.ceil(ks.length / per); // a crowded centro: faces side by side
+      const step = rows > 1 ? Math.min(30, Math.floor((col.h - 30 - 26) / (rows - 1))) : 30;
+      ks.forEach((s, j) => out.push({ s, x: col.x + col.w / 2 - 13 + (two ? (j % 2 ? 13 : -13) : 0), y: col.y + 30 + Math.floor(j / per) * step, w: 26, h: 26 }));
     }
     return out;
   }
@@ -426,7 +435,7 @@ export function createClassroom(students, hooks) {
   function place(f) {
     if (f.type === 'teacher' && f.fx < 0) f.fx = (L.door.x + L.door.w + 17) / V.W;
     if (f.type === 'abc' && f.fx < 0) { f.fx = ((L.door.x + L.door.w + L.board.x) / 2 + 4) / V.W; f.fy = (L.wallH - 22) / L.wallH; }
-    if (f.type === 'shapetable' && f.fx < 0) { f.fx = 0.8; f.fy = 0.72; }
+    if (f.type === 'shapetable' && f.fx < 0) { f.fx = 0.9; f.fy = 0.62; }
     if (f.type === 'calendar' && f.fx < 0) { f.fx = (V.W - V.inset.r - 20) / V.W; f.fy = (L.wallH - 24) / L.wallH; }
     const [w] = sizeOf(f);
     f.x = clamp(Math.round(f.fx * V.W), w / 2 + 2, V.W - w / 2 - 2);
@@ -625,7 +634,7 @@ export function createClassroom(students, hooks) {
     const order = students.filter(s => s.mode !== 'away').sort((a, b) => sortY(b) - sortY(a));
     for (const s of order) {
       const r = spriteRect(s);
-      const top = r.y + (s.kind === 'turtle' && s.hide > 0 ? 14 : 6) - s.z;
+      const top = r.y + (s.hide > 0 ? (S.CROWN_HIDE[s.kind] ?? 20) - 5 : 6) - s.z; // hiding turtle / mouse: only the shell or ears stick up
       const bottom = s.mode === 'seated' ? r.y + S.SH - 6 : r.y + S.SH;
       if (x >= r.x + 5 && x <= r.x + S.SW - 5 && y >= top && y <= bottom - s.z) return s;
     }
@@ -654,9 +663,9 @@ export function createClassroom(students, hooks) {
     if (doorTapStudent(s)) return;
     if (s.mode === 'walk') { hop(s, 60); sfx.boing(); return; }
     if (coax(s)) {
-      if (!s.here && s.hide > 0) { // shy turtle peeks out: a moment later she comes all the way out and says ¡Presente!
+      if (!s.here && s.hide > 0) { // shy turtle / mouse peeks out: a moment later comes all the way out and says ¡Presente!
         s.here = true;
-        wait(0.6).then(() => { if (s.hide > 0) { s.hide = 0; s.hideT = rand(30, 50); sfx.boing(); } s.here = false; markHere(s, 0); });
+        wait(0.6).then(() => { if (s.hide > 0) { s.hide = 0; s.hideT = rand(30, 50); sfx.boing(); } s.here = false; markHere(s, 0, s.kind === 'mouse' ? LD.V20_LINES.peek : null); });
       } else if (!s.here && !s.sleep && !(s.hide > 0)) markHere(s, 0.5);
       return;
     }
@@ -680,11 +689,11 @@ export function createClassroom(students, hooks) {
     burst('heart', ...headPos(s), 2, ['#ff6f91', '#ff9ec4'], { up: true, sp: 30 });
   }
   function headPos(s) { const r = spriteRect(s); return [r.x + S.SW / 2, r.y + 10 - s.z]; }
-  function markHere(s, delay) {
+  function markHere(s, delay, line) {
     s.here = true;
     wait(delay).then(() => {
       act(s, 'here', 1.3); hop(s, 55); talk(s, 'check', 1.6);
-      speak(s, s.kind === 'turtle' ? 'here...' : 'Here!');
+      speak(s, line || (s.kind === 'turtle' ? 'here...' : 'Here!'));
       burst('spark', ...headPos(s), 5, ['#7dd370', '#ffd23f']);
       if (students.every(t => t.here) && !attendanceDone) {
         attendanceDone = true;
@@ -879,10 +888,11 @@ export function createClassroom(students, hooks) {
     for (const s of students) Object.assign(s, { card: 'green', naughty: null, center: undefined, mood: null, mode: 'away', here: false, sleep: false, hide: 0, act: null, bubble: null, glowT: 0, z: 0, vz: 0, snack: null, sleepT: rand(14, 24), wanderT: rand(20, 32), hideT: 0 });
     planDoor(); // maybe a friend is late today, and 1-2 knocks at the door later
     await hw(1.2);
+    const pace = Math.min(1, 5 / students.length); // v2.0: a bigger class walks in a little closer together
     for (const s of students) {
       if (s.lateToday) continue;
       doorTarget = 1; sfx.door();
-      await hw(0.35);
+      await hw(0.35 * pace);
       s.x = L.doorPt.x; s.y = L.doorPt.y; s.mode = 'walk';
       const p = seat(s);
       // walk out of the door, then to the seat
@@ -895,7 +905,7 @@ export function createClassroom(students, hooks) {
         if (s.kind === 'turtle') wait(1.8).then(() => { s.hide = 1; s.hideT = rand(30, 45); sfx.softPop(); });
         if (s.kind === 'bunny') s.sleepT = rand(8, 14);
       });
-      await hw(1.5);
+      await hw(1.5 * pace);
     }
     doorTarget = 0; sfx.door();
     for (let i = 0; i < 40 && students.some(s => s.mode !== 'seated' && !s.lateToday); i++) await wait(0.2);
@@ -954,7 +964,7 @@ export function createClassroom(students, hooks) {
       doorTarget = 1;
       walkTo(s, L.doorPt.x + 4, L.doorPt.y + 8, 52).then(() => walkTo(s, L.doorPt.x, L.doorPt.y - 2, 40)).then(() => { s.mode = 'away'; });
       speak(s, BYES[s.kind], 'bye');
-      await wait(1.3);
+      await wait(1.3 * Math.min(1, 6 / students.length));
     }
     for (let i = 0; i < 50 && students.some(s => s.mode !== 'away'); i++) await wait(0.2);
     doorTarget = 0; sfx.door();
@@ -989,9 +999,10 @@ export function createClassroom(students, hooks) {
   const eaters = () => students.filter(s => s.mode !== 'away');
   const seatedAt = (x, y) => { const d = deskAt(x, y); return d ? students.find(s => s.desk === d.i && s.mode === 'seated') : null; };
   function snackLayout() {
-    const sw = 24, w = SNACK_KINDS.length * sw + 8;
-    const x0 = Math.round(V.W / 2 - w / 2), y0 = V.H - V.inset.b - 31;
-    return { tray: { x: x0, y: y0, w, h: 28 }, slot: (i) => ({ x: x0 + 4 + i * sw, y: y0 + 2, w: sw, h: 24 }) };
+    const nb = btns.find(b => b.id === 'next'), lo = nb.x + nb.w + 4, hi = V.W - V.inset.r - 4;
+    const sw = clamp(Math.floor((hi - lo - 8) / SNACK_KINDS.length), 20, 24), w = SNACK_KINDS.length * sw + 8;
+    const x0 = Math.round(clamp(V.W / 2 - w / 2, lo, hi - w)), y0 = V.H - V.inset.b - 31;
+    return { tray: { x: x0, y: y0, w, h: 28 }, slot: (i) => ({ x: x0 + 4 + i * sw + (sw - 24) / 2, y: y0 + 2, w: 24, h: 24 }) };
   }
   async function serveSnack() {
     busy = true; phase = 'activity'; snackOn = true; armed = null;
@@ -1014,6 +1025,7 @@ export function createClassroom(students, hooks) {
     burst('spark', ...headPos(s), 6, ['#ffd23f', '#ffffff', '#ff9ec4'], { sp: 50 });
     const n = serve.served;
     wait(0.45).then(() => speak(helper(), LD.COUNT_WORDS[n - 1], 'here')); // the owl counts: uno, dos, tres…
+    if (s.kind === 'bear' && slot.k === 'bear') wait(1.3).then(() => { if (s.snack) { talk(s, 'heart', 1.4); speak(s, LD.V20_LINES.honey, 'yay'); } }); // his honey pot!
     munchSnack(s);
     return true;
   }
@@ -1374,10 +1386,26 @@ export function createClassroom(students, hooks) {
     const bk = storyBack();
     D(c, btnFrame(26, 26), bk.x, bk.y); D(c, S.ICONS.back(), bk.x + 4, bk.y + 3);
   }
+  /** n places to sit on the rug: one gentle arc for a few friends, two staggered rows for a full class
+   *  (kept clear of the ▶ button in the bottom-left corner) */
+  function rugSpots(n, x0 = furn.rug.x, y0 = furn.rug.y - 12) {
+    const nb = btns.find(b => b.id === 'next'), two = n > 5, back = two ? Math.ceil(n / 2) : n, front = n - back, sp = two ? 22 : 15, gap = 15;
+    const yb = clamp(y0 - (two ? gap : 0), L.floorTop + 14, Math.min(V.H - 2, nb.y + 2) - (two ? gap : 0)), yf = yb + gap;
+    const low = (two ? yf : yb) > nb.y - 6; // the lowest row would stand behind the ▶ button: slide everyone right of it
+    const lo = low ? nb.x + nb.w + 6 : 14, hi = V.W - 14;
+    const firstX = (m, off) => x0 - (m - 1) / 2 * sp + off;
+    let cx = x0;
+    if (low) cx += Math.max(0, lo - firstX(two ? front : back, two ? sp / 2 : 0));
+    cx = Math.max(cx, 14 + (back - 1) / 2 * sp);
+    cx = Math.min(cx, hi - (back - 1) / 2 * sp - (two ? sp / 2 : 0));
+    const out = [];
+    for (let k = 0; k < back; k++) { const t = back > 1 ? k / (back - 1) : 0.5; out.push({ x: Math.round(cx + (k - (back - 1) / 2) * sp), y: Math.round(yb - (two ? 0 : Math.sin(t * Math.PI) * 4)) }); }
+    for (let k = 0; k < front; k++) out.push({ x: Math.round(cx + (k - (front - 1) / 2) * sp + sp / 2), y: yf });
+    return out;
+  }
   async function storyTime() {
     busy = true; phase = 'activity'; calmMoods();
-    const rug = furn.rug;
-    const spots = [-30, -15, 0, 15, 30].map((dx, k) => ({ x: clamp(rug.x + dx, 14, V.W - 14), y: clamp(rug.y - 12 - [0, 3, 4, 3, 0][k], L.floorTop + 14, V.H - 2) }));
+    const spots = rugSpots(students.length);
     for (const s of students) { s.sleep = false; s.hide = 0; s.snack = null; }
     sfx.ding(660);
     await Promise.all(students.map((s, k) => {
@@ -1514,7 +1542,7 @@ export function createClassroom(students, hooks) {
       walkStep(s, dt);
       if (s.mode === 'seated' || (s.mode === 'stand' && s.kind === 'puppy')) {
         if (calm) { const q = quietOK(); if (!q && s.kind === 'owl') s.raiseT = Math.max(s.raiseT || 0, 1); traits(s, dt, { noRaise: !q }); }
-        if (s.kind === 'bunny' && s.sleep && Math.random() < dt * 0.9) floatUp('z', '#6f8fd6', ...headPos(s));
+        if (s.sleep && Math.random() < dt * 0.9) floatUp('z', '#6f8fd6', ...headPos(s)); // the sleepy bunny, the napping cat
       }
       // wiggly puppy wanders
       if (s.kind === 'puppy' && calm && s.mode === 'seated' && s.here && !s.act && quietOK()) {
@@ -1573,7 +1601,7 @@ export function createClassroom(students, hooks) {
       D(c, glow(img, Math.floor(G.time * 6) % 2 ? '#ffe36e' : '#fff6b8', s.kind + JSON.stringify(st)), x + dx - 2, yy - 2);
     }
     D(c, img, x + dx, yy);
-    if (crowned(s)) { const o = S.CROWN_AT[s.kind]; D(c, S.crown(), x + dx + o[0] - 1, yy + (s.hide > 0 ? 19 : o[1]) - 1); }
+    if (crowned(s)) { const o = S.CROWN_AT[s.kind]; D(c, S.crown(), x + dx + o[0] - 1, yy + (s.hide > 0 ? S.CROWN_HIDE[s.kind] ?? 19 : o[1]) - 1); }
     if (s.mode === 'held') return;
   }
   function drawDeskUnit(c, d) {
@@ -1776,17 +1804,18 @@ export function createClassroom(students, hooks) {
     }
   }
   // ---- v2.0 Calendario: the attendance faces, big, across the top
-  function faceRow() {
-    const n = students.length, fw = 28, gap = 3, tot = n * fw + (n - 1) * gap;
-    const x0 = Math.round(V.W / 2 - tot / 2), y = V.inset.t + 5;
-    return students.map((s, k) => ({ s, x: x0 + k * (fw + gap), y, w: fw, h: 32 }));
+  function faceRow() { // eight faces fit between the left edge and the ? button
+    const n = students.length, hb = btns.find(b => b.id === 'help'), lo = V.inset.l + 6, hi = hb.x - 8;
+    const gap = clamp(Math.floor((hi - lo - n * 26) / Math.max(1, n - 1)), 0, 3), fw = 26 + gap, tot = n * fw - gap;
+    const x0 = Math.round(clamp(V.W / 2 - tot / 2, lo, hi - tot)), y = V.inset.t + 5;
+    return students.map((s, k) => ({ s, x: x0 + k * fw, y, w: 26, h: 32 }));
   }
   function drawBigFaces(c) {
     const fr = faceRow(), f0 = fr[0], fl = fr[fr.length - 1], pw = fl.x + fl.w - f0.x + 8;
     D(c, btnFrame(pw, 38, '#fffaf0', 'faces'), f0.x - 4, f0.y - 3);
     for (const f of fr) {
       const s = f.s, bob = s.here && acting(s, 'here') ? -2 : 0;
-      D(c, scaled(miniFace(s.kind, s.here), 2), f.x + 1, f.y + bob);
+      D(c, scaled(miniFace(s.kind, s.here), 2), f.x, f.y + bob);
       if (s.card) R(c, f.x + 3, f.y + 28, 8, 3, s.card === 'red' ? '#ef4b4b' : '#3cb44b');
       if (crowned(s)) D(c, cached('minicrown', () => { const p = new Pix(7, 5); p.map(1, 1, ['#.#.#', '#####', '#####'], { '#': '#ffd23f' }); p.px(3, 3, '#ef4b4b'); p.outline(); return p.canvas(); }), f.x + 10, f.y - 3);
       if (s.here) D(c, cached('bigtick', () => { const p = new Pix(10, 8); p.line(0, 4, 3, 7, '#3cb44b'); p.line(3, 7, 9, 0, '#3cb44b'); p.line(1, 4, 3, 6, '#3cb44b'); p.line(3, 6, 8, 0, '#3cb44b'); p.outline('#ffffff', 0.9); return p.canvas(); }), f.x + 17, f.y + 20);
@@ -1998,12 +2027,15 @@ export function createClassroom(students, hooks) {
         if (!updateChecked) { updateChecked = true; fetch('js/version.js', { cache: 'no-store' }).then(r => r.text()).then(t => { const m = t.match(/VERSION = '([^']+)'/); if (m && m[1] !== VERSION) updateAvail = m[1]; }).catch(() => {}); }
       }
       if (phase === 'title') {
-        // a row of the five friends peeking up to say hello
+        // the whole class peeking up to say hello: four friends on each side of Louise, inner ones in front
         D(c, DC.teacher({ eyes: Math.floor(G.time * 1.1) % 6 === 0 ? 'blink' : 'happy', mouth: 'grin', armL: Math.floor(G.time * 4) % 2 ? 'wave1' : 'wave2', armR: 'down', sway: Math.floor(G.time * 1.2) % 2 }), W / 2 - 15, H * 0.58 - 106);
-        students.forEach((s, i) => {
+        const half = Math.ceil(students.length / 2), sp = Math.min(28, Math.floor((W / 2 - 38) / half));
+        const spots = students.map((s, i) => { const side = i < half ? -1 : 1, k = i < half ? half - 1 - i : i - half; return { s, i, x: W / 2 + side * (40 + k * sp), y: H * 0.58 - 92 - (k % 2 ? 6 : 0) }; });
+        for (const q of spots.sort((a, b) => a.y - b.y)) {
+          const { s, i } = q;
           const img = S.student(s.kind, { eyes: Math.floor(G.time * 1.3 + i) % 5 === 0 ? 'blink' : 'happy', mouth: 'smile', armL: i % 2 ? 'wave1' : 'down', armR: 'down', feet: 0, look: 0, blush: true, hide: 0, wag: false, earUp: false, tongue: s.kind === 'puppy' });
-          D(c, img, W / 2 + [-110, -74, 40, 76, 112][i] - 17, H * 0.58 - 92 + Math.round(Math.abs(Math.sin(G.time * 3 + i)) * -3));
-        });
+          D(c, img, q.x - 17, q.y + Math.round(Math.abs(Math.sin(G.time * 3 + i)) * -3));
+        }
       } else {
         const n = G.save.stickers.length;
         const stk = n ? S.sticker(G.save.stickers[n - 1]) : null;
@@ -2467,6 +2499,7 @@ export function createClassroom(students, hooks) {
   window.__ltStick = () => (L.stickBtn ? css(L.stickBtn.x + 13, L.stickBtn.y + 13) : null);
   window.__ltCard = (id) => { const q = SC.cardPt(id); return q ? [q.x * Vfull.s / G.dpr, q.y * Vfull.s / G.dpr] : null; };
   window.__ltChoice = (id) => { if (!choicesShown()) return null; const r = choiceRects().find(q => q.id === id); return r ? css(r.x + r.w / 2, r.y + r.h / 2) : null; };
+  window.__ltRoom = () => ({ W: V.W, H: V.H, ox, s: V.s, floorTop: L.floorTop, wallH: L.wallH, furn: Object.fromEntries(Object.values(furn).map(f => [f.id, [f.x, f.y]])) });
   window.__ltFaces = () => faceRow().map(f => css(f.x + 14, f.y + 14));
   window.__ltGuest = () => (guest ? { stage: guest.stage } : null);
   window.__ltStory = () => (story ? { stage: story.stage, book: story.book, page: story.page, covers: story.stage === 'choose' ? coverRects().map(r => css(r.x + r.w / 2, r.y + r.h / 2)) : null, book_pt: L.storyBook ? css(L.storyBook.x + L.storyBook.w / 2, L.storyBook.y + L.storyBook.h / 2) : null } : null);
@@ -2552,15 +2585,14 @@ export function createClassroom(students, hooks) {
     for (const s of awake()) act(s, 'gasp', 0.9);
     sfx.ooh(1.2);
     await wait(0.4);
-    const rug = furn.rug, n = students.length;
+    const rug = furn.rug, spots = rugSpots(students.length, rug.x - 6), gx = Math.max(...spots.map(q => q.x)) + 30;
     students.forEach((s, k) => { // everyone sits on the rug
       if (s.mode === 'away') return;
       if (s.mode === 'seated') { Object.assign(s, seat(s)); s.mode = 'stand'; }
-      const t = n > 1 ? k / (n - 1) : 0.5;
-      walkTo(s, clamp(rug.x - 34 + t * 60, 14, V.W - 14), clamp(rug.y - 12 - Math.round(Math.sin(t * Math.PI) * 4), L.floorTop + 14, V.H - 2), 50);
+      walkTo(s, spots[k].x, spots[k].y, 50);
     });
     await guestWalk(L.doorPt.x + 6, L.doorPt.y + 12);
-    await guestWalk(clamp(rug.x + 54, 20, V.W - 20), clamp(rug.y - 16, L.floorTop + 30, V.H - 4));
+    await guestWalk(clamp(gx, 20, V.W - 20), clamp(Math.max(...spots.map(q => q.y)) - 4, L.floorTop + 30, V.H - 4)); // beside the class
     if (guest !== g) { busy = false; return; }
     doorTarget = 0; sfx.door();
     g.talkT = G.time + 2.4; speak({ kind: g.kind }, LD.MYSTERY_LINES.guest, 'here');

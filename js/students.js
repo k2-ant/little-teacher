@@ -13,7 +13,7 @@ export function makeStudents() {
     act: null, blink: 0, blinkT: rand(1, 4), look: 0,
     here: false, sleep: false, sleepT: rand(14, 26),
     hide: 0, hideT: 0, wanderT: rand(18, 30), giggleT: rand(7, 14), raiseT: rand(3, 7),
-    glowT: 0, bubble: null, stepT: 0, snack: null, stars: 0, tapCount: 0, curT: rand(25, 45), tapN: 0, tapT: -99,
+    glowT: 0, bubble: null, stepT: 0, snack: null, stars: 0, tapCount: 0, curT: rand(25, 45) * Math.max(1, KINDS.length / 5), tapN: 0, tapT: -99,
   }));
 }
 
@@ -49,6 +49,7 @@ export function coax(s) {
   if (s.kind === 'cat' && s.sleep) {
     s.sleep = false; s.napT = rand(40, 60);
     act(s, 'stretch', 0.9); sfx.meow(1.1);
+    wait(0.9).then(() => speak(s, V20_LINES.nap, 'yay')); // "¡Qué rica siesta!"
     return true;
   }
   if (s.kind === 'mouse' && s.hide > 0) { // first tap: peek, second tap: out he pops
@@ -190,7 +191,7 @@ export function traits(s, dt, opts = {}) {
   // v2.0: the curious cat purrs and takes catnaps, the big gentle bear yawns, the shy mouse ducks under the desk
   if (s.kind === 'cat') {
     if (s.sleep) {
-      if (G.time > (s.napUntil ?? 0)) { s.sleep = false; s.napT = rand(40, 60); act(s, 'stretch', 1.1); if (opts.sounds !== false) sfx.meow(1.1); }
+      if (G.time > (s.napUntil ?? 0)) { s.sleep = false; s.napT = rand(40, 60); act(s, 'stretch', 1.1); if (opts.sounds !== false) { sfx.meow(1.1); if (Math.random() < 0.5) wait(1.1).then(() => speak(s, V20_LINES.nap, 'yay')); } }
       else { s.snoreT = (s.snoreT ?? 2) - dt; if (s.snoreT < 0) { s.snoreT = rand(2.5, 4); if (opts.snore !== false) sfx.purr(); } }
     } else if (!busy) {
       s.napT = (s.napT ?? rand(35, 55)) - dt;
@@ -217,12 +218,14 @@ export function traits(s, dt, opts = {}) {
   }
 }
 
-/** everyone gets curious now and then and raises a paw (the owl does it far more often, above) */
+/** everyone gets curious now and then and raises a paw (the owl does it far more often, above).
+ *  v2.0: the wait grows with the class, so eight friends raise paws about as often as five did */
+const CROWD = Math.max(1, KINDS.length / 5);
 function curious(s, dt, opts, busy) {
   if (s.kind === 'owl' || opts.noRaise) return;
-  s.curT = (s.curT ?? rand(25, 45)) - dt;
+  s.curT = (s.curT ?? rand(25, 45) * CROWD) - dt;
   if (s.curT > 0 || busy || s.sleep || s.hide > 0) return; // sleepy bunny / hiding turtle wait for their turn
-  s.curT = rand(25, 45);
+  s.curT = rand(25, 45) * CROWD;
   act(s, 'raise', rand(3.5, 5));
   if (opts.sounds === false) return;
   if (s.kind === 'puppy') sfx.woof();
