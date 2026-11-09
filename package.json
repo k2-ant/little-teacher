@@ -1,0 +1,8 @@
+{
+  "name": "little-teacher",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "voices": "node tools/voices.mjs"
+  }
+}

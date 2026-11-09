@@ -2,7 +2,8 @@
 import { G, persist } from './state.js';
 import { Pix, cached } from './raster.js';
 
-export const lang = () => (G.save.lang === 'es' ? 'es' : 'en');
+// The class is all in Spanish. (English data is kept in case it's wanted again later.)
+export const lang = () => 'es';
 export function setLang(l) { G.save.lang = l; persist(); }
 
 const ES = {
@@ -38,9 +39,10 @@ const WORDS = {
 export const letterName = (ch) => NAMES[lang()][ch];
 export const numberWord = (n) => NUMBER_WORDS[lang()][n];
 export const letterWord = (ch) => WORDS[lang()][ch];
+const cap = (w) => w.charAt(0).toUpperCase() + w.slice(1);
 export function letterSentence(ch) {
   const [w] = letterWord(ch);
-  return lang() === 'es' ? `¡${letterName(ch)}, de ${w}!` : `${letterName(ch)} is for ${w}!`;
+  return lang() === 'es' ? `¡${cap(letterName(ch))} de ${w}!` : `${letterName(ch)} is for ${w}!`;
 }
 
 // ------------------------------------------------------------------ shapes
@@ -108,4 +110,23 @@ export function flag(l) {
     p.outline();
     return p.canvas();
   });
+}
+
+// ------------------------------------------------------------------ every Spanish line the game can say (for voice generation)
+export function allPhrases() {
+  const out = new Set(Object.values(ES));
+  for (const ch of LETTERS) { out.add(NAMES.es[ch]); out.add(letterSentence(ch)); }
+  NUMBER_WORDS.es.forEach(w => out.add(w));
+  Object.values(SHAPE_NAMES.es).forEach(w => out.add(w));
+  return [...out];
+}
+/** what we actually send to the voice engine for a phrase (short words get a little enthusiasm) */
+export function ttsText(key) {
+  if (!/[¡!¿?.,]/.test(key) && key.length <= 12) return '¡' + cap(key) + '!';
+  return key;
+}
+export function clipSlug(key) {
+  const base = key.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'x';
+  let h = 0; for (const c of key) h = (h * 31 + c.codePointAt(0)) >>> 0;
+  return base.slice(0, 40) + '-' + h.toString(36).slice(0, 5);
 }

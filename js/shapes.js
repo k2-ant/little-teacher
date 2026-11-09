@@ -137,7 +137,6 @@ export function createShapes(students, hooks) {
     D(c, DC.teacher(st), V.inset.l + 3, L.ledge - DC.TH + 4);
     row.render(c, W, H);
     D(c, btnFrame(26, 26), L.back.x, L.back.y); D(c, S.ICONS.back(), L.back.x + 4, L.back.y + 3);
-    D(c, btnFrame(L.flag.w, L.flag.h), L.flag.x, L.flag.y); D(c, flag(lang()), L.flag.x + 4, L.flag.y + 3);
     row.renderParts(c);
   }
   function pieceAt(x, y) {
@@ -190,7 +189,6 @@ export function createShapes(students, hooks) {
     const { x, y } = pr;
     if (pr.placed) { pr.placed.pop = G.time + 0.25; sfx.pop(1.2); sayShape(pr.placed.shape); return; }
     if (inR(x, y, L.back)) { sfx.whoosh(); hooks.close(); return; }
-    if (inR(x, y, L.flag)) { setLang(lang() === 'en' ? 'es' : 'en'); sfx.pop(); speak(owl, lang() === 'es' ? 'Spanish time!' : 'English time!', 'yay'); return; }
     for (const h of holes) if (Math.hypot(h.x - x, h.y - y) < 14) { sfx.tap(); sayShape(h.shape); return; }
     const s = row.hit(x, y); if (s) row.tap(s);
   }

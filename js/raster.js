@@ -6,7 +6,9 @@ export function hex(c) {
   if (typeof c === 'number') return c;
   let v = hexCache.get(c);
   if (v === undefined) {
-    const n = parseInt(c.slice(1), 16);
+    let h = c.slice(1);
+    if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+    const n = parseInt(h, 16);
     v = ((0xff << 24) | ((n & 0xff) << 16) | (((n >> 8) & 0xff) << 8) | ((n >> 16) & 0xff)) >>> 0;
     hexCache.set(c, v);
   }

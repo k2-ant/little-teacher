@@ -1,5 +1,5 @@
 import { G, loadSave, tickTimers, persistNow } from './state.js';
-import { unlock, sfx } from './audio.js';
+import { unlock, sfx, loadClips, prefetchClips } from './audio.js';
 import { makeStudents } from './students.js';
 import { createClassroom } from './classroom.js';
 import { createBoard, BW, BH } from './board.js';
@@ -12,6 +12,8 @@ const ctx = canvas.getContext('2d');
 const probe = document.getElementById('safe');
 
 loadSave();
+loadClips();
+let prefetched = false;
 const students = makeStudents();
 let mode = 'class';
 let trans = null; // {from, to, kind:'zoom'|'fade', t}
@@ -59,6 +61,7 @@ function toLocal(e) {
 canvas.addEventListener('pointerdown', (e) => {
   e.preventDefault();
   unlock();
+  if (!prefetched) { prefetched = true; setTimeout(prefetchClips, 3000); }
   if (activeId !== null || trans || portrait()) return;
   activeId = e.pointerId;
   try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }

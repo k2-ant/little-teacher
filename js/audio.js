@@ -79,7 +79,48 @@ function voice({ t = 0, dur = 0.3, f0 = 500, f1, vowel = 'ee', vowel2, vol = 0.2
   o.start(T); lfo.start(T); o.stop(T + dur + 0.05); lfo.stop(T + dur + 0.05);
 }
 
-// ---- speech (on-device voices, works offline on iPad)
+// ---- recorded voice clips (generated with ElevenLabs, see tools/voices.mjs)
+let clipMap = null;
+const bufs = new Map(), loading = new Map(), playingClip = {};
+export async function loadClips() {
+  try { clipMap = (await (await fetch('audio/clips.json')).json()).clips; } catch (e) { clipMap = null; }
+}
+function clipUrl(kind, key) { const slug = clipMap && clipMap[key]; return slug ? `audio/${kind}/${slug}.mp3` : null; }
+function getBuf(url) {
+  if (bufs.has(url)) return Promise.resolve(bufs.get(url));
+  if (loading.has(url)) return loading.get(url);
+  const p = fetch(url).then(r => r.arrayBuffer()).then(ab => new Promise((res, rej) => ac.decodeAudioData(ab, res, rej)))
+    .then(b => { bufs.set(url, b); loading.delete(url); return b; }).catch(() => { loading.delete(url); return null; });
+  loading.set(url, p);
+  return p;
+}
+/** play a recorded line for a student. Returns false if there is no clip (caller falls back to speech). */
+export function playClip(kind, key, rate = 1) {
+  const url = clipUrl(kind, key);
+  if (!url || !ac) return false;
+  if (muted) return true;
+  getBuf(url).then(b => {
+    if (!b || muted) return;
+    try { playingClip[kind]?.stop(); } catch (e) { /* already ended */ }
+    const src = ac.createBufferSource(); src.buffer = b; src.playbackRate.value = rate;
+    const g = ac.createGain(); g.gain.value = 1.25;
+    src.connect(g); g.connect(out); src.start();
+    playingClip[kind] = src;
+    src.onended = () => { if (playingClip[kind] === src) playingClip[kind] = null; };
+  });
+  return true;
+}
+/** quietly download every clip once so the game works offline afterwards */
+export async function prefetchClips() {
+  if (!clipMap) await loadClips();
+  if (!clipMap) return;
+  const urls = [];
+  for (const kind of ['bunny', 'puppy', 'turtle', 'owl', 'frog']) for (const slug of Object.values(clipMap)) urls.push(`audio/${kind}/${slug}.mp3`);
+  const workers = Array.from({ length: 3 }, async () => { while (urls.length) { const u = urls.shift(); try { await fetch(u); } catch (e) { /* offline */ } } });
+  await Promise.all(workers);
+}
+
+// ---- speech (on-device voices, fallback when a clip is missing)
 let voices = [];
 function loadVoices() { voices = (window.speechSynthesis && speechSynthesis.getVoices()) || []; }
 if (window.speechSynthesis) { loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; }

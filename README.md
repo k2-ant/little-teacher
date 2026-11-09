@@ -12,12 +12,31 @@ Five original pixel-art students come to class:
 
 Louise is the teacher. She stands at the front, waves, claps and points at the board, and she twirls when you tap her. You can drag her anywhere in the room.
 
-## English / Spanish (DLI)
-The 🇺🇸/🇲🇽 flag button switches between **English time** and **Spanish time**. Every student line changes language: greetings, "Here!"/"¡Presente!", cheers, colours, stamp names, letters, numbers, words and shapes. The students use the iPad's built-in Spanish voice when it's Spanish time.
+## ¡Todo en español!
+The whole class is in Spanish, like her DLI classroom: greetings, "¡Presente!", cheers, colours, letters, numbers, words and shapes.
+
+Each student has their own **ElevenLabs** voice. The clips are recorded ahead of time and saved in `audio/`, so the game still works offline:
+
+| student | voice |
+|---|---|
+| 🐰 bunny | Lulu, adorable and bright |
+| 🐶 puppy | Leo, curious |
+| 🐢 turtle | Thorthugo, a playful turtle character |
+| 🦉 owl | Kate, a playful storyteller |
+| 🐸 frog | Blackie, cute and cheerful |
+
+To regenerate the clips after changing any lines: `ELEVENLABS_API_KEY=... node tools/voices.mjs` (Node 22+). The script only makes clips that don't exist yet. If a clip is missing, the game falls back to the iPad's built-in Spanish voice.
 
 ## Learning corners
-- **Alphabet board** (chalkboard on the wall): pick A–Z (including Ñ) or 0–10. Trace the big letter and each block lights up in rainbow colours. When it's done, everyone cheers and a student says the word ("A is for apple!" / "¡A de arcoíris!") with a picture. Numbers get counted out loud with stars. Letters she has traced get a green dot.
-- **Shape corner** (the little table): drag shapes into the matching holes of the wooden sorter: circle, square, triangle, rectangle, star, heart, oval and diamond. Each shape's name is said in the current language. A wrong hole just wiggles back; there's no failing. Every round you finish brings new shapes.
+- **Alphabet board** (chalkboard on the wall): pick A–Z (including Ñ) or 0–10 and trace it the way it's taught in school, stroke by stroke:
+  - a green **start dot** shows the stroke number, and arrows show which way to go
+  - a little ⭐ **demonstrates** each stroke when she pauses
+  - her finger lays down a **rainbow crayon** that follows the letter's path, with crayon sounds and rising notes
+  - if she lifts her finger, she can carry on where she stopped
+  - when she's done, there's confetti and cheering, and a student says the word with its picture ("¡A de arcoíris!")
+  - numbers get counted out loud with stars ("uno, dos, tres")
+  - traced letters get a green dot, and ↻ lets her trace the same letter again
+- **Shape corner** (the little table): drag shapes into the matching holes of the wooden sorter: circle, square, triangle, rectangle, star, heart, oval and diamond. Each shape's name is said in Spanish. A wrong hole just wiggles back; there's no failing. Every round you finish brings new shapes.
 
 ## A day in class
 1. **Get the room ready:** before class the room is empty and the decorate tray is open:
@@ -63,7 +82,9 @@ Tip: turn on **Guided Access** (Settings → Accessibility → Guided Access) an
 | `js/board.js` | full-screen whiteboard |
 | `js/students.js` | student poses, actions, personality traits |
 | `js/decor.js` | decorations, desk supplies, paint colours, and the teacher (Louise) |
-| `js/i18n.js` | English/Spanish phrases, letter names, words, shape names, font |
+| `js/i18n.js` | Spanish phrases, letter names, words, shape names, font |
+| `js/strokes.js` | handwriting stroke paths for every letter and number |
+| `audio/` | ElevenLabs voice clips (one folder per student) + `clips.json` |
 | `js/letters.js` | alphabet & numbers tracing board |
 | `js/shapes.js` | shape sorter |
 | `js/pictures.js` | word pictures for the alphabet |

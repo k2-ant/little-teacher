@@ -808,9 +808,9 @@ export function createClassroom(students, hooks) {
   }
   function hudVisible() { return phase === 'class' || phase === 'activity' || phase === 'prep'; }
   function shownBtns() {
-    if (phase === 'prep') return btns.filter(b => ['stickers', 'bell', 'decorate', 'lang'].includes(b.id));
+    if (phase === 'prep') return btns.filter(b => ['stickers', 'bell', 'decorate'].includes(b.id));
     if (phase !== 'class' && phase !== 'activity') return [];
-    return btns.filter(b => ['stickers', 'home', 'decorate', 'lang'].includes(b.id) || (!deco && (b.id === 'star' || b.id === 'toys')) || (recess && b.id === 'toys'));
+    return btns.filter(b => ['stickers', 'home', 'decorate'].includes(b.id) || (!deco && (b.id === 'star' || b.id === 'toys')) || (recess && b.id === 'toys'));
   }
   function drawHud(c) {
     if (!hudVisible()) return;

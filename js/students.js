@@ -1,6 +1,6 @@
 import { G, rand, pick } from './state.js';
 import { KINDS, PAL } from './sprites.js';
-import { say, sfx } from './audio.js';
+import { say, sfx, playClip } from './audio.js';
 import { tr, lang } from './i18n.js';
 
 export function makeStudents() {
@@ -25,7 +25,9 @@ const VOICE = { bunny: 1.85, puppy: 1.45, turtle: 1.15, owl: 1.35, frog: 1.7 };
 const SQUEAK = { bunny: 1.35, puppy: 1.0, turtle: 0.8, owl: 1.1, frog: 1.2 };
 export function speak(s, text, fallback = 'here') {
   if (!s) return;
-  if (!say(tr(text), VOICE[s.kind], s.kind === 'turtle' ? 0.9 : 1.08, lang())) sfx[fallback](SQUEAK[s.kind]);
+  const line = tr(text);
+  if (playClip(s.kind, line)) return;
+  if (!say(line, VOICE[s.kind], s.kind === 'turtle' ? 0.9 : 1.08, lang())) sfx[fallback](SQUEAK[s.kind]);
 }
 export function squeakPitch(s) { return SQUEAK[s.kind]; }
 export function animalSound(s) {
