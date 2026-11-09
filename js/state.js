@@ -42,6 +42,12 @@ export function loadSave() {
   s.stickers ||= []; s.furniture ||= {}; s.stars ||= {};
   s.decor ||= []; s.deskItems ||= {}; s.paint ||= { wall: 0, floor: 0 }; s.rugV ||= 0;
   s.decorStamp ||= 0; s.decorSeen ||= 0;
+  // v2.0 decorating: placed things may carry s (size 0-2) and f (flipped); gallery = her last whiteboard drawings (small PNGs) for the art wall
+  if (!Array.isArray(s.decor)) s.decor = [];
+  s.decor = s.decor.filter(d => d && typeof d.t === 'string' && Number.isFinite(d.fx) && Number.isFinite(d.fy));
+  if (!Array.isArray(s.gallery)) s.gallery = [];
+  s.gallery = s.gallery.filter(g => typeof g === 'string').slice(0, 3);
+  if (!s.paint || typeof s.paint !== 'object') s.paint = { wall: 0, floor: 0 };
   if (!Array.isArray(s.gifts)) s.gifts = []; // v1.9: decorations delivered in a parcel at the door
   if (!Array.isArray(s.abcShown)) s.abcShown = []; if (!s.crown || typeof s.crown !== 'object') s.crown = null; // v1.9: alphabet line, star-of-the-week crown
   // v1.9 rituals: today's weather { day, w } and the class jobs { day, assign: {kind: job}, watered }

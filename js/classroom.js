@@ -15,6 +15,7 @@ import { lang, setLang, flag, DAY_WORDS, DAY_SHORT, DAY_COLORS, dayIndex, daySen
 import { LETTERS, letterSentence } from './i18n.js';
 import { tapEscalate, crowned, naughtyAct } from './students.js';
 import { createSchedule, blockIcon } from './schedule.js';
+import { createDecorate } from './decorate.js';
 
 const R = (c, x, y, w, h, col) => { c.fillStyle = col; c.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); };
 const D = (c, img, x, y) => c.drawImage(img, Math.round(x), Math.round(y));
@@ -26,7 +27,7 @@ const FURN_DEFAULT = {
   rug: [0.15, 0.93], plant: [0.06, 0.45], shelf: [0.93, 0.13], // v2.0: the plant moved by the door to make room for desk 7
 };
 const FURN_SIZE = { desk: [S.DESK_W, S.DESK_H], rug: [84, 32], plant: [28, 38], shelf: [38, 46], teacher: [22, DC.TH] };
-const sizeOf = (f) => FURN_SIZE[f.type] || [DC.DECOR[f.type].w, DC.DECOR[f.type].h];
+const sizeOf = (f) => FURN_SIZE[f.type] || DC.decoSize(f.type, f.sc); // v2.0: placed things can be resized
 const layerOf = (f) => (DC.DECOR[f.type] ? DC.DECOR[f.type].layer : 'floor');
 let uid = 0;
 
@@ -84,11 +85,16 @@ export function createClassroom(students, hooks) {
     const sv = G.save.furniture[id];
     furn[id] = { id, type: id, v: 0, fx: sv ? sv[0] : -1, fy: sv ? sv[1] : -1, x: 0, y: 0, lift: 0 };
   }
-  for (const d of G.save.decor) {
-    if (!DC.DECOR[d.t]) continue;
-    const id = 'd' + (uid++);
-    furn[id] = { id, type: d.t, deco: true, v: d.v || 0, fx: d.fx, fy: d.fy, x: 0, y: 0, lift: 0 };
+  function loadDecor() { // (re)builds the placed decorations from the save (also used by ↶ undo)
+    for (const f of Object.values(furn)) if (f.deco) delete furn[f.id];
+    for (const d of G.save.decor) {
+      if (!DC.DECOR[d.t]) continue;
+      const id = 'd' + (uid++);
+      furn[id] = { id, type: d.t, deco: true, v: d.v || 0, sc: clamp(d.s | 0, 0, DC.SCALES.length - 1), fl: !!d.f, fx: d.fx, fy: d.fy, x: 0, y: 0, lift: 0 };
+      if (V) place(furn[id]);
+    }
   }
+  loadDecor();
   if (G.save.seats) { // saved seats (v1.9 saves only know five friends): keep valid, unique ones, the rest get a free desk
     const used = new Set();
     for (const s of students) { const d = G.save.seats[s.kind]; s.desk = Number.isInteger(d) && d >= 0 && d < students.length && !used.has(d) ? d : -1; if (s.desk >= 0) used.add(s.desk); }
@@ -122,14 +128,15 @@ export function createClassroom(students, hooks) {
   const ARM_IDS = ['star', 'cardGreen', 'cardRed'];
   function computeHint() {
     const rh = RT.hint(); if (rh) return rh; // the jobs chart is open
-    if (deco && (phase === 'prep' || SC.curId === 'decorar')) {
+    if (DZ.on && (phase === 'prep' || SC.curId === 'decorar')) {
       if (G.save.decorStamp === prepStamp) {
-        // alternate "decorate" and "▶ next"; start with ▶ when the room is already decorated
+        // alternate "tap a theme picture" and "▶ next"; start with ▶ when the room is already decorated
         const ringFirst = G.save.decor.length > 0 || (G.save.day || 1) > 1;
-        const key = (prepHintN++ + (ringFirst ? 1 : 0)) % 2 ? 'next' : 'decorate';
+        const key = (prepHintN++ + (ringFirst ? 1 : 0)) % 2 ? 'next' : 'decoTheme';
         if (key === 'next') return { key, ...btnPt('next') };
-        const it = trayItems()[0]; return { key: 'decorate', x: it.x + it.w / 2, y: it.y + 8 };
+        return { key, ...DZ.hintPt() };
       }
+      if (DZ.tab === 'desks' && desks.some(d => !G.save.deskItems[d.i]) && prepHintN++ % 2 === 0) return { key: 'decoDesk', ...btnPt('next'), x: null };
       return { key: 'next', ...btnPt('next') };
     }
     if (centros && centros.stage === 'chart') { const { start } = centrosLayout(); return { key: 'chart', x: start.x + 18, y: start.y + 10 }; }
@@ -196,7 +203,6 @@ export function createClassroom(students, hooks) {
   let attendanceDone = false;
   let btns = [];
   let lastTap = 0;
-  let deco = null; // decorate tray: { tab }
   let dayCard = null; // morning 'today is...' card
   let lastQ = -99, feelT = 40;
   const MOOD_BUBBLE = { triste: 'm:triste', enojado: 'm:enojado', asustado: 'm:asustado', cansado: 'm:cansado' };
@@ -380,7 +386,6 @@ export function createClassroom(students, hooks) {
       teacherAct('cheer', 1.2);
     });
   }
-  let T = null; // tray layout
   const teach = { act: null, z: 0, vz: 0, blinkT: 2, blink: 0, pointRight: true };
   function teacherAct(name, dur = 1.2) { teach.act = { name, t0: G.time, dur }; }
   function teacherPose() {
@@ -425,9 +430,7 @@ export function createClassroom(students, hooks) {
       { id: 'cardGreen', x: V.W - i.r - 2 * B - 8, y: V.H - i.b - B - 4, w: B, h: B, icon: () => DC.trayIcon('cardGreen') },
       { id: 'cardRed', x: V.W - i.r - 3 * B - 12, y: V.H - i.b - B - 4, w: B, h: B, icon: () => DC.trayIcon('cardRed') },
     ];
-    const nb = btns.find(b => b.id === 'next');
-    T = { x: nb.x + nb.w + 3, y: V.H - i.b - 52, h: 50 };
-    T.w = V.W - i.r - 2 - T.x;
+    DZ.layout(); // the decorate tray sits right of ▶
     layoutAbc();
     bg = drawBg();
     return V;
@@ -448,6 +451,7 @@ export function createClassroom(students, hooks) {
     f.x = clamp(f.x, w / 2 + 2, V.W - w / 2 - 2);
     if (layerOf(f) === 'wall') f.y = clamp(f.y, h + 4, L.wallH - 20);
     else f.y = clamp(f.y, L.floorTop + (f.type === 'rug' ? 22 : f.type === 'shelf' ? 8 : 12), V.H - 2);
+    if (f.deco && DZ.on && layerOf(f) === 'floor') f.y = Math.max(L.floorTop + 12, Math.min(f.y, DZ.floorMax())); // not hidden under the open tray
   }
   function remember(f) {
     if (layerOf(f) === 'wall') { f.fx = f.x / V.W; f.fy = f.y / L.wallH; }
@@ -457,7 +461,11 @@ export function createClassroom(students, hooks) {
     persist();
   }
   function saveDecor() {
-    G.save.decor = Object.values(furn).filter(f => f.deco).map(f => ({ t: f.type, fx: +f.fx.toFixed(4), fy: +f.fy.toFixed(4), v: f.v }));
+    G.save.decor = Object.values(furn).filter(f => f.deco).map(f => {
+      const d = { t: f.type, fx: +f.fx.toFixed(4), fy: +f.fy.toFixed(4), v: f.v };
+      if (f.sc) d.s = f.sc; if (f.fl) d.f = 1;
+      return d;
+    });
     G.save.decorStamp++;
     persist();
   }
@@ -923,6 +931,7 @@ export function createClassroom(students, hooks) {
       speak(students[4], 'Ooh, so pretty!', 'yay'); sfx.clap(8, 1);
       teacherAct('cheer', 1.2);
       await hw(1.2);
+      if (G.save.theme) { speak(helper(), LD.DECO_SAY.wow, 'tap'); await hw(1.4); } // v2.0: a whole new themed room!
     }
     await abcMorning();
     busy = false; phase = 'class'; sky = 'day'; hurry = false;
@@ -987,7 +996,7 @@ export function createClassroom(students, hooks) {
     G.save.stickers.push(reward.id);
     G.save.day = (G.save.day || 1) + 1;
     persist();
-    wait(1.0).then(() => { sfx.chime(); reward = null; phase = 'night'; deco = null; guest = null; });
+    wait(1.0).then(() => { sfx.chime(); reward = null; phase = 'night'; DZ.close(); guest = null; });
   }
 
   // ---------------------------------------------------------------- free time
@@ -1077,7 +1086,7 @@ export function createClassroom(students, hooks) {
     return { key: 'snackServe', ...from, from, to: { x: hx, y: hy + 6 }, img: S.snack(serve.slots[i].k, 0) };
   }
   function snackDown(x, y) { // true when this press belongs to the snack tray
-    if (!serve || serve.done || (deco && inRect(x, y, T))) return false;
+    if (!serve || serve.done || DZ.inTray(x, y)) return false;
     const { slot } = snackLayout();
     const i = serve.slots.findIndex((sl, k) => !sl.taken && inRect(x, y, slot(k)));
     if (i >= 0) { press.snack = i; return true; }
@@ -1637,8 +1646,8 @@ export function createClassroom(students, hooks) {
     if (f.type === 'teacher') return drawTeacher(c, f);
     const [w, h] = sizeOf(f);
     const bob = f.pop && G.time < f.pop ? -1 : 0;
-    if (layerOf(f) === 'floor') shadow(c, f.x, f.y, w * 0.7);
-    D(c, DC.decor(f.type, f.v), f.x - w / 2, f.y - h - lift + bob);
+    if (layerOf(f) === 'floor' && !(f.born > G.time)) shadow(c, f.x, f.y, w * 0.7);
+    DZ.drawDeco(c, f, f.x - w / 2, f.y - h - lift + bob); // v2.0: size, mirror, animation, selection glow, art wall
     if (f.type === 'clock') {
       const cx = f.x - 0.5, cy = f.y - h / 2 - 0.5 + bob, d = new Date();
       const hand = (ang, len, col) => { for (let r = 0; r <= len; r += 0.5) R(c, cx + Math.sin(ang) * r, cy - Math.cos(ang) * r, 1, 1, col); };
@@ -1665,10 +1674,6 @@ export function createClassroom(students, hooks) {
     if (flip) { c.save(); c.translate(x + DC.TW, y); c.scale(-1, 1); c.drawImage(img, 0, 0); c.restore(); }
     else D(c, img, x, y);
   }
-  function drawPoofHint(c, f) {
-    const [w, h] = sizeOf(f);
-    c.fillStyle = 'rgba(255,255,255,0.4)'; c.fillRect(Math.round(f.x - w / 2), Math.round(f.y - h), w, h);
-  }
   function drawNewGhost(c) {
     const d = drag;
     if (d.desk) {
@@ -1677,9 +1682,13 @@ export function createClassroom(students, hooks) {
       D(c, scaled(DC.deskItem(d.type), 2), d.px - 14, d.py - 12);
       return;
     }
-    const def = DC.DECOR[d.type];
-    D(c, DC.decor(d.type, 0), d.px - def.w / 2, d.py - def.h / 2);
+    // where it will land: wall things snap to the wall, floor things to the floor
+    const g = ghostSpot(d), [w, h] = sizeOf(g);
+    if (layerOf(g) === 'floor') shadow(c, g.x, g.y, w * 0.7);
+    if (Math.hypot(g.x - d.px, g.y - h / 2 - d.py) > 12) { c.globalAlpha = 0.35; D(c, DC.decor(d.type, 0), d.px - w / 2, d.py - h / 2); c.globalAlpha = 1; }
+    D(c, DC.decor(d.type, 0), g.x - w / 2, g.y - h - 2);
   }
+  function ghostSpot(d) { const [, h] = DC.decoSize(d.type, 0); const g = { type: d.type, deco: true, sc: 0, x: d.px, y: d.py + h / 2 }; clampItem(g); return g; }
 
   function render() {
     const c = V.ctx;
@@ -1746,16 +1755,17 @@ export function createClassroom(students, hooks) {
       const tgt = deskAt(held.x, held.y + 8);
       if (tgt) { c.fillStyle = 'rgba(255,230,110,0.5)'; c.fillRect(tgt.x - 17, tgt.y - 4, 34, 3); }
     }
+    DZ.drawSel(c); // the selected thing's bubbles (colour / size / trash)
     drawSnackTray(c);
     drawHud(c);
-    drawTrash(c);
-    // things being dragged float on top of everything (also the trash can)
+    // things being dragged float on top of everything (the trash can stays visible over them)
     if (drag && drag.f) {
-      const f = drag.f;
+      const f = drag.f, ot = overTrash(drag.px, drag.py);
       if (layerOf(f) === 'floor') shadow(c, f.x, f.y, sizeOf(f)[0] * 0.8);
-      drawItem(c, f);
-      if (deco && overTray(drag.px, drag.py) && f.deco) drawPoofHint(c, f);
+      if (ot) c.globalAlpha = 0.5;
+      drawItem(c, f); c.globalAlpha = 1;
     }
+    drawTrash(c);
     if (drag && drag.kind === 'new') drawNewGhost(c);
     drawArmed(c);
     drawSnackHeld(c);
@@ -1778,13 +1788,13 @@ export function createClassroom(students, hooks) {
     if (phase === 'prep') return btns.filter(b => ['help', 'next'].includes(b.id));
     if (phase === 'morning') return btns.filter(b => b.id === 'next');
     if (phase !== 'class' && phase !== 'activity') return [];
-    const cards = SC.cur.cards && !deco && !serve;
+    const cards = SC.cur.cards && !DZ.on && !serve;
     const run = centros && centros.stage === 'run';
     return btns.filter(b => ['help', 'next'].includes(b.id) || (cards && ['star', 'cardGreen', 'cardRed'].includes(b.id)) || (run && ['toys', 'cdone'].includes(b.id)));
   }
   function drawHud(c) {
     if (!hudVisible()) return;
-    if (deco && !(drag && drag.kind === 'new' && drag.left)) drawTray(c);
+    DZ.draw(c, !!(drag && drag.kind === 'new' && drag.left));
     if (SC.curId === 'calendario' && phase === 'class' && !dayCard && !busy) drawBigFaces(c);
     if (choicesShown()) SC.drawChoices(c, choiceRects(), btnFrame, press && press.choice);
     for (const b of shownBtns()) {
@@ -1823,7 +1833,7 @@ export function createClassroom(students, hooks) {
   }
   // ---- v2.0 the block's big choice cards (Pizarra, Letras, …) along the bottom
   function choicesShown() {
-    return phase === 'class' && !busy && !deco && !serve && !story && !recess && !centros && !guest && !dayCard && (SC.cur.choices || []).length > 0 && !SC.going;
+    return phase === 'class' && !busy && !DZ.on && !serve && !story && !recess && !centros && !guest && !dayCard && (SC.cur.choices || []).length > 0 && !SC.going;
   }
   function choiceRects() {
     const nb = btns.find(b => b.id === 'next'), red = btns.find(b => b.id === 'cardRed');
@@ -1860,48 +1870,26 @@ export function createClassroom(students, hooks) {
     p.outline(); return p.canvas();
   }
 
-  // ---------------------------------------------------------------- decorate tray
-  function trayItems() {
-    const tab = deco.tab, out = [];
-    const ix0 = T.x + 48, iw = T.x + T.w - ix0 - 3;
-    if (tab === 'floor' || tab === 'wall') {
-      const list = tab === 'floor' ? DC.FLOOR_ITEMS : DC.WALL_ITEMS;
-      const sum = list.reduce((a, t) => a + DC.DECOR[t].w, 0);
-      const gap = Math.max(0, (iw - sum) / list.length);
-      let x = ix0 + gap / 2;
-      for (const t of list) {
-        const d = DC.DECOR[t];
-        out.push({ kind: tab, id: t, x, y: T.y + 2, w: d.w, h: T.h - 4, img: DC.decor(t, 0), ix: x, iy: T.y + T.h - 3 - Math.min(d.h, T.h - 6) - (tab === 'wall' ? Math.floor((T.h - 6 - d.h) / 2) : 0) });
-        x += d.w + gap;
-      }
-    } else if (tab === 'desk') {
-      const n = DC.DESK_ITEMS.length, cw = Math.min(34, Math.floor(iw / n));
-      DC.DESK_ITEMS.forEach((t, k) => out.push({ kind: 'desk', id: t, x: ix0 + k * cw, y: T.y + 2, w: cw, h: T.h - 4, img: scaled(DC.deskItem(t), 2), ix: ix0 + k * cw + (cw - 28) / 2, iy: T.y + 13 }));
-    } else {
-      DC.WALLS.forEach((_, k) => out.push({ kind: 'paintWall', id: k, x: ix0 + k * 22, y: T.y + 3, w: 21, h: 21, img: DC.swatch('wall', k), ix: ix0 + k * 22 + 1, iy: T.y + 4 }));
-      DC.FLOORS.forEach((_, k) => out.push({ kind: 'paintFloor', id: k, x: ix0 + k * 22, y: T.y + 26, w: 21, h: 21, img: DC.swatch('floor', k), ix: ix0 + k * 22 + 1, iy: T.y + 27 }));
-      const k = DC.FLOORS.length;
-      out.push({ kind: 'rug', id: 0, x: ix0 + k * 22 + 4, y: T.y + 26, w: 30, h: 21, img: cached('rugicon', () => { const c2 = document.createElement('canvas'); c2.width = 28; c2.height = 11; const x2 = c2.getContext('2d'); x2.imageSmoothingEnabled = false; x2.drawImage(S.rug(DC.RUGS[0]), 0, 0, 84, 32, 0, 0, 28, 11); return c2; }), ix: ix0 + k * 22 + 5, iy: T.y + 31 });
+  // ---------------------------------------------------------------- decorate tray (v2.0: js/decorate.js)
+  const DZ = createDecorate({
+    V: () => V, L: () => L, furn, desks: () => desks, sizeOf, layerOf, clampItem, remember, saveDecor, loadDecor, cycleVariant, setDeskItem,
+    addDecor: (t, x, y, o) => addDecor(t, x, y, { ...o, bottom: true }), puff: puffAt, trashFx, cheer: cheerDecor, burst, sayUI, sayItem, teacherAct,
+    say: (t) => speak(helper(), t, 'tap'), btnFrame, scaled, boardCanvas: () => hooks.boardCanvas(),
+    redrawBg: () => { if (V) bg = drawBg(); }, reflow: () => { if (V) for (const f of Object.values(furn)) if (f.deco) place(f); },
+    nextBtn: () => btns.find(b => b.id === 'next'), hudRects: () => btns,
+    dragging: () => !!drag, pressTile: () => (press && press.dz && press.dz.tile && !press.dz.mode ? press.dz.tile.kind + press.dz.tile.id : null),
+  });
+  function puffAt(f) { // a soft puff of dust around a thing that just arrived or changed
+    const [w, h] = sizeOf(f), wall = layerOf(f) === 'wall';
+    for (let k = 0; k < 7; k++) {
+      const a = k / 7 * Math.PI * 2;
+      parts.push({ kind: 'puff', color: k % 2 ? '#ffffff' : '#fff1dc', x: f.x + Math.cos(a) * w * 0.45, y: (wall ? f.y - h / 2 : f.y - 2) + Math.sin(a) * (wall ? h * 0.45 : 3), vx: Math.cos(a) * 22, vy: Math.sin(a) * 8 - 6, g: -8, life: 0.55, t: 0 });
     }
-    return out;
   }
-  const TABS = ['floor', 'wall', 'desk', 'paint'];
-  function tabRect(k) { return { x: T.x + 3 + (k % 2) * 22, y: T.y + 3 + Math.floor(k / 2) * 22, w: 21, h: 21 }; }
-  function overTray(x, y) { return deco && x >= T.x && y >= T.y; }
-  function drawTray(c) {
-    D(c, btnFrame(Math.round(T.w), T.h, '#fff3dc', 'tray'), T.x, T.y);
-    R(c, T.x + 47, T.y + 3, 1, T.h - 7, '#e3cfae');
-    TABS.forEach((t, k) => {
-      const r = tabRect(k), on = deco.tab === t;
-      D(c, btnFrame(r.w, r.h, on ? '#ffe08a' : '#fffaf0', 'tab' + on), r.x, r.y);
-      D(c, DC.trayIcon(t), r.x + 1, r.y + 1);
-    });
-    for (const it of trayItems()) {
-      const sel = (it.kind === 'paintWall' && G.save.paint.wall === it.id) || (it.kind === 'paintFloor' && G.save.paint.floor === it.id);
-      if (sel) R(c, it.x - 1, it.y - 1, it.w + 1, it.h + 1, '#ffd23f');
-      const lifted = press && press.trayItem && press.trayItem.id === it.id && press.trayItem.kind === it.kind;
-      D(c, it.img, it.ix, it.iy - (lifted ? 2 : 0));
-    }
+  function trashFx(x, y) {
+    sfx.trash(); sayUI('trash');
+    burst('crumb', x, y, 10, ['#d8d0c8', '#bfe0f5', '#ffffff'], { up: true, sp: 50, g: 120 });
+    burst('puff', x, y, 6, ['#ffffff', '#f2ece4'], { sp: 30, g: -10 });
   }
   function cheerDecor(x, y) {
     burst('spark', x, y, 10, ['#ffd23f', '#ff9ec4', '#7ec8ff', '#ffffff'], { sp: 60 });
@@ -1910,19 +1898,16 @@ export function createClassroom(students, hooks) {
     const aw = awake().filter(s => s.mode === 'seated');
     if (aw.length && Math.random() < 0.6) { const s = pick(aw); act(s, 'gasp', 0.8); speak(s, pick(['Ooh!', 'Pretty!', 'Wow!', 'I like it!']), 'ooh'); }
   }
-  function addDecor(type, x, y) {
-    if (Object.values(furn).filter(f => f.deco).length >= 40) { sfx.softPop(); return; }
+  // y: the middle of the thing (a drop) or, with o.bottom, where it stands; o.quiet + o.delay: a theme pops things in one by one
+  function addDecor(type, x, y, o = {}) {
+    if (Object.values(furn).filter(f => f.deco).length >= 40) { sfx.softPop(); return null; }
     const id = 'd' + (uid++);
-    const def = DC.DECOR[type];
-    const f = { id, type, deco: true, v: 0, x, y: y + def.h / 2, fx: 0, fy: 0, lift: 0, pop: G.time + 0.25 };
+    const sc = o.sc || 0, [, h] = DC.decoSize(type, sc);
+    const f = { id, type, deco: true, v: (o.v || 0) % DC.DECOR[type].variants.length, sc, fl: !!o.fl, x, y: o.bottom ? y : y + h / 2, fx: 0, fy: 0, lift: 0, born: G.time + (o.delay || 0) };
     furn[id] = f;
-    clampItem(f); remember(f);
-    sfx.thump(); cheerDecor(f.x, f.y - def.h / 2); sayItem(type);
-  }
-  function quickPlace(type) {
-    const def = DC.DECOR[type];
-    if (def.layer === 'wall') addDecor(type, rand(30, V.W - 30), rand(def.h / 2 + 8, L.wallH - 22 - def.h / 2));
-    else addDecor(type, rand(30, V.W - 30), rand(L.floorTop + 20, T.y - 10) - def.h / 2);
+    clampItem(f); if (!o.quiet) DZ.settle(f); remember(f);
+    if (!o.quiet) { sfx.thump(); puffAt(f); cheerDecor(f.x, f.y - h / 2); sayItem(type); }
+    return f;
   }
   function setDeskItem(d, type) {
     G.save.deskItems[d.i] = type; G.save.decorStamp++; persist(); sayItem(type);
@@ -1930,11 +1915,6 @@ export function createClassroom(students, hooks) {
     const s = students.find(t => t.desk === d.i && t.mode === 'seated');
     if (s) { act(s, 'happy', 1); talk(s, 'heart', 1.4); speak(s, 'Thank you!', 'yay'); }
     if (desks.every(q => G.save.deskItems[q.i])) wait(0.4).then(() => { sfx.chime(); teacherAct('cheer', 1.2); for (const q of desks) burst('star', q.x, q.y - 26, 3, ['#ffd23f'], { up: true }); });
-  }
-  function removeDecor(f) {
-    delete furn[f.id];
-    saveDecor();
-    sfx.whoosh(); burst('spark', f.x, f.y - sizeOf(f)[1] / 2, 8, ['#ffffff', '#d8f0ff']);
   }
   function cycleVariant(f) {
     if (f.type === 'rug') { G.save.rugV = (G.save.rugV + 1) % DC.RUGS.length; G.save.decorStamp++; persist(); }
@@ -1945,13 +1925,13 @@ export function createClassroom(students, hooks) {
   function enterPrep() {
     phase = 'prep'; sky = 'morning'; duskTarget = 0; busy = false;
     for (const s of students) Object.assign(s, { mode: 'away', act: null, bubble: null, snack: null });
-    deco = { tab: 'floor' };
+    DZ.open();
     teacherAct('wave', 1.6);
     prepStamp = G.save.decorStamp; lastInput = G.time; nextHintAt = G.time + 8;
   }
 
   // ---------------------------------------------------------------- trash can
-  function trashRect() { return { x: Math.round(V.W / 2 - 13), y: (deco ? T.y : V.H - V.inset.b) - 34, w: 26, h: 30 }; }
+  function trashRect() { return { x: Math.round(V.W / 2 - 13), y: (DZ.on ? DZ.top() : V.H - V.inset.b) - 34, w: 26, h: 30 }; }
   // only things already in the room can be thrown away; a fresh drag from the tray never is
   function trashing() { return drag && ((drag.kind === 'furn' && drag.f.deco) || (drag.kind === 'new' && drag.from !== undefined)); }
   function overTrash(x, y) { if (!trashing()) return false; return nearTrash(x, y); }
@@ -2205,12 +2185,7 @@ export function createClassroom(students, hooks) {
     }
     if (choicesShown()) { const r = choiceRects().find(q => inRect(x, y, q)); if (r) { press.choice = r.id; return; } }
     if (SC.curId === 'calendario' && phase === 'class' && !busy && !dayCard) { const f = faceRow().find(q => inRect(x, y, q)); if (f) { press.face = f.s; return; } }
-    if (deco && inRect(x, y, T)) {
-      press.tray = true;
-      TABS.forEach((t, k) => { if (inRect(x, y, tabRect(k))) press.tab = t; });
-      if (!press.tab) press.trayItem = trayItems().find(it => inRect(x, y, it));
-      return;
-    }
+    { const dz = DZ.down(x, y); if (dz) { press.dz = dz; return; } } // the decorate tray + the selected thing's bubbles
     if (phase !== 'class' && phase !== 'activity' && phase !== 'prep') return;
     if (RT.hitSwitch(x, y)) { press.lightSw = true; return; }
     if (!busy && !story) for (const d of desks) {
@@ -2234,16 +2209,20 @@ export function createClassroom(students, hooks) {
     if (press.rt) { RT.move(x, y); return; }
     if (snackMove(x, y)) return;
     if (press.cchart) { if (centros && centros.drag) { centros.drag.x = x; centros.drag.y = y; } return; }
+    if (press.dz) { // the decorate tray: swipe to scroll, or pull a thing out into the room
+      const r = DZ.move(press.dz, x, y);
+      if (Math.hypot(x - press.x0, y - press.y0) > 6) press.moved = true;
+      if (!r) return;
+      drag = { kind: 'new', type: r.drag.id, desk: r.drag.kind === 'desk', px: x, py: y };
+      press.dz = null; DZ.deselect(); sfx.lift(); sayItem(r.drag.id);
+    }
     if (!press.moved && Math.hypot(x - press.x0, y - press.y0) > 6) {
       press.moved = true;
-      const ti = press.trayItem;
       if (press.deskItem) {
+        if (DZ.on) DZ.snap();
         const d = press.deskItem, type = G.save.deskItems[d.i];
         delete G.save.deskItems[d.i]; persist();
         drag = { kind: 'new', type, desk: true, from: d.i, px: x, py: y, left: true };
-        sfx.lift();
-      } else if (ti && ['floor', 'wall', 'desk'].includes(ti.kind)) {
-        drag = { kind: 'new', type: ti.id, desk: ti.kind === 'desk', px: x, py: y };
         sfx.lift();
       } else if (press.f && !busy && !story) {
         drag = { kind: 'furn', f: press.f, ox: press.f.x - press.x0, oy: press.f.y - press.y0, px: x, py: y };
@@ -2258,7 +2237,7 @@ export function createClassroom(students, hooks) {
     }
     if (!drag) return;
     if (drag.kind === 'star') { drag.x = x; drag.y = y; }
-    if (drag.kind === 'new') { drag.px = x; drag.py = y; if (y < T.y - 4 || drag.desk) drag.left = true; }
+    if (drag.kind === 'new') { drag.px = x; drag.py = y; if (y < DZ.top() - 4 || drag.desk) drag.left = true; }
     if (drag.kind === 'furn') {
       const f = drag.f;
       drag.px = x; drag.py = y;
@@ -2284,6 +2263,7 @@ export function createClassroom(students, hooks) {
         return;
       }
       if (d.kind === 'new') {
+        if (DZ.on && d.from === undefined && !(!d.left && DZ.inTray(d.px, d.py))) DZ.snap(); // (a desk supply moved off a desk was saved when it was lifted)
         if (d.from !== undefined && nearTrash(d.px, d.py)) { trashIt(d.px, d.py); G.save.decorStamp++; persist(); return; }
         if (d.desk) {
           const tgt = deskAt(d.px, d.py + 6);
@@ -2291,15 +2271,17 @@ export function createClassroom(students, hooks) {
           if (d.from !== undefined && tgt && G.save.deskItems[tgt.i]) G.save.deskItems[d.from] = G.save.deskItems[tgt.i]; // swap
         }
         if (d.desk) { const tgt = deskAt(d.px, d.py + 6); if (tgt) setDeskItem(tgt, d.type); else sfx.softPop(); return; }
-        if (!d.left && overTray(d.px, d.py)) { sfx.softPop(); return; }
-        addDecor(d.type, d.px, d.py);
+        if (!d.left && DZ.inTray(d.px, d.py)) { sfx.softPop(); return; }
+        const g = ghostSpot(d); addDecor(d.type, g.x, g.y, { bottom: true });
         return;
       }
       if (d.kind === 'furn') {
         const f = d.f; f.lift = 0;
-        if (f.deco && nearTrash(d.px, d.py)) { delete furn[f.id]; saveDecor(); trashIt(f.x, f.y - sizeOf(f)[1] / 2); return; }
-        if (f.deco && overTray(d.px, d.py)) { removeDecor(f); return; }
+        if (f.deco && DZ.on) DZ.snap(); // the save still has where it was
+        if (f.deco && nearTrash(d.px, d.py)) { DZ.forget(f); delete furn[f.id]; saveDecor(); trashIt(f.x, f.y - sizeOf(f)[1] / 2); return; }
+        if (f.deco && DZ.on) DZ.settle(f);
         remember(f); sfx.thump();
+        if (f.deco) puffAt(f);
         if (f.type === 'teacher') teacherAct('wave', 1);
         burst('crumb', f.x, f.y, 6, ['#d9c3a0', '#c9b08a'], { up: true, sp: 25, g: 100, life: 0.5 });
         return;
@@ -2351,7 +2333,9 @@ export function createClassroom(students, hooks) {
       return;
     }
     if (p.v19) { if (!p.moved) v19Tap(p.v19); return; }
+    if (p.dz) { if (!p.moved) DZ.tap(p.dz); return; }
     if (p.moved) return;
+    if (DZ.on && !p.btn && DZ.tapRoom(p.f, p.deskItem)) return; // select a placed thing (or let go of it)
     if (p.lightSw) { RT.tapSwitch(); return; }
     if (p.upd) { if (!p.updFired) sfx.tap(); return; } // a grown-up holds it for 1.5 s (see update())
     if (p.mus) { const on = G.save.music === false; hooks.setMusic?.(on); persist(); sfx.pop(on ? 1.3 : 0.8); return; }
@@ -2373,18 +2357,6 @@ export function createClassroom(students, hooks) {
       return;
     }
     if (p.story) { storyTap(x, y); return; }
-    if (p.tray) {
-      if (p.tab) { deco.tab = p.tab; sfx.pop(1.1); sayUI(p.tab); return; }
-      const it = p.trayItem;
-      if (!it) return;
-      if (it.kind === 'paintWall' || it.kind === 'paintFloor') {
-        G.save.paint[it.kind === 'paintWall' ? 'wall' : 'floor'] = it.id; G.save.decorStamp++; persist();
-        bg = drawBg(); cheerDecor(V.W / 2, it.kind === 'paintWall' ? L.wallH / 2 : L.floorTop + 30);
-      } else if (it.kind === 'rug') cycleVariant(furn.rug);
-      else if (it.kind === 'desk') { const d = desks.find(q => !G.save.deskItems[q.i]) || pick(desks); setDeskItem(d, it.id); }
-      else quickPlace(it.id);
-      return;
-    }
     if (p.btn) {
       sfx.pop();
       const id = p.btn.id;
@@ -2430,7 +2402,8 @@ export function createClassroom(students, hooks) {
       return;
     }
     if (p.f && p.f.type === 'shelf' && phase === 'class' && !busy && SC.curId !== 'decorar') { sfx.page(); SC.go('lectura'); return; } // story time: Lectura con Maestra
-    if (p.f && (p.f.deco || p.f.type === 'rug')) { cycleVariant(p.f); return; }
+    if (p.f && p.f.deco) { p.f.pop = G.time + 0.25; sfx.pop(1.2); sayItem(p.f.type); burst('spark', p.f.x, p.f.y - sizeOf(p.f)[1] / 2, 4, ['#ffd23f', '#ffffff']); return; } // (decorating: tap to edit)
+    if (p.f && p.f.type === 'rug') { cycleVariant(p.f); return; }
     if (p.f && p.f.type === 'plant' && RT.tapPlant(p.f)) return; // the plant helper waters it
     if (p.f) { // tap on furniture: a little wobble/sound
       p.f.lift = 2; setTimeout(() => { p.f.lift = 0; }, 120); sfx.tap();
@@ -2452,6 +2425,7 @@ export function createClassroom(students, hooks) {
   }
 
   function watchBoard() { // after a lesson: students react to the new drawing
+    DZ.snapArt(hooks.boardCanvas()); // v2.0: and it goes on the art wall
     for (const s of students) if (s.mode === 'seated' && !s.sleep && !(s.hide > 0)) { act(s, Math.random() < 0.5 ? 'clap' : 'happy', 1.4); }
     sfx.clap(6, 1); sfx.ooh(1.2);
     teach.pointRight = furn.teacher.x < L.board.x + 52;
@@ -2473,7 +2447,10 @@ export function createClassroom(students, hooks) {
   window.__ltBtn = (id) => { const b = btns.find(q => q.id === id); return css(b.x + 13, b.y + 13); };
   window.__ltFurn = (id) => { const f = furn[id]; return css(f.x, f.y - 8); };
   window.__ltBoardPt = () => css(L.board.x + 52, L.board.y + 30);
-  window.__ltTray = () => (deco ? { tabs: TABS.map((t, k) => { const r = tabRect(k); return css(r.x + 10, r.y + 10); }), items: trayItems().map(it => css(it.x + it.w / 2, it.y + it.h / 2)) } : null);
+  window.__ltTray = () => DZ.test(css); // v2.0: { tab, tabs: {themes, wall, floor, desks, colors}, items, ids, bubbles, undo, sel, undoN }
+  window.__ltTrayScroll = (i) => DZ.scrollTo(i);
+  window.__ltSelect = (id) => { const f = furn[id]; if (f) DZ.tapRoom(f); };
+  window.__ltDecoIds = () => Object.values(furn).filter(f => f.deco).map(f => f.id);
   window.__ltDesks = () => desks.map(d => css(d.x, d.y - 18));
   window.__ltFurnPt = (id) => { const f = furn[id]; const [, h] = sizeOf(f); return css(f.x, f.y - h / 2); };
   window.__ltDeskItem = (i) => { const d = desks[i]; return css(d.x + 10, d.y - 22); };
@@ -2513,7 +2490,7 @@ export function createClassroom(students, hooks) {
   }
   const quietOK = () => SC.calmNow() && !interrupting();
   async function leaveBlock() {
-    armed = null; hint = null; deco = null; dayCard = null;
+    armed = null; hint = null; DZ.close(); dayCard = null;
     if (recess) await endRecess();
     if (story) story = null;
     if (guest) { guest = null; doorTarget = 0; }
@@ -2526,7 +2503,7 @@ export function createClassroom(students, hooks) {
   }
   async function enterBlock(id) {
     hint = null; armed = null; lastInput = G.time; nextHintAt = G.time + 7; classStart = G.time;
-    if (id === 'decorar') { deco = { tab: 'floor' }; prepStamp = G.save.decorStamp; prepHintN = 0; return; }
+    if (id === 'decorar') { DZ.open(); prepStamp = G.save.decorStamp; prepHintN = 0; return; }
     if (id === 'calendario') return circle();
     if (id === 'recreo') { SC.markUsed(); return recessTime(); }
     if (id === 'lectura') { SC.markUsed(); return storyTime(); }

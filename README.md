@@ -72,13 +72,14 @@ In the toy box, choose the four-squares icon to open the **centros chart**. Drag
 - **Shape corner** (the little table): drag shapes into the matching holes of the wooden sorter: circle, square, triangle, rectangle, star, heart, oval and diamond. Each shape's name is said in Spanish. A wrong hole just wiggles back; there's no failing. Every round you finish brings new shapes.
 
 ## A day in class
-1. **Get the room ready:** before class the room is empty and the decorate tray is open:
-   - 🛋 **floor things:** beanbag, teddy, toy box, easel, fish tank, globe, flowers, balloons, lamp
-   - 🖼 **wall things:** rainbow, poster, picture frame, butterflies, star garland, sun, moon
-   - 🍎 **desk supplies:** drop one on each desk (apple, pencils, books, crayons, cactus, snow globe)
-   - 🎨 **paint:** wall colours, floor colours, and a new rug pattern
+1. **Decorar (get the room ready):** the first card of the day opens the decorate tray. It has five picture tabs (the owl says each name):
+   - 🪄 **Temas:** one tap decorates the whole room: walls, floor, rug and a matching set of things that pop in one by one. Océano, Espacio, Jardín, Arcoíris, Otoño, Fiesta, Invierno and Cuentos. Everything stays editable afterwards.
+   - 🖼 **Pared (wall things):** an art wall with her whiteboard drawings, string lights that glow, paper lanterns, rainbow, garlands, butterflies, poster, frame, word wall, cork board, sun, moon, planet, paper fish, window plants, snowflakes, autumn leaves, clock
+   - 🛋 **Piso (floor things):** reading tent, class hamster (it runs on its wheel), beanbag, teddy, toy box, easel, fish tank, cubbies, globe, flowers, balloons, lamp, pumpkin, snowman, plus any surprise that arrived in a parcel
+   - 🍎 **Escritorios:** desk supplies; the empty desks twinkle (apple, pencils, books, crayons, cactus, snow globe)
+   - 🎨 **Colores:** wall colours, floor colours and rugs
 
-   Drag things from the tray, or tap one to drop it in. Tap anything you've placed to change its colour. To get rid of something, drag it to the 🗑️ trash can that appears at the bottom while you're dragging. Desk supplies can be picked up and moved to another desk, or thrown away. Ring the 🔔 when the room is ready. The decorate tray (paint roller button) is also open during class.
+   Drag things into the room, or tap one and it finds a nice free spot. Wall things snap to the wall and floor things to the floor, with a puff and their name. Swipe the tray sideways (or tap the yellow arrows) to see more. **Tap anything you've placed** to select it: three big bubbles appear: 🎨 another colour, ↔ size (small, medium, big, then it turns around) and 🗑 throw it away. Tap somewhere else to let go. Dragging something to the 🗑️ trash can still works, and desk supplies can be moved to another desk. The blue **↶** button undoes, step by step. Press ▶ when the room is ready; the next morning the friends gasp and clap at the new room.
 2. **Morning bell** (tap anywhere to hurry the morning along): a big calendar card shows today's day with its colour, and a student says "¡Hoy es lunes!". Each new day moves to the next school day (lunes → martes → miércoles → jueves → viernes, then back to lunes). The calendar on the wall shows the day all day; tap it to hear it again. Then the students walk in one by one and say good morning. If you changed the room, they gasp "Ooh, so pretty!" and clap. Sometimes one student is late and knocks later.
    - **¿Qué tiempo hace hoy?** Pick sun, clouds, rain or snow. The window, the calendar badge and recess follow the weather all day.
    - **Alphabet line:** letters she traced yesterday pop onto the wall line under the whiteboard. Tap a card to hear its word.
@@ -125,6 +126,7 @@ Tip: turn on **Guided Access** (Settings → Accessibility → Guided Access) an
 | `js/quiz.js` | students' questions and feelings check-ins |
 | `js/students.js` | student poses, actions, personality traits |
 | `js/decor.js` | decorations, desk supplies, paint colours, and the teacher (Louise) |
+| `js/decorate.js` | the Decorar tray: picture tabs, room themes, select-to-edit bubbles, undo, placement |
 | `js/i18n.js` | Spanish phrases, letter names, words, shape names, font |
 | `js/strokes.js` | handwriting stroke paths for every letter and number |
 | `audio/` | ElevenLabs voice clips (one folder per student) + `clips.json` |

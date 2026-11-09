@@ -162,6 +162,26 @@ Object.assign(ITEM_WORDS, { dino: 'dinosaurio', robot: 'robot', rocket: 'cohete'
 const V19_STUDENT = () => [...SNACK_THANKS, SNACK_FULL, DOOR_LINES.late, DOOR_LINES.ball, ...BOOK_TEXT.flatMap(b => b.words)];
 const V19_OWL = () => [...COUNT_WORDS, DOOR_LINES.parcel, ...BOOK_TEXT.flatMap(b => [b.title, ...b.lines])];
 
+// ---- v2.0 decorating
+// the tray's picture tabs, the edit bubbles and undo (owl voice), the room themes and the new decorations
+export const DECO_UI = {
+  themes: 'Temas', desks: 'Escritorios', colors: 'Colores', undo: 'Deshacer', color: 'Otro color', size: 'Tamaño',
+};
+export const THEME_NAMES = {
+  oceano: '¡Océano!', espacio: '¡Espacio!', jardin: '¡Jardín!', arcoiris: '¡Arcoíris!',
+  otono: '¡Otoño!', fiesta: '¡Fiesta!', invierno: '¡Invierno!', cuentos: '¡Cuentos!',
+};
+export const DECO_HINTS = { decoTheme: 'Toca un dibujo para decorar todo el salón.', decoEdit: 'Toca algo para cambiarlo.', decoDesk: 'Pon algo en cada escritorio.' };
+export const DECO_SAY = { wow: '¡Qué bonito quedó el salón!' };
+Object.assign(UI_WORDS, DECO_UI);
+Object.assign(HINTS, DECO_HINTS);
+Object.assign(ITEM_WORDS, {
+  teepee: 'tienda de lectura', hamster: 'hámster', cubbies: 'casilleros', pumpkin: 'calabaza', snowman: 'muñeco de nieve',
+  lights: 'lucecitas', lanterns: 'farolitos', artwall: 'mis dibujos', wordwall: 'muro de palabras', bulletin: 'tablero',
+  winplants: 'plantitas', planet: 'planeta', fishmobile: 'pececitos', snowflakes: 'copos de nieve', leaves: 'hojas de otoño',
+});
+const V20_DECO = () => [...Object.values(THEME_NAMES), DECO_SAY.wow];
+
 // ---- v2.0 schedule
 // the "Horario" cards (names spoken by the owl when a card is tapped) and '¡Es hora de…!' for each block
 export const SCHED_NAMES = {
@@ -218,6 +238,7 @@ export function narratorPhrases() {
   [UI_WORDS, ITEM_WORDS, HINTS].forEach(o => Object.values(o).forEach(x => out.add(x)));
   V19_OWL().forEach(l => out.add(l));
   V20_OWL().forEach(l => out.add(l));
+  V20_DECO().forEach(l => out.add(l));
   Object.values(ALIVE_OWL).forEach(x => out.add(x));
   [WEATHER_ASK, ...WEATHER.map(w => w.line), ...Object.values(RITUAL_UI), ...Object.values(RITUAL_HINTS)].forEach(l => out.add(l));
   Object.values(YARD_HINTS).forEach(l => out.add(l));
