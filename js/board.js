@@ -4,6 +4,8 @@ import * as S from './sprites.js';
 import { WALLS } from './decor.js';
 import { sfx, strokeStart, strokeSpeed, strokeEnd } from './audio.js';
 import { sayHint, sayUI, drawHand } from './hints.js';
+import { numberWord, letterName, wordSprite } from './i18n.js';
+import { STAR_COUNT_LINE } from './learndata.js';
 import { act, acting, hop, talk, speak, animalSound, coax, physics, pose, traits, startle, randomCheer } from './students.js';
 
 export const BW = 192, BH = 108;
@@ -81,6 +83,7 @@ export function createBoard(students, hooks) {
   let stroke = null;
   let wipe = null;
   let press = null;
+  let starsStamped = 0;
   let inkSince = 0, lastReact = 0, idleSince = 0, drewThisVisit = false;
   const parts = [];
 
@@ -94,26 +97,33 @@ export function createBoard(students, hooks) {
     L = { bx, by };
     const wide = W - BW >= 2 * 76;
     L.wide = wide;
+    const small = V.s / G.dpr < 3.4; // phone: everything has to be bigger to be tappable
     const leftX0 = inset.l + 2, leftX1 = bx - 4;
     const rightX0 = bx + BW + 4, rightX1 = W - inset.r - 2;
-    // markers: left column
-    L.markers = MARKERS.map((m, k) => ({ k, x: leftX0, y: by + 2 + k * 18, w: leftX1 - leftX0, h: 17 }));
-    L.markerX = leftX1 - 26;
     const B = 26;
+    // back: always top-left (like the letters and shapes corners); markers in the left column
+    L.back = { x: leftX0, y: by, w: B, h: B };
+    L.mk = wide && small && leftX1 - leftX0 >= 90 ? 2 : 1; // marker sprite scale
     if (wide) {
+      const mh = L.mk === 2 ? 24 : 18;
+      L.markers = MARKERS.map((m, k) => ({ k, x: leftX0 + B + 4, y: by + k * mh, w: leftX1 - leftX0 - B - 4, h: mh - 1 }));
+      L.markerX = leftX1 - 26 * L.mk;
+      // eraser + wipe under the back button; the whole right column is stamps
+      L.eraser = { x: leftX0, y: by + B + 6, w: B, h: B };
+      L.wipeBtn = { x: leftX0, y: by + 2 * (B + 6), w: B, h: B };
       const tw = rightX1 - rightX0;
-      const gap = Math.max(2, Math.floor((tw - 3 * B) / 2));
-      L.back = { x: rightX0 + 0 * (B + gap), y: by, w: B, h: B };
-      L.eraser = { x: rightX0 + 1 * (B + gap), y: by, w: B, h: B };
-      L.wipeBtn = { x: rightX0 + 2 * (B + gap), y: by, w: B, h: B };
-      const cols = 4, cell = Math.min(20, Math.floor(tw / cols));
-      L.stamps = S.STAMPS.map((id, k) => ({ id, x: rightX0 + (k % cols) * cell + Math.floor((tw - cols * cell) / 2), y: by + B + 6 + Math.floor(k / cols) * cell, w: cell, h: cell }));
+      const cols = small ? 3 : 4, cell = small ? Math.min(32, Math.floor(tw / cols)) : Math.min(20, Math.floor(tw / cols));
+      L.stampK = small && cell >= 30 ? 2 : 1;
+      L.stampTile = small;
+      L.stamps = S.STAMPS.map((id, k) => ({ id, x: rightX0 + (k % cols) * cell + Math.floor((tw - cols * cell) / 2), y: by + Math.floor(k / cols) * cell, w: cell - 1, h: cell - 1 }));
     } else {
+      L.markers = MARKERS.map((m, k) => ({ k, x: leftX0, y: by + B + 4 + k * 18, w: leftX1 - leftX0, h: 17 }));
+      L.markerX = leftX1 - 26;
       const cx = rightX0 + Math.floor((rightX1 - rightX0 - B) / 2);
-      L.back = { x: cx, y: by, w: B, h: B };
-      L.eraser = { x: cx, y: by + 34, w: B, h: B };
-      L.wipeBtn = { x: cx, y: by + 64, w: B, h: B };
+      L.eraser = { x: cx, y: by, w: B, h: B };
+      L.wipeBtn = { x: cx, y: by + 30, w: B, h: B };
       const cell = 16;
+      L.stampK = 1; L.stampTile = false;
       L.stamps = S.STAMPS.map((id, k) => ({ id, x: bx + k * cell, y: by + BH + 5, w: cell, h: 18 }));
     }
     // students along the bottom
@@ -155,8 +165,11 @@ export function createBoard(students, hooks) {
     dirty = true; changed = true;
     sfx.pop(1 + Math.random() * 0.3);
     burst('spark', L.bx + x, L.by + y, 6, ['#ffd23f', '#ff9ec4', '#7ec8ff']);
-    // students react: one says what it is, the rest gasp and clap
     const aw = awake();
+    if (id === 'star') starsStamped++;
+    if (aw.length && /^[1-5]$/.test(id)) { countAlong(+id, aw); return; }
+    if (aw.length && /^[A-Z]$/.test(id)) { letterChorus(id, aw); return; }
+    // students react: one says what it is, the rest gasp and clap
     if (aw.length) {
       const talker = pick(aw);
       wait(0.25).then(() => speak(talker, WORDS[id] || 'Ooh!', 'yay'));
@@ -165,7 +178,36 @@ export function createBoard(students, hooks) {
         wait(0.6).then(() => { if (Math.random() < 0.6) act(s, 'clap', 1); else act(s, 'raise', 2); });
       }
       wait(0.7).then(() => sfx.clap(3, 0.5));
+      if (id === 'star' && starsStamped === 3) wait(1.6).then(() => { const s = pick(awake()); if (s) { speak(s, STAR_COUNT_LINE, 'yay'); act(s, 'cheer', 1.4); hop(s, 70); } });
     }
+  }
+  // number stamp: the class counts up to it, one friend after another (in seat order)
+  let counting = 0;
+  function countAlong(n, aw) {
+    const run = ++counting;
+    const order = [...aw].sort((a, b) => a.idx - b.idx);
+    (async () => {
+      await wait(0.3);
+      for (let k = 1; k <= n; k++) {
+        if (run !== counting) return;
+        const s = order[(k - 1) % order.length];
+        if (s.mode === 'away') continue;
+        speak(s, numberWord(k), 'here'); act(s, 'cheer', 0.5); hop(s, 60); sfx.pop(1 + k * 0.08);
+        const r = studentRect(s.idx);
+        burst('star', r.x + S.SW / 2, r.y + 8, 3 + k, ['#ffd23f', '#ff9ec4', '#7ec8ff'], { up: true, sp: 45 });
+        await wait(0.55);
+      }
+      if (run !== counting) return;
+      await wait(0.2);
+      sfx.clap(5, 0.7);
+      for (const s of awake()) act(s, 'clap', 1.1);
+    })();
+  }
+  // letter stamp: everyone says the letter's name together (a little staggered so it sounds like a class)
+  function letterChorus(ch, aw) {
+    const name = letterName(ch);
+    aw.forEach((s, i) => wait(0.25 + i * 0.08).then(() => { if (s.mode !== 'away') { speak(s, name, 'here'); act(s, 'raise', 0.9); hop(s, 40); } }));
+    wait(1.1).then(() => sfx.clap(3, 0.5));
   }
 
   // ---------------------------------------------------------------- students
@@ -269,8 +311,9 @@ export function createBoard(students, hooks) {
     for (const m of L.markers) {
       const sel = tool === 'marker' && color === m.k;
       const out = sel ? 4 : 0;
-      D(c, markerSprite(MARKERS[m.k].c, sel), L.markerX - 2 + out, m.y + 3);
-      if (sel) R(c, L.markerX - 6, m.y + 7, 3, 3, MARKERS[m.k].c);
+      const ms = markerSprite(MARKERS[m.k].c, sel), k = L.mk;
+      c.drawImage(ms, Math.round(L.markerX - 2 * k + out * k), Math.round(m.y + (m.h - ms.height * k) / 2), ms.width * k, ms.height * k);
+      if (sel) R(c, L.markerX - 6 * k, m.y + Math.round((m.h - 3 * k) / 2), 3 * k, 3 * k, MARKERS[m.k].c);
     }
     // tools (right)
     const tb = (b, icon, on) => { D(c, btnFrame(b.w, b.h, '#fff3dc', on), b.x, b.y + (press && press.btn === b ? 1 : 0)); D(c, icon(), b.x + 4, b.y + 3 + (press && press.btn === b ? 1 : 0)); };
@@ -280,10 +323,16 @@ export function createBoard(students, hooks) {
     // stamps
     for (const st of L.stamps) {
       const on = tool === 'stamp' && stampId === st.id;
-      if (on) { R(c, st.x, st.y, st.w, st.h, '#ffd23f'); R(c, st.x + 1, st.y + 1, st.w - 2, st.h - 2, '#fff6c8'); }
-      const im = S.stamp(st.id, MARKERS[color].c);
-      const bob = on ? Math.round(Math.sin(G.time * 8)) : 0;
-      D(c, im, st.x + (st.w - im.width) / 2, st.y + (st.h - im.height) / 2 + bob);
+      if (L.stampTile) D(c, btnFrame(st.w, st.h, '#fffaf0', on), st.x, st.y);
+      else if (on) { R(c, st.x, st.y, st.w, st.h, '#ffd23f'); R(c, st.x + 1, st.y + 1, st.w - 2, st.h - 2, '#fff6c8'); }
+      const bob = on ? Math.round(Math.sin(G.time * 8)) * L.stampK : 0;
+      if (L.stampK > 1 && /^[0-9A-Z]$/.test(st.id)) { // phone tiles: letters/numbers in the 5x7 font at 3x
+        const g = wordSprite(st.id, MARKERS[color].c, 3);
+        D(c, g, st.x + (st.w - g.width) / 2, st.y + (st.h - 21) / 2 - 6 + bob);
+        continue;
+      }
+      const im = S.stamp(st.id, MARKERS[color].c), k = L.stampK;
+      c.drawImage(im, Math.round(st.x + (st.w - im.width * k) / 2), Math.round(st.y + (st.h - im.height * k) / 2 + bob), im.width * k, im.height * k);
     }
     // students watching from their desks
     for (const s of shown()) {
@@ -356,7 +405,7 @@ export function createBoard(students, hooks) {
     if (p.btn === L.back) { sfx.whoosh(); sayUI(owlS, 'back'); close(); return; }
     if (p.btn === L.eraser) { tool = 'erase'; sfx.pop(0.8); sayUI(owlS, 'eraser'); return; }
     if (p.btn === L.wipeBtn && !wipe) {
-      wipe = { x: -8, last: 0 }; sfx.whoosh(); sayUI(owlS, 'wipe');
+      wipe = { x: -8, last: 0 }; starsStamped = 0; sfx.whoosh(); sayUI(owlS, 'wipe');
       for (const s of awake()) { act(s, 'gasp', 0.9); }
       wait(0.7).then(() => { sfx.ooh(1.25); students.forEach(startle); });
       return;

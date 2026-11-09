@@ -11,7 +11,7 @@ import { strokesFor } from './strokes.js';
 import { createSilabas } from './silabas.js';
 import { sayHint, sayUI, drawHand } from './hints.js';
 import { wordSprite } from './i18n.js';
-import { LETTERS, NUMS, FONT, letterName, numberWord, letterWord, letterSentence } from './i18n.js';
+import { LETTERS, NUMS, FONT, DESC, hasDescender, letterName, numberWord, letterWord, letterSentence } from './i18n.js';
 
 const inkCol = (s, i) => RAINBOW[(s * 2 + Math.floor(i / 9)) % RAINBOW.length];
 const RAINBOW = ['#ef5b5b', '#ff9a2e', '#f5c000', '#3cb44b', '#2f7de1', '#9b59d0', '#ff5fa8'];
@@ -29,9 +29,9 @@ function btnFrame(w, h, col = '#fff3dc', on = false) {
 }
 function mini(ch, col) {
   return cached('mini' + ch + col, () => {
-    const rows = FONT[ch];
-    const p = new Pix(rows[0].length, rows.length);
-    p.map(0, 0, rows, { '#': col });
+    const rows = FONT[ch], d = hasDescender(ch) ? DESC : 0; // tails hang below the other letters
+    const p = new Pix(rows[0].length, rows.length + d);
+    p.map(0, d, rows, { '#': col });
     return p.canvas();
   });
 }
@@ -55,6 +55,7 @@ export function createLetters(students, hooks) {
   let V = null, L = {};
   let set = 'abc', cur = 'A';
   let strokes = [], si = 0, prog = 0, done = false, doneAt = 0, counting = [];
+  let page = 0; // letter picker page (phones only: bigger cells don't all fit)
   let tracing = false, last = null, press = null, idleSince = 0, lastNoteStep = 0, flashT = 0;
   let ink = null, guide = null, tip = null;
   const row = makeRow(students);
@@ -73,8 +74,17 @@ export function createLetters(students, hooks) {
     const { W, H, inset } = V;
     L.ledge = H - 6 - Math.min(inset.b, 4);
     L.back = { x: inset.l + 3, y: 3, w: 26, h: 26 };
-    L.pick = { x: W - inset.r - 3 - 4 * 14, y: 24 };
-    L.tabs = ['abc', '123', 'ma'].map((id, k) => ({ id, x: L.pick.x + k * 19, y: 3, w: 18, h: 18 }));
+    // phones get bigger picker cells (3 per row, paged); the iPad keeps the 4-column grid
+    L.small = V.s / G.dpr < 3.4;
+    if (L.small) {
+      L.cell = 22; L.cols = 3;
+      L.pick = { x: W - inset.r - 3 - L.cols * L.cell, y: 26 };
+      L.tabs = ['abc', '123', 'ma'].map((id, k) => ({ id, x: L.pick.x + k * 22, y: 3, w: 21, h: 20 }));
+    } else {
+      L.cell = 14; L.cols = 4;
+      L.pick = { x: W - inset.r - 3 - 4 * 14, y: 24 };
+      L.tabs = ['abc', '123', 'ma'].map((id, k) => ({ id, x: L.pick.x + k * 19, y: 3, w: 18, h: 18 }));
+    }
     L.area = { x: inset.l + 34, y: 3, w: L.pick.x - 5 - (inset.l + 34), h: L.ledge - 34 - 3 };
     row.layout(W, L.ledge, inset.l + 38, W - inset.r - 4);
     layoutGlyph();
@@ -82,9 +92,29 @@ export function createLetters(students, hooks) {
   }
   function items() { return set === 'abc' ? LETTERS : NUMS; }
   function gridRects() {
-    if (set === 'ma') return sil.gridItems().map((it, k) => ({ it, ch: it.ch, x: L.pick.x + (it.id === 'words' ? 0 : (k % 4) * 14), y: L.pick.y + (it.id === 'words' ? 2 * 14 + 2 : Math.floor(k / 4) * 14), w: it.id === 'words' ? 55 : 13, h: it.id === 'words' ? 16 : 13 }));
-    const cols = set === 'abc' ? 4 : 3, cell = set === 'abc' ? 14 : 18;
-    return items().map((ch, k) => ({ ch, x: L.pick.x + (k % cols) * cell, y: L.pick.y + Math.floor(k / cols) * cell, w: cell - 1, h: cell - 1 }));
+    if (set === 'ma') {
+      const c = L.cols, cl = L.cell, rowsF = Math.ceil((sil.gridItems().length - 1) / c);
+      return sil.gridItems().map((it, k) => ({ it, ch: it.ch, x: L.pick.x + (it.id === 'words' ? 0 : (k % c) * cl), y: L.pick.y + (it.id === 'words' ? rowsF * cl + 2 : Math.floor(k / c) * cl), w: it.id === 'words' ? c * cl - 1 : cl - 1, h: it.id === 'words' ? (L.small ? 20 : 16) : cl - 1 }));
+    }
+    const cols = L.small ? L.cols : set === 'abc' ? 4 : 3, cell = L.small ? L.cell : set === 'abc' ? 14 : 18;
+    const all = items(), pp = perPage(cols, cell);
+    if (all.length <= pp) return all.map((ch, k) => ({ ch, x: L.pick.x + (k % cols) * cell, y: L.pick.y + Math.floor(k / cols) * cell, w: cell - 1, h: cell - 1 }));
+    // paged: the last cell is a ▶ that shows the next page
+    const n = pp - 1, pages = Math.ceil(all.length / n);
+    page = Math.min(page, pages - 1);
+    const out = all.slice(page * n, page * n + n).map((ch, k) => ({ ch, x: L.pick.x + (k % cols) * cell, y: L.pick.y + Math.floor(k / cols) * cell, w: cell - 1, h: cell - 1 }));
+    out.push({ more: true, pages, x: L.pick.x + (n % cols) * cell, y: L.pick.y + Math.floor(n / cols) * cell, w: cell - 1, h: cell - 1 });
+    return out;
+  }
+  function perPage(cols, cell) {
+    if (!L.small) return Infinity;
+    const rows = Math.max(2, Math.floor((L.ledge - 37 - L.pick.y) / cell));
+    return rows * cols;
+  }
+  function pageOf(ch) {
+    if (!L.small) return 0;
+    const all = items(), pp = perPage(L.cols, L.cell);
+    return all.length <= pp ? 0 : Math.floor(all.indexOf(ch) / (pp - 1));
   }
   function layoutGlyph() {
     const a = L.area;
@@ -113,6 +143,7 @@ export function createLetters(students, hooks) {
   }
   function select(ch, silent) {
     cur = ch; si = 0; prog = 0; done = false; counting = []; idleSince = G.time;
+    if (set !== 'ma' && items().includes(ch)) page = Math.max(0, pageOf(ch));
     layoutGlyph();
     if (!silent) {
       sfx.pop(1.2);
@@ -251,15 +282,22 @@ export function createLetters(students, hooks) {
         const sel = sil.isSel(r.it);
         R(c, r.x, r.y, r.w, r.h, sel ? '#ffd23f' : '#fffaf0'); R(c, r.x, r.y + r.h - 1, r.w, 1, sel ? '#e0a820' : '#e3cfae');
         const im = r.it.id === 'words' ? wordSprite('pato', sel ? '#7a3f2a' : '#2f7de1') : mini(r.ch, sel ? '#7a3f2a' : '#5a4560');
-        D(c, im, r.x + Math.floor((r.w - im.width) / 2), r.y + Math.floor((r.h - im.height) / 2) + (r.it.id === 'words' ? 0 : 0));
+        const gk = r.it.id !== 'words' && L.small ? 2 : 1;
+        c.drawImage(im, r.x + Math.floor((r.w - im.width * gk) / 2), r.y + Math.floor((r.h - im.height * gk) / 2), im.width * gk, im.height * gk);
+        continue;
+      }
+      if (r.more) { // next page of letters
+        const bob = Math.floor(G.time * 3) % 2;
+        D(c, btnFrame(r.w, r.h, '#fff6c8'), r.x, r.y);
+        const ic = S.ICONS.play(); D(c, ic, r.x + Math.floor((r.w - ic.width) / 2), r.y + Math.floor((r.h - ic.height) / 2) - bob);
         continue;
       }
       const sel = r.ch === cur;
       R(c, r.x, r.y, r.w, r.h, sel ? '#ffd23f' : '#fffaf0');
       R(c, r.x, r.y + r.h - 1, r.w, 1, sel ? '#e0a820' : '#e3cfae');
-      const im = mini(r.ch, sel ? '#7a3f2a' : '#5a4560');
-      D(c, im, r.x + Math.floor((r.w - im.width) / 2), r.y + Math.floor((r.h - im.height) / 2));
-      if (G.save.traced[r.ch]) R(c, r.x + r.w - 3, r.y + 1, 2, 2, '#3cb44b');
+      const im = mini(r.ch, sel ? '#7a3f2a' : '#5a4560'), gk = L.small ? 2 : 1;
+      c.drawImage(im, r.x + Math.floor((r.w - im.width * gk) / 2), r.y + Math.floor((r.h - im.height * gk) / 2), im.width * gk, im.height * gk);
+      if (G.save.traced[r.ch]) R(c, r.x + r.w - 2 - gk * 2, r.y + 1, gk * 2, gk * 2, '#3cb44b');
     }
     row.renderParts(c);
     // hint: show where to start
@@ -313,7 +351,9 @@ export function createLetters(students, hooks) {
       if (set !== t.id) { set = t.id; resize(); if (set === 'ma') sil.select(sil.gridItems()[0]); else select(items()[0]); }
       return;
     }
-    for (const r of gridRects()) if (inR(x, y, r)) { if (set === 'ma') sil.select(r.it); else select(r.ch); return; }
+    for (const r of gridRects()) if (inR(x, y, r)) {
+      if (r.more) { page = (page + 1) % r.pages; sfx.pop(1.3); sayUI(owl, 'next'); return; }
+      if (set === 'ma') sil.select(r.it); else select(r.ch); return; }
     if (set === 'ma') { if (sil.tap(x, y)) return; const s = row.hit(x, y); if (s) row.tap(s); return; }
     if (inR(x, y, L.next)) { sayUI(owl, 'next'); const it = items(); select(it[(it.indexOf(cur) + 1) % it.length]); return; }
     if ((done || si > 0) && inR(x, y, L.again)) { select(cur, true); sfx.whoosh(); sayUI(owl, 'again'); return; }

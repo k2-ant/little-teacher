@@ -7,7 +7,7 @@ import { sfx } from './audio.js';
 import { speak, act, hop, talk, pose } from './students.js';
 import { picture } from './pictures.js';
 import { shapeSprite } from './shapes.js';
-import { wordSprite, numberWord, letterName } from './i18n.js';
+import { wordSprite, numberWord, letterName, shapeName } from './i18n.js';
 import * as LD from './learndata.js';
 
 function card(w, h, col = '#fffaf0', rim = '#c9a77a') {
@@ -28,6 +28,36 @@ function splat(col) {
     return p.canvas();
   });
 }
+/** a little speaker with 0-3 sound waves: "listen!" (for questions with no picture) */
+function speaker(n) {
+  return cached('qspk' + n, () => {
+    const p = new Pix(26, 18);
+    const C = '#7a5bc0', H = '#a98be6';
+    p.rect(1, 6, 4, 6, C); p.rect(2, 7, 2, 2, H);
+    for (let i = 0; i < 5; i++) p.vline(5 + i, 6 - i, 11 + i, C);
+    p.vline(6, 5, 7, H);
+    p.outline('#2a1630', 0.6);
+    const W = '#2f9ee8';
+    for (let k = 0; k < n; k++) {
+      const r = 4 + k * 4;
+      for (let a = -0.85; a <= 0.85; a += 0.05) p.px(Math.round(10 + Math.cos(a) * r), Math.round(8.5 + Math.sin(a) * r), W);
+    }
+    return p.canvas();
+  });
+}
+/** just the head of a student sprite (so faces can be shown big) */
+function headOf(im, kind, mood) {
+  return cached('qhead' + kind + mood, () => {
+    // start at the first painted row (ears/hats included) and keep ~the head
+    const d = im.getContext('2d').getImageData(0, 0, im.width, im.height).data;
+    let top = 0;
+    while (top < im.height - 1 && ![...Array(im.width).keys()].some(x => d[(top * im.width + x) * 4 + 3])) top++;
+    const h = Math.min(29, im.height - top), cv = document.createElement('canvas');
+    cv.width = im.width; cv.height = h;
+    cv.getContext('2d').drawImage(im, 0, top, im.width, h, 0, 0, im.width, h);
+    return cv;
+  });
+}
 const shuffle = (a) => a.map(v => [Math.random(), v]).sort((x, y) => x[0] - y[0]).map(v => v[1]);
 const sample = (arr, n, not) => shuffle(arr.filter(x => x !== not)).slice(0, n);
 
@@ -43,7 +73,7 @@ export function makeQuestion(asker, students) {
     const shapes = Object.keys(LD.SHAPE_QS), a = pick(shapes);
     const cols = shuffle(Object.values(LD.COLORS).filter(c => c !== '#ffffff'));
     const opts = shuffle([a, ...sample(shapes, 2, a)]);
-    return { prompt: LD.SHAPE_QS[a], promptPic: null, options: opts.map((sh, i) => ({ img: shapeSprite(sh, cols[i]), right: sh === a })) };
+    return { prompt: LD.SHAPE_QS[a], promptPic: null, options: opts.map((sh, i) => ({ img: shapeSprite(sh, cols[i]), say: shapeName(sh), right: sh === a })) };
   }
   if (kind === 'count') {
     const n = 1 + Math.floor(Math.random() * 5);
@@ -63,16 +93,16 @@ export function makeQuestion(asker, students) {
   }
   const which = pick(['grande', 'pequeño']);
   const big = { img: picture('apple'), big: true, say: 'grande', right: which === 'grande' };
-  const small = { img: S.stamp('apple'), say: 'pequeño', right: which === 'pequeño' };
+  const small = { img: S.stamp('apple'), small: true, say: 'pequeño', right: which === 'pequeño' };
   return { prompt: LD.SIZE_QS[which], options: shuffle([big, small]) };
 }
 
 export function feelingsSteps(asker) {
   const mood = asker.mood;
   const others = sample(LD.MOODS, 2, mood);
-  const face = (m) => S.student(asker.kind, { ...pose({ ...asker, act: null, mood: m, blink: 0, sleep: false, mode: 'seated' }).st, armL: 'down', armR: 'down' });
+  const face = (m) => headOf(S.student(asker.kind, { ...pose({ ...asker, act: null, mood: m, blink: 0, sleep: false, mode: 'seated' }).st, armL: 'down', armR: 'down' }), asker.kind, m);
   return [
-    { prompt: LD.FEEL_Q1, options: shuffle([mood, ...others]).map(m => ({ img: face(m), say: LD.moodWord(m, asker.kind), right: m === mood })), after: LD.moodLine(mood, asker.kind) },
+    { prompt: LD.FEEL_Q1, wide: true, options: shuffle([mood, ...others]).map(m => ({ img: face(m), face: true, mood: m, say: LD.moodWord(m, asker.kind), right: m === mood })), after: LD.moodLine(mood, asker.kind) },
     { prompt: LD.FEEL_Q2, after: LD.FEEL_DONE, options: sample(LD.HELPS, 3).map(h => ({ img: picture({ abrazo: 'hug', juguete: 'toy', agua: 'water', descansar: 'pillow', respirar: 'wind' }[h.id]), say: h.word, right: true, help: h.id })) },
   ];
 }
@@ -86,7 +116,7 @@ export function createQuiz(fx) {
 
   function ask() {
     const st = Q.steps[Q.i];
-    Q.wrong = new Set(); Q.done = false; Q.t0 = G.time;
+    Q.wrong = new Set(); Q.done = false; Q.t0 = G.time; Q.repeated = false;
     speak(Q.asker, st.prompt, 'here');
   }
   const api = {
@@ -102,13 +132,16 @@ export function createQuiz(fx) {
     },
     close() { Q = null; },
     layout(V) {
-      const { W, H } = V;
+      const { W, H } = V, st = Q && Q.steps[Q.i];
       const pw = Math.min(W - 16, 250), ph = Math.min(H - 16, 176);
       L.panel = { x: Math.round(W / 2 - pw / 2), y: Math.round(H / 2 - ph / 2), w: pw, h: ph };
       L.close = { x: L.panel.x + pw - 22, y: L.panel.y - 6, w: 26, h: 26 };
       L.prompt = { x: L.panel.x + 82, y: L.panel.y + 10, w: pw - 92, h: 72 };
-      const ow = 58, gap = 10, n = 3, tot = n * ow + (n - 1) * gap;
-      L.opts = [0, 1, 2].map(k => ({ x: Math.round(L.panel.x + pw / 2 - tot / 2 + k * (ow + gap)), y: L.panel.y + ph - ow - 12, w: ow, h: ow }));
+      // faces get wider cards so they can be drawn at 2x
+      const gap = st && st.wide ? 6 : 10, n = 3;
+      const ow = st && st.wide ? Math.max(58, Math.min(74, Math.floor((pw - 12 - (n - 1) * gap) / n))) : 58, oh = st && st.wide ? 70 : 58;
+      const tot = n * ow + (n - 1) * gap;
+      L.opts = [0, 1, 2].map(k => ({ x: Math.round(L.panel.x + pw / 2 - tot / 2 + k * (ow + gap)), y: L.panel.y + ph - oh - 12, w: ow, h: oh }));
     },
     render(c, V) {
       if (!Q) return;
@@ -126,17 +159,25 @@ export function createQuiz(fx) {
       for (let k = 0; k < 4; k++) R(c, B.x - 4 + k, B.y + 30 + k, 4 - k, 1, '#c9b8d8');
       if (st.promptPic) { const p = st.promptPic, k = Math.max(1, Math.min(2, Math.floor(Math.min((B.w - 10) / p.width, (B.h - 10) / p.height)))); c.drawImage(p, Math.round(B.x + (B.w - p.width * k) / 2), Math.round(B.y + (B.h - p.height * k) / 2), p.width * k, p.height * k); }
       else if (st.stars) { const s = S.ICONS.star(), per = st.stars > 3 ? 3 : st.stars; for (let i = 0; i < st.stars; i++) D(c, s, B.x + (B.w - per * 20) / 2 + (i % per) * 20, B.y + 8 + Math.floor(i / per) * 20 + (st.stars <= 3 ? 12 : 0)); }
-      else { const q = S.bubble('q'); c.drawImage(q, Math.round(B.x + B.w / 2 - q.width * 1.5), Math.round(B.y + B.h / 2 - q.height * 1.5), q.width * 3, q.height * 3); }
+      else { // nothing to look at: a pulsing speaker says "listen!"
+        const q = speaker(Math.floor(G.time * 3) % 4), k = 3, bob = Math.floor(G.time * 3) % 4 === 3 ? 1 : 0;
+        c.drawImage(q, Math.round(B.x + B.w / 2 - q.width * k / 2), Math.round(B.y + B.h / 2 - q.height * k / 2) - bob, q.width * k, q.height * k);
+      }
+      // nothing picked for a while: ask once more
+      if (!Q.wait && !Q.done && !Q.repeated && Q.picked == null && !Q.wrong.size && G.time - Q.t0 > 5) {
+        Q.repeated = true; speak(Q.asker, st.prompt, 'here'); act(Q.asker, 'raise', 1.2);
+      }
       // answers
       st.options.forEach((o, k) => {
         const r = L.opts[k];
         const glow = Q.hint && o.right && Math.floor(G.time * 4) % 2;
         const picked = Q.picked === k;
         D(c, card(r.w, r.h, picked && o.right ? '#e8ffd8' : glow ? '#fff3b0' : '#fffaf0', glow ? '#ffb020' : '#c9a77a'), r.x, r.y - (picked ? 2 : 0));
-        let img = o.img, kk = Math.max(1, Math.floor(Math.min((r.w - 10) / img.width, (r.h - 10) / img.height)));
-        if (o.big) kk = Math.max(2, kk); else if (o.say === 'pequeño') kk = 1;
+        let img = o.img, pad = o.face ? 6 : 10, kk = Math.max(1, Math.floor(Math.min((r.w - pad) / img.width, (r.h - pad) / img.height)));
+        if (o.big) kk = Math.max(2, kk); else if (o.small) kk = 1;
         if (Q.wrong.has(k)) c.globalAlpha = 0.35;
         c.drawImage(img, Math.round(r.x + (r.w - img.width * kk) / 2), Math.round(r.y + (r.h - img.height * kk) / 2) - (picked ? 2 : 0), img.width * kk, img.height * kk);
+        if (o.face) { const mb = S.moodBubble(o.mood); D(c, mb, r.x + r.w - mb.width + 4, r.y - 8 - (picked ? 2 : 0)); }
         c.globalAlpha = 1;
       });
       D(c, card(26, 26, '#ffe0e0', '#c97a7a'), L.close.x, L.close.y);
@@ -159,7 +200,7 @@ export function createQuiz(fx) {
         Q.done = true;
         wait(o.say ? 1.0 : 0.3).then(() => {
           if (Q !== q) return;
-          sfx.sparkle(); fx.burst(L.opts[k].x + 29, L.opts[k].y + 20, ['#ffd23f', '#7dd370', '#ff9ec4']);
+          sfx.sparkle(); fx.burst(L.opts[k].x + L.opts[k].w / 2, L.opts[k].y + 20, ['#ffd23f', '#7dd370', '#ff9ec4']);
           act(q.asker, 'cheer', 1.2); hop(q.asker, 70); fx.teacher?.('clap');
           const line = st.after || (Q.i === Q.steps.length - 1 ? pick(LD.Q_RIGHT) : null);
           if (st.help) { }

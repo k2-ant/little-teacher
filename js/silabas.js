@@ -5,7 +5,7 @@ import * as S from './sprites.js';
 import { sfx } from './audio.js';
 import { speak } from './students.js';
 import { picture } from './pictures.js';
-import { wordSprite, FONT } from './i18n.js';
+import { wordSprite, FONT, DESC } from './i18n.js';
 import { FAMILIES, VOWELS, WORDS } from './learndata.js';
 
 const COLS = ['#ef5b5b', '#ff9a2e', '#e0a800', '#3cb44b', '#2f7de1', '#9b59d0', '#ff5fa8'];
@@ -34,6 +34,8 @@ export function createSilabas({ owl, row, tAct }) {
   const D = (c, im, x, y) => c.drawImage(im, Math.round(x), Math.round(y));
   const inR = (x, y, r) => r && x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
   const say = (t) => speak(owl, t, 'here');
+  // top of a word sprite inside a card: same baseline whether or not it has a tail (p q g y j)
+  const ty = (y, h, scale) => y + Math.floor((h - (9 + DESC) * scale) / 2);
 
   function setWord(i) {
     wi = (i + WORDS.length) % WORDS.length;
@@ -71,8 +73,8 @@ export function createSilabas({ owl, row, tAct }) {
         api.blocks.forEach((b, i) => {
           const lift = singing === i || (b.pop > G.time) ? 3 : 0;
           D(c, block(b.w, b.h, b.col), b.x, b.y - lift);
-          const t = wordSprite(b.syl, '#ffffff', b.w >= 28 ? 2 : 1);
-          D(c, t, b.x + b.w / 2 - t.width / 2, b.y + b.h / 2 - t.height / 2 - lift);
+          const sc = b.w >= 28 ? 2 : 1, t = wordSprite(b.syl, '#ffffff', sc);
+          D(c, t, b.x + b.w / 2 - t.width / 2, ty(b.y, b.h, sc) - lift);
         });
         api.sing = { x: a.x + a.w / 2 - 13, y: y0 + bh + 10, w: 26, h: 24 };
         D(c, block(26, 24, '#fff3dc'), api.sing.x, api.sing.y); D(c, S.ICONS.play(), api.sing.x + 4, api.sing.y + 3);
@@ -81,23 +83,27 @@ export function createSilabas({ owl, row, tAct }) {
         const pic = picture(w.pic);
         const done = built.length === w.s.length;
         if (pic) { const k = Math.max(1, Math.min(2, Math.floor(Math.min((a.w * 0.4) / pic.width, (a.h * 0.42) / pic.height)))); const bob = done ? Math.round(Math.sin(G.time * 6) * 2) : 0; c.drawImage(pic, Math.round(a.x + a.w / 2 - pic.width * k / 2), Math.round(a.y + 6 + bob), pic.width * k, pic.height * k); }
-        const sh = 24, gap = 4, wOf = (syl) => Math.max(30, wordSprite(syl, '#fff', 2).width + 8);
+        const sh = 28, gap = 4, wOf = (syl) => Math.max(30, wordSprite(syl, '#fff', 2).width + 8);
         const sws = w.s.map(wOf), tot = sws.reduce((n, x) => n + x, 0) + (w.s.length - 1) * gap;
         let sx = a.x + (a.w - tot) / 2; const sy = a.y + a.h * 0.5;
         w.s.forEach((syl, i) => {
           const sw = sws[i], r = { x: sx, y: sy, w: sw, h: sh }; sx += sw + gap;
-          if (built[i]) { D(c, block(sw, sh, built[i].col), r.x, r.y - (done ? Math.round(Math.abs(Math.sin(G.time * 5 + i)) * 2) : 0)); const t = wordSprite(syl, '#ffffff', 2); D(c, t, r.x + sw / 2 - t.width / 2, r.y + sh / 2 - t.height / 2 - 1); }
+          if (built[i]) { D(c, block(sw, sh, built[i].col), r.x, r.y - (done ? Math.round(Math.abs(Math.sin(G.time * 5 + i)) * 2) : 0)); const t = wordSprite(syl, '#ffffff', 2); D(c, t, r.x + sw / 2 - t.width / 2, ty(r.y, sh, 2) - (done ? Math.round(Math.abs(Math.sin(G.time * 5 + i)) * 2) : 0)); }
           else D(c, slot(sw, sh), r.x, r.y);
         });
         if (done) { const t = wordSprite(w.w, '#5a4560', 2); D(c, t, a.x + a.w / 2 - t.width / 2, sy + sh + 10); api.cardRects = []; }
         else {
-          const cy = a.y + a.h - sh - 6, cws = cards.map(cd => wOf(cd.s)), ctot = cws.reduce((n, x) => n + x, 0) + (cards.length - 1) * 6;
+          // the answer cards must fit inside the paper (mariposa has 5 cards): squeeze if needed
+          let cg = 6, cws = cards.map(cd => wOf(cd.s));
+          const fit = () => cws.reduce((n, x) => n + x, 0) + (cards.length - 1) * cg;
+          if (fit() > a.w - 6) { cg = 3; cws = cards.map(cd => Math.max(26, wordSprite(cd.s, '#fff', 2).width + 4)); }
+          const cy = a.y + a.h - sh - 6, ctot = fit();
           let cx = a.x + (a.w - ctot) / 2;
-          api.cardRects = cards.map((cd, i) => { const r = { x: cx, y: cy, w: cws[i], h: sh, cd }; cx += cws[i] + 6; return r; });
+          api.cardRects = cards.map((cd, i) => { const r = { x: cx, y: cy, w: cws[i], h: sh, cd }; cx += cws[i] + cg; return r; });
           for (const r of api.cardRects) {
             if (r.cd.used) { D(c, slot(r.w, sh), r.x, r.y); continue; }
             const dx = shake.i === cards.indexOf(r.cd) && G.time - shake.t < 0.4 ? (Math.floor(G.time * 30) % 2 ? 2 : -2) : 0;
-            D(c, block(r.w, sh, r.cd.col), r.x + dx, r.y); const t = wordSprite(r.cd.s, '#ffffff', 2); D(c, t, r.x + dx + r.w / 2 - t.width / 2, r.y + sh / 2 - t.height / 2 - 1);
+            D(c, block(r.w, sh, r.cd.col), r.x + dx, r.y); const t = wordSprite(r.cd.s, '#ffffff', 2); D(c, t, r.x + dx + r.w / 2 - t.width / 2, ty(r.y, sh, 2));
           }
         }
         api.next = done ? { x: a.x + a.w - 30, y: a.y + 4, w: 26, h: 24 } : null;
@@ -141,5 +147,6 @@ export function createSilabas({ owl, row, tAct }) {
     const need = WORDS[wi].s[built.length]; const r = api.cardRects.find(r => !r.cd.used && r.cd.s === need);
     const k = G.V ? 1 : 1; return r ? window.__ltLetterCss(r.x + r.w / 2, r.y + r.h / 2) : null;
   };
+  window.__ltSilNextBtn = () => (mode === 'words' && api.next ? window.__ltLetterCss(api.next.x + api.next.w / 2, api.next.y + api.next.h / 2) : null);
   return api;
 }
