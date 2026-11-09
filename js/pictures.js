@@ -16,6 +16,14 @@ function scale2(img) {
 const draw = (key, f) => cached('pic' + key, () => { const p = new Pix(30, 30); f(p); p.outline(); return p.canvas(); });
 
 const NEW = {
+  sky: p => { for (let y = 2; y < 28; y++) p.hline(2, 27, y, y < 15 ? '#5fb4ef' : '#8fd0ff'); p.ball(22, 8, 3.5, 3.5, '#ffe066', { hi: false }); p.ball(9, 18, 5, 3, '#ffffff', { hi: false }); p.ball(14, 17, 4, 3, '#ffffff', { hi: false }); },
+  duck: p => { p.ball(13, 19, 10, 7, '#ffd23f'); p.ball(21, 10, 6, 6, '#ffd23f'); p.rect(26, 10, 4, 3, '#ff9a2e'); p.px(22, 8, S.INK); p.ell(11, 18, 5, 3, '#f5c000', null, true); p.rect(8, 26, 3, 2, '#ff9a2e'); p.rect(15, 26, 3, 2, '#ff9a2e'); },
+  cat: p => { p.ball(15, 21, 9, 7, '#ffb46b'); p.ball(15, 11, 8, 7, '#ffb46b'); for (const x of [9, 21]) for (let i = 0; i < 5; i++) p.hline(x - Math.floor(i / 2) + (x > 15 ? 0 : 0), x + Math.floor(i / 2), 3 + i, '#ffb46b'); p.px(12, 10, S.INK); p.px(18, 10, S.INK); p.px(15, 13, '#ff8fae'); p.line(5, 12, 10, 13, '#c98c55'); p.line(25, 12, 20, 13, '#c98c55'); p.line(24, 24, 29, 18, '#ffb46b'); p.line(25, 24, 29, 19, '#ffb46b'); for (const x of [12, 15, 18]) p.vline(x, 4, 6, '#e8913a'); },
+  tomato: p => { p.ball(15, 17, 12, 10, '#ef4b4b'); for (let i = -2; i <= 2; i++) p.ell(15 + i * 2.5, 8, 1.6, 2.2, '#4fae45'); p.vline(15, 3, 7, '#3d7d40'); p.ell(10, 13, 2, 3, '#ff9a9a'); },
+  water: p => { p.rect(7, 4, 16, 24, '#e6f4ff'); p.rect(8, 11, 14, 16, '#7ec8ff'); p.rect(8, 11, 14, 2, '#bfe6ff'); p.px(11, 16, '#ffffff'); p.px(12, 20, '#ffffff'); p.rect(7, 27, 16, 1, '#bcd8ee'); },
+  pillow: p => { p.ball(15, 16, 13, 9, '#c9a2ff'); p.ell(15, 15, 9, 5, '#dcc4ff', null, true); p.px(4, 9, '#b48be6'); p.px(26, 9, '#b48be6'); p.px(4, 23, '#b48be6'); p.px(26, 23, '#b48be6'); p.map(11, 12, ['##..##', '......', '.####.'], { '#': '#9a6fd6' }); },
+  wind: p => { for (const [y, l] of [[9, 20], [15, 25], [21, 16]]) { p.hline(3, 3 + l, y, '#7ec8ff'); p.hline(3, 3 + l, y + 1, '#bfe6ff'); p.px(4 + l, y - 1, '#7ec8ff'); p.px(5 + l, y - 2, '#7ec8ff'); p.px(4 + l, y - 3, '#7ec8ff'); } },
+
   diamond: p => { for (let y = 0; y < 26; y++) { const h = y < 13 ? y : 25 - y; p.hline(15 - h, 14 + h, 2 + y, y < 13 ? '#7ec8ff' : '#4f97d6'); } p.line(9, 9, 13, 5, '#ffffff'); },
   egg: p => { p.ball(15, 16, 9, 12, '#fff6e6', { shadow: '#e8dcc6' }); p.ell(11, 10, 2, 3, '#ffffff'); },
   juice: p => { p.rect(8, 6, 14, 22, '#d6f0ff'); p.rect(9, 11, 12, 16, '#ffa63c'); p.rect(9, 11, 12, 2, '#ffc27a'); p.line(18, 0, 15, 14, '#ef6f6c'); p.line(19, 0, 16, 14, '#ef6f6c'); p.ell(23, 9, 3, 3, '#ffa63c'); },
@@ -36,6 +44,14 @@ const NEW = {
 };
 
 export function picture(key) {
+  if (key === 'carrot') return scale2(S.snack('bunny', 0));
+  if (key === 'house') return S.ICONS.home();
+  if (key === 'ball') return S.ICONS.ball();
+  if (key === 'desk') return S.desk(1, true);
+  if (key === 'butterfly') return S.sticker('butterfly');
+  if (key === 'hug') return S.sticker('heart');
+  if (key === 'toy') return DC.decor('teddy', 0);
+  if (key === 'frog') return S.student('frog', happy);
   if (STICK.includes(key)) return S.sticker(key);
   if (ANIMALS[key]) return S.student(ANIMALS[key], happy);
   if (key === 'apple') return scale2(DC.deskItem('apple'));

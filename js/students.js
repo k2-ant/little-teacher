@@ -119,6 +119,11 @@ export function pose(s) {
       case 'look': st.eyes = 'open'; st.mouth = 'o'; break;
     }
   }
+  if (s.mood && !a && !s.sleep) {
+    const M = { triste: ['open', 'frown', 'sad'], enojado: ['open', 'frown', 'angry'], asustado: ['wide', 'o', 'scared'], cansado: ['sleepy', 'o', null] }[s.mood];
+    if (M) { st.eyes = s.blink > 0 && M[0] === 'open' ? 'blink' : M[0]; st.mouth = M[1]; st.mood = M[2]; st.tongue = false; st.earUp = false; }
+    if (s.mood === 'asustado') dx = Math.floor(t * 12) % 2;
+  }
   if (s.hide > 0) dx = 0;
   return { st, dx };
 }

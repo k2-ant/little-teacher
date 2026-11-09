@@ -89,6 +89,26 @@ const pts = await p.evaluate(() => window.__ltDeskPts && window.__ltDeskPts());
 for (const [x, y] of pts) { await tapAt(x, y); await p.waitForTimeout(250); }
 await p.waitForTimeout(600);
 await shot('04-attendance');
+// a student asks a question
+const quizOpts = async () => p.evaluate(() => { const lt = window.__lt; const q = lt.room; return null; });
+await p.evaluate(() => window.__ltAsk(3));
+await p.waitForTimeout(700);
+await shot('04a-question');
+const pickOpt = async (right) => {
+  const info = await p.evaluate((right) => { const o = window.__ltQuiz(); const Q = window.__ltQuizQ(); if (!o || !Q) return null; const st = Q.steps[Q.i]; const k = st.options.findIndex(x => x.right === right); return k >= 0 ? o.opts[k] : null; }, right);
+  if (info) await tapAt(...info);
+};
+await pickOpt(false); await p.waitForTimeout(600);
+await shot('04b-question-wrong');
+await pickOpt(true); await p.waitForTimeout(1600);
+// feelings
+await p.evaluate(() => window.__ltFeel(1, 'triste'));
+await p.waitForTimeout(500);
+await shot('04c-feelings-1');
+await pickOpt(true); await p.waitForTimeout(1500);
+await shot('04d-feelings-2');
+await pickOpt(true); await p.waitForTimeout(1500);
+await shot('04e-feelings-done');
 // drag a gold star onto the first student
 const star = await p.evaluate(() => window.__ltBtn('star'));
 await p.mouse.move(star[0], star[1]); await p.mouse.down();
@@ -154,6 +174,18 @@ lt = await p.evaluate(() => window.__ltLetters());
 await traceAll();
 await p.waitForTimeout(2200);
 await shot('21-numbers-done');
+// sílabas: families, then build a word
+await tapAt(...lt.tabs[2]); await p.waitForTimeout(400);
+await shot('21a-silabas-fam');
+lt = await p.evaluate(() => window.__ltLetters());
+await tapAt(...lt.grid[7]); await p.waitForTimeout(400);
+await shot('21b-silabas-word');
+for (let n = 0; n < 4; n++) {
+  const c2 = await p.evaluate(() => window.__ltSilNext());
+  if (!c2) break; await tapAt(...c2); await p.waitForTimeout(250);
+}
+await p.waitForTimeout(500);
+await shot('21c-silabas-done');
 await tapAt(...lt.back); await p.waitForTimeout(900);
 // shape corner
 await tapAt(...(await p.evaluate(() => window.__ltFurnPt('shapetable'))));

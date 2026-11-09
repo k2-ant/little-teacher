@@ -305,7 +305,7 @@ export function createBoard(students, hooks) {
     press = { x, y };
     const lx = x - L.bx, ly = y - L.by;
     if (lx >= -3 && ly >= -3 && lx < BW + 3 && ly < BH + 3 && !wipe) {
-      if (tool === 'stamp') { placeStamp(stampId, Math.max(0, Math.min(BW - 1, lx)), Math.max(0, Math.min(BH - 1, ly))); press = null; return; }
+      if (tool === 'stamp') { press.stampAt = { lx, ly, x, y }; return; } // tap = stamp, drag = draw
       stroke = { x: lx, y: ly, t: G.time };
       segment(lx, ly, lx, ly);
       strokeStart(tool === 'erase' ? 'erase' : 'marker');
@@ -320,6 +320,12 @@ export function createBoard(students, hooks) {
     }
   }
   function move(x, y) {
+    if (press && press.stampAt && Math.hypot(x - press.stampAt.x, y - press.stampAt.y) > 4) {
+      // she started dragging: draw with the marker instead (and leave stamp mode)
+      const { lx, ly } = press.stampAt; press.stampAt = null;
+      tool = 'marker';
+      stroke = { x: lx, y: ly, t: G.time }; segment(lx, ly, lx, ly); strokeStart('marker');
+    }
     if (!stroke) return;
     const lx = x - L.bx, ly = y - L.by;
     const d = segment(stroke.x, stroke.y, lx, ly);
@@ -337,6 +343,7 @@ export function createBoard(students, hooks) {
     }
     const p = press; press = null;
     if (!p) return;
+    if (p.stampAt) { placeStamp(stampId, Math.max(0, Math.min(BW - 1, p.stampAt.lx)), Math.max(0, Math.min(BH - 1, p.stampAt.ly))); return; }
     if (p.btn === L.back) { sfx.whoosh(); close(); return; }
     if (p.btn === L.eraser) { tool = 'erase'; sfx.pop(0.8); return; }
     if (p.btn === L.wipeBtn && !wipe) {
@@ -346,8 +353,7 @@ export function createBoard(students, hooks) {
       return;
     }
     if (p.marker) {
-      color = p.marker.k; tool = tool === 'stamp' ? 'stamp' : 'marker';
-      if (tool !== 'stamp') tool = 'marker';
+      color = p.marker.k; tool = 'marker'; // tapping a marker always goes back to drawing
       sfx.pop(1.2);
       const aw = awake(); if (aw.length) speak(pick(aw), MARKERS[color].name + '!', 'yay');
       return;

@@ -27,6 +27,10 @@ Each student has their own **ElevenLabs** voice. The clips are recorded ahead of
 
 To regenerate the clips after changing any lines: `ELEVENLABS_API_KEY=... node tools/voices.mjs` (Node 22+). The script only makes clips that don't exist yet. If a clip is missing, the game falls back to the iPad's built-in Spanish voice.
 
+## Hidden learning in class
+- **💬 Students ask questions:** tap a student with a raised paw and they might say "Maestra, tengo una pregunta…". She answers by tapping one of three pictures. Questions cover colours ("¿De qué color es el sol?"), shapes, counting stars, animals, letters, and big/small. A wrong answer just gets "Mmm… creo que no." and the right one glows.
+- **💛 Feelings (emociones):** now and then a student feels triste, enojado/a, asustado/a or cansado/a. Their face shows it, with a little bubble. Tap them to help in two steps: "¿Cómo me siento?" (pick the matching face), then "¿Qué me ayuda?" (un abrazo, un juguete, agua, descansar, respirar profundo). The student says "¡Gracias, maestra! Ya me siento mejor."
+
 ## Learning corners
 - **Alphabet board** (chalkboard on the wall): pick A–Z (including Ñ) or 0–10 and trace it the way it's taught in school, stroke by stroke:
   - a green **start dot** shows the stroke number, and arrows show which way to go
@@ -36,6 +40,9 @@ To regenerate the clips after changing any lines: `ELEVENLABS_API_KEY=... node t
   - when she's done, there's confetti and cheering, and a student says the word with its picture ("¡A de arcoíris!")
   - numbers get counted out loud with stars ("uno, dos, tres")
   - traced letters get a green dot, and ↻ lets her trace the same letter again
+- **Sílabas** (the "ma" tab on the alphabet board):
+  - **families:** pick m, p, s, l, t, n or d to see **ma me mi mo mu** as blocks. Tap one to hear it, or press ▶ to sing the whole family.
+  - **word builder:** see a picture (pato, gato, rana, luna, casa, oso, nube, pelota, tomate, mariposa…) and tap the syllables in order to build the word. The owl then reads it: "pa… to… ¡pato!"
 - **Shape corner** (the little table): drag shapes into the matching holes of the wooden sorter: circle, square, triangle, rectangle, star, heart, oval and diamond. Each shape's name is said in Spanish. A wrong hole just wiggles back; there's no failing. Every round you finish brings new shapes.
 
 ## A day in class

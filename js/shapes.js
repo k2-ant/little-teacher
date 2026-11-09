@@ -28,7 +28,7 @@ function inside(shape, x, y, w, h) { // x,y in pixel centres, 0..w, 0..h
   }
   return false;
 }
-function shapeSprite(shape, col, kind = 'piece') {
+export function shapeSprite(shape, col, kind = 'piece') {
   return cached('shp' + shape + col + kind, () => {
     const [w, h] = SIZE[shape];
     const p = new Pix(w + 2, h + 2);

@@ -5,6 +5,8 @@ import { sfx, hush } from './audio.js';
 import { act, acting, hop, talk, speak, animalSound, coax, physics, walkStep, walkTo, pose, traits, startle, GREETINGS, BYES, randomCheer } from './students.js';
 import { PAGES } from './pages.js';
 import * as DC from './decor.js';
+import { createQuiz, makeQuestion, feelingsSteps } from './quiz.js';
+import * as LD from './learndata.js';
 import { lang, setLang, flag, DAY_WORDS, DAY_SHORT, DAY_COLORS, dayIndex, daySentence, wordSprite } from './i18n.js';
 
 const R = (c, x, y, w, h, col) => { c.fillStyle = col; c.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); };
@@ -99,6 +101,26 @@ export function createClassroom(students, hooks) {
   let lastTap = 0;
   let deco = null; // decorate tray: { tab }
   let dayCard = null; // morning 'today is...' card
+  let lastQ = -99, feelT = 40;
+  const MOOD_BUBBLE = { triste: 'sad', enojado: 'angry', asustado: 'scared', cansado: 'zzz' };
+  const quiz = createQuiz({ burst: (x, y, cols) => burst('star', x, y, 8, cols, { up: true }), teacher: (n) => teacherAct(n, 1.2) });
+  function askQuestion(s) {
+    lastQ = G.time;
+    quiz.open(s, [makeQuestion(s, students)], () => {
+      for (const t of awake()) if (t !== s) act(t, 'clap', 1.2);
+      sfx.clap(5, 0.8);
+    }, LD.Q_INTRO);
+  }
+  function helpFeelings(s) {
+    quiz.open(s, feelingsSteps(s), (o) => {
+      s.mood = null; s.bubble = null;
+      act(s, 'wiggle', 1.6); hop(s, 70); sfx.chime();
+      burst('heart', ...headPos(s), 6, ['#ff6f91', '#ff9ec4'], { up: true, sp: 45 });
+      if (o && o.help === 'agua') burst('bubble', ...headPos(s), 5, ['#fff'], { up: true });
+      for (const t of awake()) if (t !== s) act(t, 'clap', 1.2);
+      teacherAct('cheer', 1.2);
+    });
+  }
   let T = null; // tray layout
   const teach = { act: null, z: 0, vz: 0, blinkT: 2, blink: 0, pointRight: true };
   function teacherAct(name, dur = 1.2) { teach.act = { name, t0: G.time, dur }; }
@@ -381,11 +403,13 @@ export function createClassroom(students, hooks) {
       return;
     }
     if (!s.here) { markHere(s, 0); return; }
+    if (s.mood && (s.mode === 'seated' || s.mode === 'stand')) { helpFeelings(s); return; }
     if (s.kind === 'puppy' && s.mode === 'stand' && !story && !recess) { // wandering puppy goes back to his seat
       hop(s, 70); sfx.woof(); talk(s, 'heart', 1.2);
       wait(0.5).then(() => sendToSeat(s));
       return;
     }
+    if (acting(s, 'raise') && G.time - lastQ > 10 && Math.random() < 0.75) { askQuestion(s); return; }
     if (acting(s, 'raise')) {
       act(s, 'cheer', 1.2); hop(s, 85); sfx.cheer(1.2); speak(s, randomCheer(), 'yay');
       burst('star', ...headPos(s), 6, ['#ffd23f', '#ff9ec4', '#7ec8ff'], { up: true });
@@ -441,7 +465,8 @@ export function createClassroom(students, hooks) {
     busy = true; phase = 'morning';
     sky = 'morning'; duskTarget = 0;
     attendanceDone = false;
-    for (const s of students) Object.assign(s, { mode: 'away', here: false, sleep: false, hide: 0, act: null, bubble: null, glowT: 0, z: 0, vz: 0, snack: null, sleepT: rand(14, 24), wanderT: rand(20, 32), hideT: 0 });
+    feelT = rand(35, 50);
+    for (const s of students) Object.assign(s, { mood: null, mode: 'away', here: false, sleep: false, hide: 0, act: null, bubble: null, glowT: 0, z: 0, vz: 0, snack: null, sleepT: rand(14, 24), wanderT: rand(20, 32), hideT: 0 });
     await wait(0.5);
     sfx.bell();
     await wait(1.2);
@@ -618,7 +643,15 @@ export function createClassroom(students, hooks) {
     doorOpen += (doorTarget - doorOpen) * Math.min(1, dt * 10);
     dusk += (duskTarget - dusk) * Math.min(1, dt * 1.5);
     if (phase === 'class') hintT -= dt; if (hintT < 0) hintT = rand(10, 16);
-    const calm = phase === 'class' && !drag;
+    const calm = phase === 'class' && !drag && !quiz.active;
+    if (calm && !busy && !story && !recess && !bookOpen) {
+      feelT -= dt;
+      if (feelT < 0) {
+        feelT = rand(70, 115);
+        const cands = students.filter(s => s.mode === 'seated' && s.here && !s.sleep && !(s.hide > 0) && !s.mood);
+        if (cands.length) { const s = pick(cands); s.mood = pick(LD.MOODS); talk(s, MOOD_BUBBLE[s.mood], 9999); speak(s, LD.FEEL_CALL, 'here'); }
+      }
+    }
     for (const s of students) {
       physics(s, dt);
       walkStep(s, dt);
@@ -1031,6 +1064,7 @@ export function createClassroom(students, hooks) {
     if (story) drawStory(c);
     if (reward) drawReward(c);
     if (bookOpen) drawStickerBook(c);
+    quiz.render(c, V);
   }
   function drawStory(c) {
     const { W, H } = V;
@@ -1120,6 +1154,7 @@ export function createClassroom(students, hooks) {
   }
   function down(x, y) {
     press = { x0: x, y0: y, x, y, moved: false, t: G.time };
+    if (quiz.active) { press.quiz = true; return; }
     if (phase === 'title' || phase === 'night') { if (L.bigBtn && inRect(x, y, L.bigBtn)) press.big = true; return; }
     if (reward) { press.reward = true; return; }
     if (bookOpen) { press.book = true; return; }
@@ -1238,8 +1273,9 @@ export function createClassroom(students, hooks) {
         return;
       }
     }
-    if (p.moved) return;
     const { x, y } = p;
+    if (p.quiz) { quiz.tap(x, y); return; }
+    if (p.moved) return;
     if (p.big && inRect(x, y, L.bigBtn)) { sfx.pop(); hooks.unlock?.(); enterPrep(); return; }
     if (p.reward) { if (!reward.collected && G.time - reward.t > 0.6) collectReward(); return; }
     if (p.book) {
@@ -1367,6 +1403,10 @@ export function createClassroom(students, hooks) {
   window.__ltFurnPt = (id) => { const f = furn[id]; const [, h] = sizeOf(f); return css(f.x, f.y - h / 2); };
   window.__ltDeskItem = (i) => { const d = desks[i]; return css(d.x + 10, d.y - 22); };
   window.__ltTrash = () => { const r = trashRect(); return css(r.x + 13, r.y + 15); };
+  window.__ltAsk = (i) => askQuestion(students[i]);
+  window.__ltFeel = (i, m) => { const s = students[i]; s.mood = m; talk(s, MOOD_BUBBLE[m], 9999); helpFeelings(s); };
+  window.__ltQuiz = () => { const k = V.s / G.dpr; return quiz.active ? { opts: [0, 1, 2].map(i => { const r = quiz._L?.opts?.[i]; return r ? [(r.x + r.w / 2) * k, (r.y + r.h / 2) * k] : null; }) } : null; };
+  window.__ltQuizQ = () => quiz._Q;
   window.__ltTeacher = () => css(furn.teacher.x, furn.teacher.y - 30);
   window.__ltMenu = () => (menu ? menu.items.map(m => css(m.x + 24, m.y + 24)) : []);
 

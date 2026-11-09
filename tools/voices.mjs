@@ -2,7 +2,7 @@
 // Usage: ELEVENLABS_API_KEY=... node tools/voices.mjs   (skips clips that already exist)
 import fs from 'fs';
 import path from 'path';
-import { allPhrases, ttsText, clipSlug } from '../js/i18n.js';
+import { allPhrases, owlOnlyPhrases, ttsText, clipSlug } from '../js/i18n.js';
 
 export const VOICES = {
   bunny: { id: 'CPv3Zr3CQCqE4ZzuCgBP', name: 'Lulu - Adorable, Bright & Playful' },
@@ -13,11 +13,11 @@ export const VOICES = {
 };
 const KEY = process.env.ELEVENLABS_API_KEY || 'proxy-injected';
 const OUT = 'audio';
-const phrases = allPhrases();
+const phrases = allPhrases(), owlOnly = owlOnlyPhrases();
 const jobs = [];
 for (const [kind, v] of Object.entries(VOICES)) {
   fs.mkdirSync(path.join(OUT, kind), { recursive: true });
-  for (const key of phrases) {
+  for (const key of kind === 'owl' ? [...phrases, ...owlOnly] : phrases) {
     const file = path.join(OUT, kind, clipSlug(key) + '.mp3');
     if (!fs.existsSync(file)) jobs.push({ kind, voice: v.id, key, file });
   }
@@ -55,7 +55,7 @@ const workers = Array.from({ length: 4 }, async () => {
 await Promise.all(workers);
 
 // manifest: phrase -> file slug, per voice
-const manifest = { voices: Object.fromEntries(Object.entries(VOICES).map(([k, v]) => [k, v.name])), clips: {} };
-for (const key of phrases) manifest.clips[key] = clipSlug(key);
+const manifest = { voices: Object.fromEntries(Object.entries(VOICES).map(([k, v]) => [k, v.name])), clips: {}, owlOnly };
+for (const key of [...phrases, ...owlOnly]) manifest.clips[key] = clipSlug(key);
 fs.writeFileSync(path.join(OUT, 'clips.json'), JSON.stringify(manifest, null, 1));
 console.log(`finished: ${done} made, ${failed} failed`);

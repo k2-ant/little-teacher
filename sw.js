@@ -1,9 +1,9 @@
 // Offline cache: everything the game needs is cached on first load.
-const CACHE = 'little-teacher-v4';
+const CACHE = 'little-teacher-v5';
 const FILES = [
   './', './index.html', './manifest.webmanifest',
   './js/main.js', './js/state.js', './js/raster.js', './js/sprites.js', './js/audio.js',
-  './js/students.js', './js/classroom.js', './js/board.js', './js/pages.js', './js/decor.js', './js/i18n.js', './js/pictures.js', './js/row.js', './js/letters.js', './js/shapes.js', './js/strokes.js', './audio/clips.json',
+  './js/students.js', './js/classroom.js', './js/board.js', './js/pages.js', './js/decor.js', './js/i18n.js', './js/pictures.js', './js/row.js', './js/letters.js', './js/shapes.js', './js/strokes.js', './js/learndata.js', './js/quiz.js', './js/silabas.js', './audio/clips.json',
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png', './icons/apple-touch-icon.png',
 ];
 self.addEventListener('install', (e) => {

@@ -69,6 +69,7 @@ function mouth(p, kind, my, dx) {
   else if (kind === 'o') { p.rect(X(16), my, 2, 2, INK); p.px(X(16), my + 1, '#7a2e45'); }
   else if (kind === 'grin') { p.px(X(14), my, INK); p.px(X(19), my, INK); p.rect(X(15), my + 1, 4, 2, INK); p.px(X(16), my + 2, '#ff7b93'); p.px(X(17), my + 2, '#ff7b93'); }
   else if (kind === 'flat') { p.rect(X(15), my + 1, 4, 1, INK); }
+  else if (kind === 'frown') { p.px(X(15), my + 1, INK); p.px(X(16), my, INK); p.px(X(17), my, INK); p.px(X(18), my + 1, INK); }
   else if (kind === 'munch') { p.rect(X(15), my, 4, 2, INK); p.px(X(16), my + 1, '#7a2e45'); p.px(X(17), my + 1, '#7a2e45'); }
 }
 
@@ -207,6 +208,7 @@ function drawFrog(p, C, st) {
   if (m === 'smile') { p.px(11, 22, INK); p.px(12, 23, INK); p.hline(13, 20, 24, INK); p.px(21, 23, INK); p.px(22, 22, INK); }
   else if (m === 'open' || m === 'grin') { p.px(11, 22, INK); p.px(22, 22, INK); p.rect(12, 23, 10, 2, INK); p.rect(13, 25, 8, 1, INK); p.hline(14, 19, 25, '#ff7b93'); }
   else if (m === 'o') { p.rect(16, 23, 2, 2, INK); }
+  else if (m === 'frown') { p.px(12, 24, INK); p.hline(13, 20, 23, INK); p.px(21, 24, INK); }
   else mouth(p, m, 23, 0);
   if (st.blush !== false) { p.px(8, 22, BLUSH); p.px(9, 22, BLUSH); p.px(24, 22, BLUSH); p.px(25, 22, BLUSH); }
   // bow
@@ -216,11 +218,30 @@ function drawFrog(p, C, st) {
 }
 
 const DRAW = { bunny: drawBunny, puppy: drawPuppy, turtle: drawTurtle, owl: drawOwl, frog: drawFrog };
+// feelings overlays: eyebrows, tears, anger marks, sweat drops
+const EYES = { bunny: [12, 20, 17], puppy: [12, 20, 17], turtle: [12, 20, 17], owl: [13, 21, 16], frog: [10, 22, 11] };
+function drawMood(p, kind, mood, look) {
+  const [xl0, xr0, ey] = EYES[kind];
+  const xl = xl0 + look, xr = xr0 + look, by = ey - 2, B = '#5a3a4a';
+  if (mood === 'sad') {
+    p.px(xl - 1, by + 1, B); p.px(xl, by, B); p.px(xl + 1, by, B);
+    p.px(xr + 2, by + 1, B); p.px(xr + 1, by, B); p.px(xr, by, B);
+    p.px(xl, ey + 3, '#7ec8ff'); p.px(xl, ey + 4, '#7ec8ff'); p.px(xl - 1, ey + 5, '#bfe6ff');
+  } else if (mood === 'angry') {
+    p.px(xl - 1, by, B); p.px(xl, by, B); p.px(xl + 1, by + 1, B);
+    p.px(xr + 2, by, B); p.px(xr + 1, by, B); p.px(xr, by + 1, B);
+    for (const [x, y] of [[26, 8], [28, 8], [27, 9], [26, 10], [28, 10]]) p.px(x, y, '#ef4b4b');
+  } else if (mood === 'scared') {
+    p.hline(xl - 1, xl + 1, by - 1, B); p.hline(xr, xr + 2, by - 1, B);
+    p.px(27, 12, '#9fd8ff'); p.px(27, 13, '#9fd8ff'); p.px(26, 13, '#bfe6ff'); p.px(27, 14, '#7ec8ff');
+  }
+}
 export function student(kind, st) {
-  const key = kind + '|' + [st.eyes, st.mouth, st.armL, st.armR, st.feet | 0, st.look | 0, st.blush, st.hide, st.wag ? 1 : 0, st.earUp ? 1 : 0, st.tongue ? 1 : 0].join(',');
+  const key = kind + '|' + [st.eyes, st.mouth, st.armL, st.armR, st.feet | 0, st.look | 0, st.blush, st.hide, st.wag ? 1 : 0, st.earUp ? 1 : 0, st.tongue ? 1 : 0, st.mood || ''].join(',');
   return cached(key, () => {
     const p = new Pix(SW, SH);
     DRAW[kind](p, PAL[kind], st);
+    if (st.mood && !(st.hide > 0)) drawMood(p, kind, st.mood, st.look | 0);
     p.outline();
     return p.canvas();
   });
@@ -469,8 +490,11 @@ const BUB = {
   wave: ['.#.#.#..', '.#.#.#..', '.######.', '#######.', '.######.', '..####..'],
   zzz: ['####....', '..#.....', '.#..###.', '####.#..', '....###.'],
   q: ['.###.', '#...#', '...#.', '..#..', '.....', '..#..'],
+  sad: ['.####..', '######.', '.####..', '.......', '.#..#..', '#..#...'],
+  angry: ['#.#.#..', '.#.#.#.', '#.#.#..', '.#.#.#.'],
+  scared: ['.##.', '.##.', '.##.', '.##.', '....', '.##.'],
 };
-const BUBC = { heart: { '#': '#ff6f91' }, star: { '#': '#ffc21f' }, sun: { '#': '#ffb020', o: '#ffd23f' }, check: { '#': '#4fbf5a' }, note: { '#': '#7a5bc0' }, bang: { '#': '#ef6f6c' }, wave: { '#': '#f1c27c' }, zzz: { '#': '#6f8fd6' }, q: { '#': '#64a8e8' } };
+const BUBC = { sad: { '#': '#7ea8d6' }, angry: { '#': '#ef4b4b' }, scared: { '#': '#ff9a2e' }, heart: { '#': '#ff6f91' }, star: { '#': '#ffc21f' }, sun: { '#': '#ffb020', o: '#ffd23f' }, check: { '#': '#4fbf5a' }, note: { '#': '#7a5bc0' }, bang: { '#': '#ef6f6c' }, wave: { '#': '#f1c27c' }, zzz: { '#': '#6f8fd6' }, q: { '#': '#64a8e8' } };
 export function bubble(kind) {
   return cached('bub' + kind, () => {
     const p = new Pix(16, 15);

@@ -8,6 +8,8 @@ import { speak } from './students.js';
 import { makeRow } from './row.js';
 import { picture } from './pictures.js';
 import { strokesFor } from './strokes.js';
+import { createSilabas } from './silabas.js';
+import { wordSprite } from './i18n.js';
 import { LETTERS, NUMS, FONT, letterName, numberWord, letterWord, letterSentence } from './i18n.js';
 
 const inkCol = (s, i) => RAINBOW[(s * 2 + Math.floor(i / 9)) % RAINBOW.length];
@@ -63,6 +65,7 @@ export function createLetters(students, hooks) {
   const inR = (x, y, r) => r && x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
   const owl = students.find(s => s.kind === 'owl');
   const isNum = () => /\d/.test(cur);
+  const sil = createSilabas({ owl, row, tAct: (n, d) => tAct(n, d) });
 
   function resize() {
     V = makeView(175, 250, 180);
@@ -70,13 +73,15 @@ export function createLetters(students, hooks) {
     L.ledge = H - 6 - Math.min(inset.b, 4);
     L.back = { x: inset.l + 3, y: 3, w: 26, h: 26 };
     L.pick = { x: W - inset.r - 3 - 4 * 14, y: 24 };
-    L.tabs = [{ id: 'abc', x: L.pick.x, y: 3, w: 27, h: 18 }, { id: '123', x: L.pick.x + 28, y: 3, w: 27, h: 18 }];
+    L.tabs = ['abc', '123', 'ma'].map((id, k) => ({ id, x: L.pick.x + k * 19, y: 3, w: 18, h: 18 }));
     L.area = { x: inset.l + 34, y: 3, w: L.pick.x - 5 - (inset.l + 34), h: L.ledge - 34 - 3 };
     row.layout(W, L.ledge, inset.l + 38, W - inset.r - 4);
     layoutGlyph();
+    sil.layout(L.area);
   }
   function items() { return set === 'abc' ? LETTERS : NUMS; }
   function gridRects() {
+    if (set === 'ma') return sil.gridItems().map((it, k) => ({ it, ch: it.ch, x: L.pick.x + (it.id === 'words' ? 0 : (k % 4) * 14), y: L.pick.y + (it.id === 'words' ? 2 * 14 + 2 : Math.floor(k / 4) * 14), w: it.id === 'words' ? 55 : 13, h: it.id === 'words' ? 16 : 13 }));
     const cols = set === 'abc' ? 4 : 3, cell = set === 'abc' ? 14 : 18;
     return items().map((ch, k) => ({ ch, x: L.pick.x + (k % cols) * cell, y: L.pick.y + Math.floor(k / cols) * cell, w: cell - 1, h: cell - 1 }));
   }
@@ -166,6 +171,7 @@ export function createLetters(students, hooks) {
     const a = L.area, g = L.g;
     R(c, a.x - 3, a.y - 1, a.w + 6, a.h + 5, '#a8703f'); R(c, a.x - 3, a.y - 1, a.w + 6, 1, '#c98c55');
     R(c, a.x, a.y + 2, a.w, a.h - 2, '#fffaf0');
+    if (set === 'ma') { sil.layout(a); sil.render(c); renderChrome(c); return; }
     // handwriting lines: top, middle (dashed red), bottom
     const lx0 = a.x + 4, lx1 = a.x + a.w * 0.63;
     for (const [yy, col, dash] of [[g.y - 1, '#9fc3ec', 0], [g.y + g.h / 2, '#f3a9b8', 1], [g.y + g.h + 1, '#9fc3ec', 0]]) {
@@ -221,6 +227,10 @@ export function createLetters(students, hooks) {
     if (done || si > 0) { D(c, btnFrame(L.again.w, L.again.h), L.again.x, L.again.y); D(c, againIcon(), L.again.x + 4, L.again.y + 3); }
     D(c, btnFrame(L.next.w, L.next.h, done ? '#fff6c8' : '#fff3dc', done), L.next.x, L.next.y - (done && Math.floor(G.time * 4) % 2 ? 1 : 0));
     D(c, S.ICONS.play(), L.next.x + 4, L.next.y + 3);
+    renderChrome(c);
+  }
+  function renderChrome(c) {
+    const { W, H } = V;
     // Louise
     const tk = teach.act && G.time - teach.t0 < teach.dur ? teach.act : null;
     const alt = Math.floor(G.time * 6) % 2;
@@ -232,10 +242,17 @@ export function createLetters(students, hooks) {
     for (const t of L.tabs) {
       const on = set === t.id;
       D(c, btnFrame(t.w, t.h, on ? '#ffe08a' : '#fffaf0', on), t.x, t.y);
-      const chs = t.id === 'abc' ? ['A', 'B'] : ['1', '2'];
-      D(c, mini(chs[0], '#ef6f6c'), t.x + 6, t.y + 5); D(c, mini(chs[1], '#64a8e8'), t.x + 14, t.y + 5);
+      const chs = t.id === 'abc' ? ['A', 'B'] : t.id === '123' ? ['1', '2'] : ['m', 'a'];
+      D(c, mini(chs[0], '#ef6f6c'), t.x + 3, t.y + 5); D(c, mini(chs[1], '#64a8e8'), t.x + 10, t.y + 5);
     }
     for (const r of gridRects()) {
+      if (set === 'ma') {
+        const sel = sil.isSel(r.it);
+        R(c, r.x, r.y, r.w, r.h, sel ? '#ffd23f' : '#fffaf0'); R(c, r.x, r.y + r.h - 1, r.w, 1, sel ? '#e0a820' : '#e3cfae');
+        const im = r.it.id === 'words' ? wordSprite('pato', sel ? '#7a3f2a' : '#2f7de1') : mini(r.ch, sel ? '#7a3f2a' : '#5a4560');
+        D(c, im, r.x + Math.floor((r.w - im.width) / 2), r.y + Math.floor((r.h - im.height) / 2) + (r.it.id === 'words' ? 0 : 0));
+        continue;
+      }
       const sel = r.ch === cur;
       R(c, r.x, r.y, r.w, r.h, sel ? '#ffd23f' : '#fffaf0');
       R(c, r.x, r.y + r.h - 1, r.w, 1, sel ? '#e0a820' : '#e3cfae');
@@ -257,6 +274,7 @@ export function createLetters(students, hooks) {
 
   function down(x, y) {
     press = { x, y };
+    if (set === 'ma') return;
     if (done || si >= strokes.length) return;
     const g = L.g;
     if (x < g.x - g.r * 3 || x > g.x + g.w + g.r * 3 || y < g.y - g.r * 3 || y > g.y + g.h + g.r * 3) return;
@@ -282,14 +300,19 @@ export function createLetters(students, hooks) {
     const p = press; press = null; if (!p) return;
     const { x, y } = p;
     if (inR(x, y, L.back)) { sfx.whoosh(); hooks.close(); return; }
-    for (const t of L.tabs) if (inR(x, y, t)) { if (set !== t.id) { set = t.id; resize(); select(items()[0]); } return; }
-    for (const r of gridRects()) if (inR(x, y, r)) { select(r.ch); return; }
+    for (const t of L.tabs) if (inR(x, y, t)) {
+      if (set !== t.id) { set = t.id; resize(); if (set === 'ma') sil.select(sil.gridItems()[0]); else select(items()[0]); }
+      return;
+    }
+    for (const r of gridRects()) if (inR(x, y, r)) { if (set === 'ma') sil.select(r.it); else select(r.ch); return; }
+    if (set === 'ma') { if (sil.tap(x, y)) return; const s = row.hit(x, y); if (s) row.tap(s); return; }
     if (inR(x, y, L.next)) { const it = items(); select(it[(it.indexOf(cur) + 1) % it.length]); return; }
     if ((done || si > 0) && inR(x, y, L.again)) { select(cur, true); sfx.whoosh(); return; }
     if (inR(x, y, L.pic)) { sfx.pop(1.3); speak(row.talker() || owl, isNum() ? numberWord(+cur) : letterSentence(cur), 'here'); return; }
     if (p.onGlyph) return;
     const s = row.hit(x, y); if (s) row.tap(s);
   }
+  window.__ltLetterCss = (x, y) => { const k = V.s / G.dpr; return [x * k, y * k]; };
   window.__ltLetters = () => {
     const k = V.s / G.dpr;
     return { strokes: strokes.map(st => st.map(([x, y]) => [x * k, y * k])), grid: gridRects().map(r => [(r.x + r.w / 2) * k, (r.y + r.h / 2) * k]), tabs: L.tabs.map(t => [(t.x + t.w / 2) * k, (t.y + t.h / 2) * k]), back: [(L.back.x + 13) * k, (L.back.y + 13) * k] };

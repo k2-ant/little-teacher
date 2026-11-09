@@ -80,12 +80,12 @@ function voice({ t = 0, dur = 0.3, f0 = 500, f1, vowel = 'ee', vowel2, vol = 0.2
 }
 
 // ---- recorded voice clips (generated with ElevenLabs, see tools/voices.mjs)
-let clipMap = null;
+let clipMap = null, owlOnly = new Set();
 const bufs = new Map(), loading = new Map(), playingClip = {};
 export async function loadClips() {
-  try { clipMap = (await (await fetch('audio/clips.json')).json()).clips; } catch (e) { clipMap = null; }
+  try { const m = await (await fetch('audio/clips.json')).json(); clipMap = m.clips; owlOnly = new Set(m.owlOnly || []); } catch (e) { clipMap = null; }
 }
-function clipUrl(kind, key) { const slug = clipMap && clipMap[key]; return slug ? `audio/${kind}/${slug}.mp3` : null; }
+function clipUrl(kind, key) { const slug = clipMap && clipMap[key]; if (slug && owlOnly.has(key)) kind = 'owl'; return slug ? `audio/${kind}/${slug}.mp3` : null; }
 function getBuf(url) {
   if (bufs.has(url)) return Promise.resolve(bufs.get(url));
   if (loading.has(url)) return loading.get(url);
@@ -115,7 +115,7 @@ export async function prefetchClips() {
   if (!clipMap) await loadClips();
   if (!clipMap) return;
   const urls = [];
-  for (const kind of ['bunny', 'puppy', 'turtle', 'owl', 'frog']) for (const slug of Object.values(clipMap)) urls.push(`audio/${kind}/${slug}.mp3`);
+  for (const kind of ['bunny', 'puppy', 'turtle', 'owl', 'frog']) for (const [key, slug] of Object.entries(clipMap)) if (kind === 'owl' || !owlOnly.has(key)) urls.push(`audio/${kind}/${slug}.mp3`);
   const workers = Array.from({ length: 3 }, async () => { while (urls.length) { const u = urls.shift(); try { await fetch(u); } catch (e) { /* offline */ } } });
   await Promise.all(workers);
 }
