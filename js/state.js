@@ -43,6 +43,7 @@ export function loadSave() {
   s.decor ||= []; s.deskItems ||= {}; s.paint ||= { wall: 0, floor: 0 }; s.rugV ||= 0;
   s.decorStamp ||= 0; s.decorSeen ||= 0;
   if (!Array.isArray(s.gifts)) s.gifts = []; // v1.9: decorations delivered in a parcel at the door
+  if (!Array.isArray(s.abcShown)) s.abcShown = []; if (!s.crown || typeof s.crown !== 'object') s.crown = null; // v1.9: alphabet line, star-of-the-week crown
   G.save = s;
   return s;
 }

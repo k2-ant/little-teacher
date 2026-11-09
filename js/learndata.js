@@ -67,6 +67,9 @@ export const STAR_COUNT_LINE = '¡Cuántas estrellas!';
 // ------------------------------------------------------------------ behaviour cards + centros
 export const CARD_LINES = { sorry: 'Lo siento, maestra.', thanks: '¡Gracias, maestra!', allGreen: '¡Todos empiezan en verde!', newDay: '¡Mañana es un nuevo día!' };
 export const NAUGHTY_LINES = { frog: '¡Jajaja!', owl: '¡Yo sé! ¡Yo sé!', bunny: '¡Oye, oye!' };
+// ---- v1.9 alive
+export const ALIVE_LINES = { starWeek: '¡Soy la estrella de la semana!', shell: '¡Mira mi caparazón!', again: '¡Otra vez!' };
+export const ALIVE_OWL = { allGreen: '¡Todos terminaron en verde!', friday: '¡Es viernes!', newLetter: '¡Mira, una letra nueva!' };
 export const CENTERS = [
   { id: 'arte', line: '¡Me encanta pintar!' }, { id: 'biblioteca', line: '¡Me gusta leer!' },
   { id: 'letras', line: '¡Estoy escribiendo!' }, { id: 'bloques', line: '¡Mira mis bloques!' },
@@ -141,6 +144,7 @@ export function studentPhrases() {
   Object.values(CENTRO_LINES).forEach(l => out.add(l));
   out.add(STAR_COUNT_LINE);
   V19_STUDENT().forEach(l => out.add(l));
+  Object.values(ALIVE_LINES).forEach(l => out.add(l));
   return [...out];
 }
 /** lines only the owl (our reading helper) says */
@@ -150,5 +154,6 @@ export function narratorPhrases() {
   for (const w of WORDS) { out.add(w.w); w.s.forEach(x => out.add(x)); }
   [UI_WORDS, ITEM_WORDS, HINTS].forEach(o => Object.values(o).forEach(x => out.add(x)));
   V19_OWL().forEach(l => out.add(l));
+  Object.values(ALIVE_OWL).forEach(x => out.add(x));
   return [...out];
 }

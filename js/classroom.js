@@ -11,6 +11,8 @@ import { VERSION } from './version.js';
 import { drawHand } from './hints.js';
 import { wordSprite as wsprite } from './i18n.js';
 import { lang, setLang, flag, DAY_WORDS, DAY_SHORT, DAY_COLORS, dayIndex, daySentence, wordSprite } from './i18n.js';
+import { LETTERS, letterSentence } from './i18n.js';
+import { tapEscalate, crowned } from './students.js';
 
 const R = (c, x, y, w, h, col) => { c.fillStyle = col; c.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); };
 const D = (c, img, x, y) => c.drawImage(img, Math.round(x), Math.round(y));
@@ -210,6 +212,7 @@ export function createClassroom(students, hooks) {
   // ---------------------------------------------------------------- behaviour cards
   function giveCard(s, color) {
     s.card = color; s.cardT = G.time;
+    if (color === 'red') redToday = true;
     if (s.sleep) { s.sleep = false; s.sleepT = rand(25, 45); }
     if (s.hide > 0) { s.hide = 0; s.hideT = rand(40, 60); }
     if (color === 'green') {
@@ -231,7 +234,7 @@ export function createClassroom(students, hooks) {
       naughtyT -= dt;
       if (naughtyT < 0) {
         naughtyT = rand(55, 90);
-        const c = students.filter(s => s.mode === 'seated' && s.here && !s.sleep && !(s.hide > 0) && !s.mood && !s.naughty && LD.NAUGHTY_LINES[s.kind]);
+        const c = students.filter(s => s.mode === 'seated' && s.here && !s.sleep && !(s.hide > 0) && !s.mood && !s.naughty && (LD.NAUGHTY_LINES[s.kind] || s.kind === 'turtle'));
         if (c.length) { const s = pick(c); s.naughty = { until: G.time + 22, next: 0 }; }
       }
     }
@@ -245,6 +248,7 @@ export function createClassroom(students, hooks) {
       if (s.kind === 'frog') { act(s, 'giggle', 1.6); sfx.giggle(1.35, 7); if (Math.random() < 0.45) speak(s, LD.NAUGHTY_LINES.frog, 'giggle'); }
       if (s.kind === 'owl') { act(s, 'cheer', 1.2); hop(s, 70); if (Math.random() < 0.55) speak(s, LD.NAUGHTY_LINES.owl, 'yay'); }
       if (s.kind === 'bunny') { act(s, 'wave', 1.6); s.look = Math.random() < 0.5 ? -1 : 1; if (Math.random() < 0.45) speak(s, LD.NAUGHTY_LINES.bunny, 'here'); }
+      if (s.kind === 'turtle') shellPlay(s);
     }
   }
 
@@ -421,6 +425,7 @@ export function createClassroom(students, hooks) {
     T = { x: db.x + db.w + 3, y: V.H - i.b - 52, h: 50 };
     T.w = V.W - i.r - 2 - T.x;
     L.chart = { x: i.l + 34, y: i.t + 7 };
+    layoutAbc();
     bg = drawBg();
     return V;
   }
@@ -667,12 +672,13 @@ export function createClassroom(students, hooks) {
       wait(0.5).then(() => sendToSeat(s));
       return;
     }
-    if (acting(s, 'raise') && G.time - lastQ > 10 && Math.random() < 0.75) { askQuestion(s); return; }
+    if (acting(s, 'raise') && (s.kind !== 'owl' || (G.time - lastQ > 10 && Math.random() < 0.75))) { askQuestion(s); return; } // a rare raised paw is always a question
     if (acting(s, 'raise')) {
       act(s, 'cheer', 1.2); hop(s, 85); sfx.cheer(1.2); speak(s, randomCheer(), 'yay');
       burst('star', ...headPos(s), 6, ['#ffd23f', '#ff9ec4', '#7ec8ff'], { up: true });
       return;
     }
+    if (tapEscalate(s, { burst: (k, n, cols, o) => burst(k, ...headPos(s), n, cols, o), neighbours: awake })) { s.tapCount++; return; }
     s.tapCount++;
     if (s.kind === 'frog') { act(s, 'giggle', 1.2); sfx.giggle(1.3, 6); burst('note', ...headPos(s), 3, ['#7a5bc0', '#ff6f91'], { up: true }); return; }
     act(s, 'happy', 0.9); hop(s, 70); animalSound(s);
@@ -715,12 +721,147 @@ export function createClassroom(students, hooks) {
     if (s.hide > 0) { s.hide = 0; s.hideT = rand(40, 60); }
     s.glowT = 2.2; s.stars++; teacherAct('clap', 1.3);
     G.save.stars[s.kind] = s.stars; persist();
+    if (s.stars % 5 === 0) starOfWeek(s);
     act(s, 'wiggle', 2); hop(s, 80);
     sfx.sparkle(); speak(s, pick(['Thank you!', 'Yay! A star!', 'Wow!', 'I love it!']), 'yay');
     burst('spark', ...headPos(s), 12, ['#ffd23f', '#fff6b8', '#ffb020'], { sp: 70 });
     talk(s, 'star', 1.8);
     for (const t of awake()) if (t !== s && !t.act && Math.random() < 0.6) act(t, 'clap', 1.2);
     wait(0.3).then(() => sfx.clap(4, 0.8));
+  }
+
+  // ---------------------------------------------------------------- v1.9 alive: star of the week, all-green party, turtle shell, alphabet line
+  let redToday = false, danceUntil = 0, crowning = false, lastAbc = 0;
+  const abcPop = {};
+  function starOfWeek(s) { // every 5th star: she walks up to Louise and gets a paper crown for the day
+    if (crowning) return;
+    crowning = true;
+    wait(1.6).then(async () => {
+      if (phase !== 'class' || s.mode === 'held' || s.mode === 'away') { crowning = false; G.save.crown = { kind: s.kind, day: G.save.day || 1 }; persist(); return; }
+      if (s.mode === 'seated') { Object.assign(s, seat(s)); s.mode = 'stand'; }
+      s.naughty = null; s.sleep = false; s.hide = 0;
+      const t = furn.teacher, tx = clamp(t.x + 20, 14, V.W - 14), ty = clamp(t.y + 1, L.floorTop + 14, V.H - 3);
+      sfx.fanfare(); hop(s, 70);
+      await Promise.race([walkTo(s, tx, ty, 64), wait(5)]);
+      if (s.mode !== 'stand' || phase !== 'class') { crowning = false; return; }
+      s.look = -1; teach.pointRight = true; teacherAct('cheer', 1.6); teach.vz = 50;
+      G.save.crown = { kind: s.kind, day: G.save.day || 1 }; persist();
+      act(s, 'wiggle', 2.2); hop(s, 90); sfx.sparkle(); s.glowT = 2;
+      burst('confetti', s.x, s.y - 50, 34, ['#ef6f6c', '#ffd23f', '#7dd370', '#64a8e8', '#b48be6'], { sp: 80, g: 80, life: 1.5 });
+      burst('star', s.x, s.y - 34, 6, ['#ffd23f', '#fff6b8'], { up: true });
+      speak(s, LD.ALIVE_LINES.starWeek, 'yay');
+      for (const o of awake()) if (o !== s) { act(o, 'cheer', 1.4); hop(o, rand(40, 70)); }
+      wait(0.5).then(() => { sfx.cheer(1.1); sfx.clap(6, 1); });
+      await wait(2.8);
+      crowning = false;
+      if (s.mode === 'stand' && phase === 'class') sendToSeat(s);
+    });
+  }
+  function shellPlay(s) { // a naughty turtle plays with her shell: in, out, in, out... and hums
+    s.hideT = Math.max(s.hideT, 12); s.hide = 1; sfx.hum();
+    wait(0.3).then(() => { if (s.naughty) s.hide = 0; });
+    wait(0.6).then(() => { if (s.naughty) s.hide = 1; });
+    wait(0.95).then(() => { if (s.naughty) { s.hide = 0; act(s, 'giggle', 1); } });
+    if (Math.random() < 0.45) wait(1).then(() => { if (s.naughty) speak(s, LD.ALIVE_LINES.shell, 'here'); });
+  }
+  async function allGreenParty() { // nobody got a red card today: a little dance (with recess music on viernes)
+    const fri = dayIndex() === 4;
+    speak(helper(), LD.ALIVE_OWL.allGreen, 'yay');
+    for (const s of students) { s.cardT = G.time; burst('spark', desks[s.desk].x - 11, desks[s.desk].y - 10, 4, ['#3cb44b', '#a6e69a', '#ffd23f']); }
+    await wait(2.2);
+    if (fri) { danceUntil = G.time + 3.4; speak(helper(), LD.ALIVE_OWL.friday, 'yay'); await wait(1.1); }
+    teacherAct('twirl', 0.9); teach.vz = 60;
+    burst('confetti', V.W / 2, 24, 44, ['#ef6f6c', '#ffd23f', '#7dd370', '#64a8e8', '#b48be6'], { sp: 90, g: 80, life: 1.7 });
+    sfx.cheer(1.1);
+    for (let b = 0; b < 4; b++) {
+      for (const s of students) { act(s, 'wiggle', 0.6); wait(rand(0, 0.15)).then(() => hop(s, 55 + b * 8)); }
+      if (b === 2) { teacherAct('cheer', 0.8); teach.vz = 50; }
+      await wait(0.5);
+    }
+    sfx.clap(6, 0.8);
+    await wait(0.6);
+  }
+  function drawChartExtras(c, s, x, y) {
+    if (crowned(s)) D(c, cached('minicrown', () => { const p = new Pix(7, 5); p.map(1, 1, ['#.#.#', '#####', '#####'], { '#': '#ffd23f' }); p.px(3, 3, '#ef4b4b'); p.outline(); return p.canvas(); }), x + 3, y - 3);
+    const n = s.stars % 5; // tally toward the next crown
+    for (let j = 0; j < n; j++) { R(c, x + 1 + j * 3, y + 19, 2, 2, '#ffd23f'); R(c, x + 1 + j * 3, y + 20, 2, 1, '#e0a020'); }
+  }
+  // the alphabet line: a string of 27 little cards on the wall under the board
+  const ABC_COLS = ['#ef5b5b', '#ff8a1e', '#d9a000', '#3cb44b', '#2f9e9e', '#2f7de1', '#8b4fd0', '#e0559a'];
+  function layoutAbc() {
+    const x0 = L.door.x + L.door.w + 32, x1 = V.W - V.inset.r - 56;
+    const pitch = clamp(Math.floor((x1 - x0) / LETTERS.length), 6, 8), w = pitch * LETTERS.length;
+    L.abc = { x: Math.round((x0 + x1) / 2 - w / 2), y: clamp(L.board.y + L.board.h + 1, L.wallH - 18, L.wallH - 9), pitch, w }; // under the board (short walls: over its tray)
+  }
+  const abcShown = () => (Array.isArray(G.save.abcShown) ? G.save.abcShown : []);
+  function abcCardX(k) { return L.abc.x + k * L.abc.pitch; }
+  function drawAbcLine(c) {
+    const A = L.abc, shown = abcShown();
+    R(c, A.x - 3, A.y, A.w + 4, 1, '#a06a44');
+    LETTERS.forEach((ch, k) => {
+      const pk = abcPop[ch] !== undefined ? G.time - abcPop[ch] : 9;
+      const bob = pk >= 0 && pk < 0.6 ? -Math.round(Math.sin(pk / 0.6 * Math.PI) * 4) : 0;
+      const col = shown.includes(ch) && pk >= 0 ? ABC_COLS[k % ABC_COLS.length] : null;
+      const sway = Math.round(Math.sin(G.time * 1.3 + k * 0.7) * 0.4);
+      if (pk >= 0 && pk < 0.6 && col) D(c, glow(S.abcCard(ch, col), '#fff6b8', 'abcg' + ch), abcCardX(k) - 2 + sway, A.y + bob);
+      D(c, S.abcCard(ch, col), abcCardX(k) - 1 + sway, A.y + 1 + bob);
+    });
+  }
+  function abcAt(x, y) {
+    const A = L.abc;
+    if (!A || y < A.y - 2 || y > A.y + 12 || x < A.x - 2 || x > A.x + A.w) return null;
+    return LETTERS[clamp(Math.floor((x - A.x + 1) / A.pitch), 0, LETTERS.length - 1)];
+  }
+  function tapAbc(ch) { // a friend reads the card: "¡A de arcoíris!"
+    if (G.time - lastAbc < 0.5) return;
+    lastAbc = G.time;
+    const k = LETTERS.indexOf(ch), x = abcCardX(k) + 2;
+    abcPop[ch] = G.time; sfx.pop(1.3);
+    const lit = abcShown().includes(ch);
+    burst('spark', x, L.abc.y + 4, lit ? 6 : 3, lit ? [ABC_COLS[k % ABC_COLS.length], '#ffd23f'] : ['#ffffff', '#ffd23f'], { sp: 30 });
+    const aw = awake().filter(s => s.here);
+    const t = aw.length ? pick(aw) : helper();
+    if (t.mode === 'seated' && !t.act) act(t, 'raise', 1.2);
+    wait(0.15).then(() => speak(t, letterSentence(ch), 'here'));
+  }
+  async function abcMorning() { // letters she traced pop onto the line the next morning
+    const traced = G.save.traced || {}, shown = abcShown().slice();
+    const fresh = LETTERS.filter(ch => traced[ch] && !shown.includes(ch));
+    if (!fresh.length) return;
+    const vowels = ['A', 'E', 'I', 'O', 'U'], hadVowels = vowels.every(v => shown.includes(v));
+    for (const ch of fresh) abcPop[ch] = G.time + 999; // blank until their turn
+    shown.push(...fresh); G.save.abcShown = shown;
+    await hw(0.3);
+    speak(helper(), LD.ALIVE_OWL.newLetter, 'yay');
+    teach.pointRight = L.abc.x + L.abc.w / 2 > furn.teacher.x; teacherAct('point', 1.6);
+    for (const s of students) if (s.mode === 'seated') { s.sleep = false; act(s, 'gasp', 0.8); }
+    await hw(1.2);
+    const step = fresh.length > 6 ? 0.12 : 0.35;
+    for (const [n, ch] of fresh.entries()) {
+      const k = LETTERS.indexOf(ch);
+      abcPop[ch] = G.time;
+      if (n < 8) sfx.note(523 * Math.pow(2, n / 8));
+      burst('star', abcCardX(k) + 2, L.abc.y + 4, 3, [ABC_COLS[k % ABC_COLS.length], '#ffd23f'], { up: true, sp: 40 });
+      await hw(step);
+    }
+    persist();
+    for (const s of students) if (s.mode === 'seated') act(s, 'clap', 1.2);
+    sfx.clap(5, 0.7);
+    await hw(1);
+    if (!hadVowels && vowels.every(v => shown.includes(v))) { // the whole class sings a-e-i-o-u, one voice each
+      for (const [i, v] of vowels.entries()) {
+        const s = students[i];
+        if (s.mode === 'away') continue;
+        s.sleep = false; if (s.hide > 0) s.hide = 0;
+        act(s, 'cheer', 0.8); hop(s, 60); abcPop[v] = G.time;
+        speak(s, v.toLowerCase(), 'here');
+        burst('note', ...headPos(s), 2, ['#7a5bc0', '#ff6f91'], { up: true });
+        await hw(0.7);
+      }
+      for (const s of students) if (s.mode === 'seated') act(s, 'cheer', 1.2);
+      sfx.cheer(1.1); teacherAct('clap', 1.2);
+      await hw(1);
+    }
   }
 
   // ---------------------------------------------------------------- the daily loop
@@ -734,7 +875,7 @@ export function createClassroom(students, hooks) {
     if (dayCard && G.time - dayCard.t0 < 2.4) dayCard.t0 = G.time - 2.4;
   }
   async function startDay() {
-    busy = true; phase = 'morning'; hurry = false;
+    busy = true; phase = 'morning'; hurry = false; redToday = false;
     sky = 'morning'; duskTarget = 0;
     attendanceDone = false;
     feelT = rand(35, 50);
@@ -783,6 +924,7 @@ export function createClassroom(students, hooks) {
       teacherAct('cheer', 1.2);
       await hw(1.2);
     }
+    await abcMorning();
     busy = false; phase = 'class'; sky = 'day';
     hintT = 3; classStart = G.time; lastInput = G.time; nextHintAt = G.time + 6;
   }
@@ -798,7 +940,7 @@ export function createClassroom(students, hooks) {
       speak(students[3], LD.CARD_LINES.newDay, 'here');
       for (const s of students) if (s.card === 'red') { s.card = 'green'; s.cardT = G.time; burst('spark', desks[s.desk].x - 11, desks[s.desk].y - 10, 4, ['#3cb44b', '#a6e69a']); }
       await wait(2);
-    }
+    } else await allGreenParty();
     for (const s of students) { s.mode = 'stand'; Object.assign(s, seat(s)); s.y += 2; }
     await wait(0.4);
     for (const s of students) { act(s, 'wave', 2.4); talk(s, 'heart', 2.4); }
@@ -1401,6 +1543,7 @@ export function createClassroom(students, hooks) {
       D(c, glow(img, Math.floor(G.time * 6) % 2 ? '#ffe36e' : '#fff6b8', s.kind + JSON.stringify(st)), x + dx - 2, yy - 2);
     }
     D(c, img, x + dx, yy);
+    if (crowned(s)) { const o = S.CROWN_AT[s.kind]; D(c, S.crown(), x + dx + o[0] - 1, yy + (s.hide > 0 ? 19 : o[1]) - 1); }
     if (s.mode === 'held') return;
   }
   function drawDeskUnit(c, d) {
@@ -1482,7 +1625,7 @@ export function createClassroom(students, hooks) {
   function render() {
     const c = V.ctx, { W, H } = V;
     c.drawImage(bg, 0, 0);
-    drawWindow(c); drawDoor(c); drawBoard(c);
+    drawWindow(c); drawDoor(c); drawBoard(c); drawAbcLine(c);
     // wall decorations
     for (const f of Object.values(furn)) if (layerOf(f) === 'wall' && !(drag && drag.f === f)) drawItem(c, f);
     // rug
@@ -1602,6 +1745,7 @@ export function createClassroom(students, hooks) {
       const bob = s.here && acting(s, 'here') ? -1 : 0;
       D(c, img, ch.x + 2 + k * 14, ch.y + 2 + bob);
       if (s.card) R(c, ch.x + 2 + k * 14, ch.y + 14, 4, 2, s.card === 'red' ? '#ef4b4b' : '#3cb44b');
+      drawChartExtras(c, s, ch.x + 2 + k * 14, ch.y);
       if (s.here) D(c, cached('tick', () => { const p = new Pix(6, 5); p.line(0, 2, 2, 4, '#3cb44b'); p.line(2, 4, 5, 0, '#3cb44b'); p.line(1, 2, 2, 3, '#3cb44b'); return p.canvas(); }), ch.x + 9 + k * 14, ch.y + 10);
     });
   }
@@ -1957,6 +2101,8 @@ export function createClassroom(students, hooks) {
     if (busy) return;
     const f = hitFurn(x, y);
     if (f) { press.f = f; return; }
+    const ab = abcAt(x, y);
+    if (ab) { press.abc = ab; return; }
     if (inRect(x, y, L.board)) { press.board = true; }
     else if (inRect(x, y, L.door)) { press.door = true; }
   }
@@ -2168,6 +2314,7 @@ export function createClassroom(students, hooks) {
       return;
     }
     if (p.s) { tapStudent(p.s); return; }
+    if (p.abc) { tapAbc(p.abc); return; }
     if (recess) {
       const b = recess.ball;
       if (Math.hypot(x - b.x, y - (b.y - 5 - b.z)) < 16) { kickBall(); return; }
@@ -2239,6 +2386,7 @@ export function createClassroom(students, hooks) {
   window.__ltHint = () => ({ hint, lastInput, nextHintAt, time: G.time, phase, busy, story: !!story, reward: !!reward, dayCard: !!dayCard, menu: !!menu, book: !!bookOpen, q: quiz.active });
   window.__ltTeacher = () => css(furn.teacher.x, furn.teacher.y - 30);
   window.__ltMenu = () => (menu ? menu.items.map(m => css(m.x + 24, m.y + 24)) : []);
+  window.__ltAbc = (ch) => css(abcCardX(LETTERS.indexOf(ch)) + 2, L.abc.y + 5);
   window.__ltUpd = () => (L.updBtn ? css(L.updBtn.x + 11, L.updBtn.y + 11) : null);
   // v1.9 activities
   window.__ltSnack = () => (serve ? { slots: serve.slots.map((sl, i) => { const r = snackLayout().slot(i); return sl.taken ? null : css(r.x + 12, r.y + 12); }), served: serve.served, done: serve.done, armed: !!serve.armed } : null);
@@ -2250,6 +2398,6 @@ export function createClassroom(students, hooks) {
   return {
     resize, update, render, down, move, up, startDay, watchBoard, startle: () => students.forEach(startle),
     get view() { return V; }, get phase() { return phase; },
-    get musicTrack() { return ['goodbye', 'reward', 'night'].includes(phase) ? 'night' : recess ? 'recess' : 'class'; },
+    get musicTrack() { return G.time < danceUntil ? 'recess' : ['goodbye', 'reward', 'night'].includes(phase) ? 'night' : recess ? 'recess' : 'class'; },
   };
 }
