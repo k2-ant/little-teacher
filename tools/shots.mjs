@@ -39,29 +39,54 @@ await shot('02a-decorar');
 await p.waitForTimeout(3000);
 await shot('02a2-decorar-hint');
 let tray = await ev(() => window.__ltTray());
-await drag(tray.items[0], [W * 0.32, H * 0.62]);
-await drag(tray.items[1], [W * 0.36, H * 0.6]);
-await drag(tray.items[4], [W * 0.88, H * 0.66]);
-await drag(tray.items[7], [W * 0.3, H * 0.5]);
-await tapAt(...tray.tabs[1]); await p.waitForTimeout(100);
+// pull a thing out of the tray: up first (a sideways swipe scrolls the tray)
+const pull = async (a, c) => { await p.mouse.move(a[0], a[1]); await p.mouse.down(); await p.mouse.move(a[0], a[1] - 30, { steps: 3 }); await p.mouse.move(c[0], c[1], { steps: 6 }); await p.mouse.up(); await p.waitForTimeout(250); };
+// Temas: one tap decorates the whole room (things pop in one by one)
+await tapAt(...tray.items[0]); await p.waitForTimeout(700);
+await shot('02a3-theme-popping');
+await p.waitForTimeout(3000);
+await shot('02a4-theme-oceano');
+await ev(() => window.__ltTrayScroll(7)); tray = await ev(() => window.__ltTray());
+await tapAt(...tray.items[7]); await p.waitForTimeout(3600);
+await shot('02a5-theme-cuentos');
+// Piso + Pared: drag things in, tap one to drop it in a free spot
+await tapAt(...tray.tabs.floor); await p.waitForTimeout(150);
 tray = await ev(() => window.__ltTray());
-await drag(tray.items[0], [W * 0.42, H * 0.2]);
-await drag(tray.items[4], [W * 0.75, H * 0.08]);
-await drag(tray.items[3], [W * 0.62, H * 0.33]);
+await shot('02b0-floor-tab');
+await pull(tray.items[2], [W * 0.36, H * 0.6]);
+await pull(tray.items[1], [W * 0.62, H * 0.52]);
+await tapAt(...tray.items[3]); await p.waitForTimeout(200);
+await tapAt(...tray.tabs.wall); await p.waitForTimeout(150);
+await ev(() => window.__ltTrayScroll(3)); tray = await ev(() => window.__ltTray());
+await pull(tray.items[3], [W * 0.75, H * 0.62]); // dropped on the floor: a wall thing snaps up to the wall
 await shot('02b-decor');
-await tapAt(...tray.tabs[3]); await p.waitForTimeout(100);
+// select-to-edit: tap a placed thing, then its bubbles (colour, size, trash)
+let ids = await ev(() => window.__ltDecoIds());
+await tapAt(...(await ev((id) => window.__ltFurnPt(id), ids[ids.length - 3])));
+await p.waitForTimeout(300);
 tray = await ev(() => window.__ltTray());
-await tapAt(...tray.items[1]); await tapAt(...tray.items[7]);
+if (!tray.sel || !tray.bubbles.size) throw new Error('select-to-edit: no bubbles');
+await shot('02b2-select');
+await tapAt(...tray.bubbles.color); await p.waitForTimeout(200);
+await tapAt(...tray.bubbles.size); await p.waitForTimeout(500);
+tray = await ev(() => window.__ltTray());
+await shot('02b3-bigger');
+await tapAt(...tray.bubbles.del); await p.waitForTimeout(300);
+await tapAt(...tray.undo); await p.waitForTimeout(300); // ↶ brings it back
+await tapAt(...tray.tabs.colors); await p.waitForTimeout(100);
+tray = await ev(() => window.__ltTray());
+await tapAt(...tray.items[2]); await tapAt(...tray.items[5]);
 await p.waitForTimeout(200);
 await shot('02c-paint');
-await tapAt(...tray.tabs[2]); await p.waitForTimeout(100);
+await tapAt(...tray.tabs.desks); await p.waitForTimeout(100);
 tray = await ev(() => window.__ltTray());
 const dsk = await ev(() => window.__ltDesks());
-for (let i = 0; i < dsk.length && i < tray.items.length; i++) await drag(tray.items[i], dsk[i]);
+for (let i = 0; i < dsk.length && i < tray.items.length; i++) if (tray.items[i]) await pull(tray.items[i], dsk[i]);
 await p.waitForTimeout(400);
 await shot('02d-desks');
-// trash: drag the beanbag into the trash can (screenshot while hovering), and a desk supply too
-const bean = await ev(() => window.__ltFurnPt('d0'));
+// trash: drag a placed thing into the trash can (screenshot while hovering), and a desk supply too
+ids = await ev(() => window.__ltDecoIds());
+const bean = await ev((id) => window.__ltFurnPt(id), ids[ids.length - 1]);
 await p.mouse.move(...bean); await p.mouse.down(); await p.mouse.move(bean[0] + 20, bean[1] + 10, { steps: 3 });
 const tr2 = await ev(() => window.__ltTrash());
 await p.mouse.move(tr2[0], tr2[1], { steps: 8 });

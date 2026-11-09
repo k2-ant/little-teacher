@@ -30,32 +30,63 @@ export const DECOR = {
   dino: { layer: 'floor', w: 28, h: 24, variants: ['#7dd370', '#ff9ec4', '#7ec8ff'], parcel: true },
   robot: { layer: 'floor', w: 20, h: 30, variants: ['#9fb4cc', '#ffd23f', '#ff9ec4'], parcel: true },
   rocket: { layer: 'floor', w: 18, h: 36, variants: ['#ef6f6c', '#64a8e8', '#b48be6'], parcel: true },
+  // v2.0 decorating: bigger things for the room (frames: animated, drawn per frame)
+  teepee: { layer: 'floor', w: 40, h: 44, variants: [['#ff9ec4', '#fffaf0'], ['#7ec8ff', '#fffaf0'], ['#b48be6', '#fff2a0'], ['#7dd370', '#fffaf0']] },
+  hamster: { layer: 'floor', w: 30, h: 32, variants: ['#7ec8ff', '#ff9ec4', '#7dd370'], frames: 4 },
+  cubbies: { layer: 'floor', w: 44, h: 30, variants: [['#ef6f6c', '#ffd23f', '#64a8e8', '#7dd370'], ['#ff9ec4', '#c9a2ff', '#7ec8ff', '#fff2a0']] },
+  pumpkin: { layer: 'floor', w: 22, h: 18, variants: ['#ff9a2e', '#ffd23f', '#f6efe1'] },
+  snowman: { layer: 'floor', w: 20, h: 30, variants: ['#ef4b4b', '#64a8e8', '#7dd370'] },
+  lights: { layer: 'wall', w: 60, h: 12, variants: [['#ffd75e', '#ffe9a0'], ['#ef6f6c', '#ffd23f', '#7dd370', '#64a8e8', '#ff9ec4']], frames: 2, glow: true },
+  lanterns: { layer: 'wall', w: 40, h: 26, variants: [['#ef6f6c', '#ffd23f', '#ff9ec4'], ['#64a8e8', '#7ec8ff', '#b48be6'], ['#ffa65c', '#ffd23f', '#ef6f6c']] },
+  artwall: { layer: 'wall', w: 52, h: 28, variants: [['#ef6f6c', '#64a8e8', '#ffd23f'], ['#ff9ec4', '#7dd370', '#b48be6']] },
+  wordwall: { layer: 'wall', w: 42, h: 30, variants: ['#64a8e8', '#ef6f6c', '#7dd370'] },
+  bulletin: { layer: 'wall', w: 36, h: 26, variants: ['#ef6f6c', '#64a8e8', '#ffd23f'] },
+  winplants: { layer: 'wall', w: 34, h: 16, variants: ['#ff6f91', '#ffd23f', '#b48be6'] },
+  planet: { layer: 'wall', w: 30, h: 20, variants: ['#ffa65c', '#b48be6', '#64a8e8'] },
+  fishmobile: { layer: 'wall', w: 36, h: 26, variants: [['#ffa65c', '#ffd23f', '#ff8fb8'], ['#64a8e8', '#7dd370', '#b48be6']] },
+  snowflakes: { layer: 'wall', w: 40, h: 22, variants: ['#ffffff', '#bfe6ff'] },
+  leaves: { layer: 'wall', w: 48, h: 14, variants: [['#e8602c', '#ffb020', '#c0392b'], ['#ffd23f', '#ffa65c', '#d9822b']] },
 };
 export const PARCEL_ITEMS = ['dino', 'robot', 'rocket'];
-export const FLOOR_ITEMS = ['beanbag', 'teddy', 'toybox', 'easel', 'fishtank', 'globe', 'flowers', 'balloons', 'lamp'];
-export const WALL_ITEMS = ['rainbow', 'poster', 'frame', 'butterflies', 'garland', 'sun', 'moon', 'clock'];
+export const FLOOR_ITEMS = ['teepee', 'hamster', 'beanbag', 'teddy', 'toybox', 'easel', 'fishtank', 'cubbies', 'globe', 'flowers', 'balloons', 'lamp', 'pumpkin', 'snowman'];
+export const WALL_ITEMS = ['artwall', 'lights', 'lanterns', 'rainbow', 'garland', 'butterflies', 'poster', 'frame', 'wordwall', 'bulletin', 'sun', 'moon', 'planet', 'fishmobile', 'winplants', 'snowflakes', 'leaves', 'clock'];
+// v2.0: sizes a placed decoration can have (the ↔ bubble): small (as drawn), medium, big
+export const SCALES = [1, 1.5, 2];
+export function decoSize(type, sc = 0) { const d = DECOR[type], k = SCALES[sc] || 1; return [Math.round(d.w * k), Math.round(d.h * k)]; }
 export const DESK_ITEMS = ['apple', 'pencils', 'books', 'crayons', 'cactus', 'snowglobe'];
 
 export const WALLS = [
   ['#f7e6c4', '#f2dcb3'], ['#ffe6ee', '#fbd6e2'], ['#e0f4e6', '#d0ebd9'], ['#ece3fb', '#e0d4f7'], ['#dff0ff', '#cee6fb'], ['#fff3b8', '#fbe89a'],
+  // v2.0 themes: night sky, peach, leafy green, snow
+  ['#3d4280', '#373b77'], ['#ffe2cc', '#fbd5ba'], ['#d9f2c9', '#cdeabb'], ['#f2f8ff', '#e4eefa'],
 ];
 export const FLOORS = [
   ['#dcab70', '#d7a46a', '#bd8650'], ['#b9814f', '#b07a4a', '#94613a'], ['#efd7ac', '#e9cf9f', '#cfb184'], ['#f6c8d4', '#f2bccb', '#dc9eb0'], ['#bfe3f2', '#b3dbec', '#8fc2d8'],
+  // v2.0 themes: sand, grass, starry carpet
+  ['#f6e2b5', '#f1d9a8', '#dcc08c'], ['#a6d98c', '#9ed183', '#7fb868'], ['#4a4f8f', '#454a88', '#383c73'],
 ];
 export const RUGS = [
   ['#e8738a', '#ffd166', '#6cc2b8', '#fff6e6', '#b892e0'],
   ['#64a8e8', '#bfe6ff', '#7dd370', '#fffaf0', '#ffd23f'],
   ['#b48be6', '#ffb3d1', '#fff2a0', '#ffffff', '#ff8fb8'],
   ['#7dd370', '#ffd23f', '#ffa65c', '#fff6e6', '#ef6f6c'],
+  // v2.0 themes: ocean, space, autumn, snow
+  ['#3f8fd8', '#ffd23f', '#9fd8ff', '#e8f7ff', '#64a8e8'],
+  ['#2f3470', '#ffd23f', '#6c72b8', '#b48be6', '#fff6b8'],
+  ['#d9622b', '#ffd23f', '#ffb347', '#fff0d6', '#c0392b'],
+  ['#9fd0ff', '#ffffff', '#cfe8ff', '#ffffff', '#ff9ec4'],
 ];
 
 const mk = (key, w, h, draw) => cached(key, () => { const p = new Pix(w, h); draw(p); p.outline(); return p.canvas(); });
 
-export function decor(type, v = 0) {
+export function decor(type, v = 0, frame = 0) {
   const def = DECOR[type];
   const val = def.variants[v % def.variants.length];
-  return mk('dec' + type + v, def.w, def.h, p => DRAW[type](p, val, def));
+  frame = def.frames ? frame % def.frames : 0;
+  return mk('dec' + type + v + '_' + frame, def.w, def.h, p => DRAW[type](p, val, def, frame));
 }
+// where the art wall's papers are (sprite coords): her whiteboard drawings show in these
+export const ART_WIN = [{ x: 17, y: 7, w: 18, h: 11 }, { x: 3, y: 9, w: 10, h: 7 }, { x: 39, y: 9, w: 10, h: 7 }];
 
 const DRAW = {
   beanbag(p, c) {
@@ -207,6 +238,176 @@ const DRAW = {
     for (let i = 0; i < 6; i++) { p.hline(0 + Math.floor(i / 2), 4, 21 + i, c); p.hline(15, 18 - Math.floor(i / 2), 21 + i, c); }
     p.rect(6, 27, 7, 2, '#9aa7b8');
     p.rect(7, 29, 5, 3, '#ffd23f'); p.rect(8, 32, 3, 3, '#ffa65c'); p.px(9, 35, '#ef6f6c');
+  },
+  // ---------------------------------------------------------------- v2.0 decorating
+  teepee(p, [c, c2]) { // a striped reading tent with a pillow inside
+    p.line(13, 0, 20, 8, '#a8703f'); p.line(27, 0, 20, 8, '#a8703f'); p.line(16, 0, 20, 5, '#8a5730');
+    for (let y = 6; y < 44; y++) {
+      const hw = Math.floor((y - 5) * 0.47), col = Math.floor((y - 6) / 5) % 2 ? c2 : c;
+      p.hline(20 - hw, 20 + hw, y, col);
+      p.px(20 - hw, y, darken(col, 0.12));
+    }
+    for (let x = 4; x < 37; x++) p.px(x, 37 + (x % 4 < 2 ? 0 : 1), darken(c, 0.25));
+    for (let y = 21; y < 44; y++) { const hw = Math.floor((y - 20) * 0.38); p.hline(20 - hw, 20 + hw, y, y < 25 ? '#4a3550' : '#5a4060'); }
+    for (let y = 23; y < 44; y++) { const hw = Math.floor((y - 20) * 0.38); p.px(20 - hw - 1, y, lighten(c, 0.45)); p.px(20 + hw + 1, y, lighten(c, 0.45)); p.px(20 - hw - 2, y, lighten(c, 0.3)); p.px(20 + hw + 2, y, lighten(c, 0.3)); }
+    p.ball(20, 40, 4.5, 2.6, '#ffd23f'); p.rect(15, 41, 3, 2, '#64a8e8'); p.px(15, 41, '#9fd0ff');
+    p.ball(20, 12, 1.6, 1.6, '#ffffff', { hi: false }); // a little round window
+  },
+  hamster(p, c, def, f) { // the class pet: a cage with a wheel (the hamster runs, 4 frames)
+    p.rect(1, 25, 28, 7, '#c98c55'); p.rect(1, 25, 28, 1, '#dda36c'); p.rect(3, 27, 11, 4, '#a8703f'); p.rect(16, 27, 11, 4, '#a8703f'); p.px(8, 29, '#ffd23f'); p.px(21, 29, '#ffd23f');
+    p.ell(15, 9, 13, 8, '#eef8ff', { y1: 9 }); p.rect(2, 9, 27, 12, '#eef8ff');
+    p.rect(2, 19, 27, 5, c); p.rect(2, 19, 27, 1, lighten(c, 0.4)); p.rect(3, 18, 25, 1, '#f5deb0');
+    // the wheel
+    const wx = 10, wy = 12, a0 = f * Math.PI / 8;
+    for (let a = 0; a < 6.28; a += 0.12) p.px(wx + Math.cos(a) * 5.6, wy + Math.sin(a) * 5.6, '#9aa7b8');
+    for (let k = 0; k < 4; k++) { const a = a0 + k * Math.PI / 4; p.line(wx - Math.cos(a) * 5, wy - Math.sin(a) * 5, wx + Math.cos(a) * 5, wy + Math.sin(a) * 5, '#c9d3df'); }
+    p.rect(wx, wy, 1, 7, '#7f8ca3');
+    // the hamster, running at the bottom of the wheel
+    const b = f % 2;
+    p.ell(wx, 15.5 - b * 0.5, 3.4, 2.4, '#e8a35c'); p.ell(wx + 0.5, 16.5 - b * 0.5, 2, 1.2, '#fff0dc', null, true);
+    p.px(wx + 2, 14 - b, INK); p.px(wx - 1, 13 - b, '#f5c08a'); p.px(wx + 3, 15 - b, '#ff9fb4');
+    p.px(wx - 2 + b, 18, '#d48a4a'); p.px(wx + 1 - b, 18, '#d48a4a');
+    // bowl + water bottle
+    p.ell(22, 17.5, 3, 1.6, '#ffd23f'); p.px(21, 16, '#a8703f'); p.px(23, 16, '#7dd370');
+    p.rect(25, 6, 2, 6, '#9fd8ff'); p.px(25, 6, '#ffffff'); p.vline(26, 12, 13, '#7f8ca3');
+    // bars + roof
+    for (let x = 2; x <= 28; x += 3) for (let y = 2; y < 19; y++) { const top = 9 - Math.sqrt(Math.max(0, 1 - ((x - 15) / 13) ** 2)) * 8; if (y >= top + 1) p.px(x, y, '#b9c6d6'); }
+    for (let a = 3.2; a < 6.25; a += 0.04) p.px(15 + Math.cos(a) * 13, 9 + Math.sin(a) * 8, '#8f9db0');
+    p.hline(2, 28, 9, '#8f9db0'); p.rect(13, 0, 4, 1, '#8f9db0');
+  },
+  cubbies(p, cs) { // a wooden cubby shelf with bins and a backpack
+    p.rect(1, 2, 42, 25, '#c98c55'); p.rect(1, 2, 42, 2, '#dda36c'); p.rect(1, 26, 42, 1, '#a8703f');
+    for (let r = 0; r < 2; r++) for (let k = 0; k < 3; k++) {
+      const x = 3 + k * 14, y = 5 + r * 11;
+      p.rect(x, y, 12, 9, '#7a4a2a');
+      const bin = cs[(k + r * 3) % cs.length];
+      if ((k + r) % 3 === 2) { const bc = cs[(k + 1) % cs.length]; p.ball(x + 6, y + 5, 4, 4, bc); p.rect(x + 4, y + 5, 4, 2, lighten(bc, 0.4)); p.px(x + 6, y + 1, '#5a3420'); }
+      else { p.rect(x + 1, y + 3, 10, 6, bin); p.rect(x + 1, y + 3, 10, 1, lighten(bin, 0.45)); p.rect(x + 4, y + 5, 4, 1, darken(bin, 0.25)); }
+    }
+    p.rect(2, 27, 3, 3, '#a8703f'); p.rect(39, 27, 3, 3, '#a8703f');
+  },
+  pumpkin(p, c) {
+    const d = darken(c, 0.18);
+    p.ball(6.5, 11.5, 6, 6, c, { hi: false }); p.ball(15.5, 11.5, 6, 6, c, { hi: false }); p.ball(11, 11, 6.4, 6.8, c);
+    p.vline(7, 8, 16, d); p.vline(15, 8, 16, d);
+    p.rect(10, 1, 2, 4, '#7a5a2a'); p.px(12, 1, '#7a5a2a'); p.ell(15, 3.5, 2.6, 1.3, '#6cc44f'); p.px(8, 3, '#4fae45'); p.px(7, 2, '#4fae45');
+  },
+  snowman(p, scarf) {
+    const W = '#ffffff', sh = { shadow: '#cfe0f2', hi: '#ffffff' };
+    p.ball(10, 23, 8, 6.5, W, sh); p.ball(10, 14.5, 6, 4.8, W, sh); p.ball(10, 7.5, 4.6, 4.2, W, sh);
+    p.rect(6, 3, 9, 1, '#3a2a40'); p.rect(7, 0, 7, 3, '#3a2a40'); p.rect(7, 2, 7, 1, '#ef4b4b');
+    p.px(8, 7, INK); p.px(12, 7, INK); p.hline(10, 13, 9, '#ff9a2e'); p.px(10, 8, '#ff9a2e');
+    p.hline(6, 14, 11, scarf); p.hline(6, 14, 12, scarf); p.rect(12, 12, 2, 4, scarf); p.px(12, 13, lighten(scarf, 0.4));
+    for (const y of [15, 18, 22]) p.px(10, y, INK);
+    p.line(4, 14, 0, 10, '#8a5730'); p.line(16, 14, 19, 10, '#8a5730');
+  },
+  lights(p, cs, def, f) { // string lights: bulbs twinkle (2 frames); the room adds a glow
+    const yAt = (x) => 1 + Math.round(Math.abs(Math.sin(x / 30 * Math.PI)) * 4);
+    for (let x = 0; x < 60; x++) p.px(x, yAt(x), '#4f6a4a');
+    for (let k = 0; k < 8; k++) {
+      const x = Math.round(3 + k * 7.5), y = yAt(x), c = cs[k % cs.length];
+      const on = (k + f) % 2 === 0;
+      p.px(x, y + 1, '#3a4a3a');
+      p.rect(x - 1, y + 2, 3, 3, on ? lighten(c, 0.35) : c); p.px(x, y + 5, on ? lighten(c, 0.2) : darken(c, 0.1));
+      if (on) p.px(x - 1, y + 2, '#ffffff');
+    }
+  },
+  lanterns(p, cs) { // round paper lanterns on a string
+    p.hline(0, 39, 1, '#7a6a80');
+    [[7, 13], [20, 10], [33, 14]].forEach(([x, y], i) => {
+      const c = cs[i % cs.length];
+      p.vline(x, 1, y - 6, '#7a6a80');
+      p.rect(x - 2, y - 6, 5, 2, '#5a4a60');
+      p.ball(x, y, 6, 5.2, c);
+      for (const dx of [-3, 3]) for (let j = -3; j <= 3; j++) p.px(x + dx, y + j, darken(c, 0.15));
+      for (let j = -4; j <= 4; j++) p.px(x, y + j, darken(c, 0.1));
+      p.px(x - 4, y - 2, lighten(c, 0.5)); p.px(x - 4, y - 1, lighten(c, 0.5));
+      p.rect(x - 2, y + 5, 5, 1, '#5a4a60'); p.vline(x, y + 6, y + 8, '#ffd23f'); p.px(x - 1, y + 8, '#ffd23f'); p.px(x + 1, y + 8, '#ffd23f');
+    });
+  },
+  artwall(p, cs) { // her drawings pinned on a line (the room draws the real drawings in ART_WIN)
+    for (let x = 0; x < 52; x++) p.px(x, 2 + Math.round(Math.sin(x / 51 * Math.PI) * 2), '#a8703f');
+    ART_WIN.forEach((r, i) => {
+      p.rect(r.x - 2, r.y - 2, r.w + 4, r.h + 4, '#fffaf0'); p.rect(r.x - 2, r.y + r.h + 1, r.w + 4, 1, '#e3d5bd');
+      p.rect(r.x, r.y, r.w, r.h, '#ffffff');
+      // a crayon doodle until she draws something
+      if (i === 0) { p.ball(r.x + 4, r.y + 3, 2.4, 2.4, '#ffd23f', { hi: false }); p.hline(r.x + 1, r.x + r.w - 2, r.y + r.h - 2, '#7dd370'); p.rect(r.x + 10, r.y + 4, 5, 4, '#ef6f6c'); p.hline(r.x + 11, r.x + 13, r.y + 3, '#ef6f6c'); p.px(r.x + 12, r.y + 2, '#ef6f6c'); }
+      else { p.px(r.x + 3, r.y + 1, '#ff6f91'); p.px(r.x + 5, r.y + 1, '#ff6f91'); p.hline(r.x + 2, r.x + 6, r.y + 2, '#ff6f91'); p.hline(r.x + 3, r.x + 5, r.y + 3, '#ff6f91'); p.px(r.x + 4, r.y + 4, '#ff6f91'); }
+      const pin = cs[i % cs.length], px = r.x + Math.floor(r.w / 2) - 1, py = r.y - 4 + (i ? 0 : -1);
+      p.rect(px, py, 3, 4, pin); p.px(px + 1, py, lighten(pin, 0.5));
+    });
+  },
+  wordwall(p, c) { // a word wall: letter tiles with little picture cards
+    p.rect(0, 0, 42, 30, darken(c, 0.1)); p.rect(1, 1, 40, 28, '#fffaf0'); p.rect(1, 1, 40, 6, c); p.hline(1, 40, 1, lighten(c, 0.45));
+    const F = { A: ['.#.', '#.#', '###', '#.#'], M: ['#.#', '###', '#.#', '#.#'], S: ['.##', '#..', '.##', '##.'] };
+    ['A', 'M', 'S'].forEach((ch, k) => {
+      const x = 3 + k * 13, cc = ['#ef6f6c', '#7dd370', '#b48be6'][k];
+      p.map(x + 4, 2, F[ch], { '#': '#ffffff' });
+      for (let r = 0; r < 2; r++) {
+        const y = 9 + r * 10;
+        p.rect(x, y, 11, 8, lighten(cc, 0.65)); p.rect(x, y + 7, 11, 1, lighten(cc, 0.3));
+        p.hline(x + 5, x + 9, y + 3, '#9a8d98'); p.hline(x + 5, x + 8, y + 5, '#c8bcc4');
+        const pc = [['#ef4b4b', '#ffd23f'], ['#64a8e8', '#ffa65c'], ['#ff8fb8', '#7dd370']][k][r];
+        p.ball(x + 2.5, y + 4, 1.8, 1.8, pc, { hi: false });
+      }
+    });
+  },
+  bulletin(p, c) { // a cork board with pinned papers
+    p.rect(0, 0, 36, 26, c); p.hline(0, 35, 0, lighten(c, 0.45)); p.rect(2, 2, 32, 22, '#d9a066');
+    for (let k = 0; k < 18; k++) p.px(3 + (k * 7) % 30, 3 + (k * 5) % 20, '#c58a52');
+    p.rect(4, 4, 11, 13, '#fffaf0'); starPix(p, 6, 7, '#ffd23f'); p.px(9, 3, '#ef4b4b');
+    p.rect(18, 5, 13, 9, '#7ec8ff'); p.rect(18, 11, 13, 3, '#7dd370'); p.ball(27, 8, 1.6, 1.6, '#ffd23f', { hi: false }); p.px(24, 4, '#64a8e8');
+    p.rect(17, 16, 12, 6, '#fff2a0'); p.hline(19, 26, 18, '#d8b860'); p.hline(19, 24, 20, '#d8b860'); p.px(22, 15, '#7dd370');
+    p.rect(6, 19, 7, 3, '#ffb3d1'); p.px(9, 18, '#b48be6');
+  },
+  winplants(p, c) { // little pots on a shelf (for the window sill)
+    p.rect(0, 13, 34, 3, '#c98c55'); p.hline(0, 33, 13, '#dda36c');
+    for (const x of [3, 14, 25]) { p.rect(x, 8, 7, 5, '#e0805a'); p.rect(x - 1, 7, 9, 2, '#ef9a72'); p.px(x + 1, 10, '#f3b08e'); }
+    p.ball(6.5, 4.5, 3, 3, '#62b95e'); p.px(5, 3, '#8fd67a'); p.px(6, 6, '#4f9e52'); // round succulent
+    p.vline(17, 3, 7, '#4fae45'); p.ell(15.5, 5.5, 1.6, 1, '#6cc44f');
+    for (let a = 0; a < 5; a++) p.ell(17.5 + Math.cos(a * 1.257) * 1.8, 2.5 + Math.sin(a * 1.257) * 1.8, 1.2, 1.2, c);
+    p.px(17, 2, '#ffd23f');
+    for (const [dx, dy] of [[-2, 2], [0, 0], [2, 1], [3, 4], [-3, 4]]) p.ell(28.5 + dx, 4 + dy, 1.6, 1.2, '#4f9e52');
+  },
+  planet(p, c) { // a ringed planet with twinkly stars
+    p.ball(15, 10, 7, 7, c);
+    p.hline(10, 20, 8, darken(c, 0.12)); p.hline(9, 21, 12, lighten(c, 0.25));
+    for (let a = 0; a < Math.PI * 2; a += 0.03) {
+      const x = 15 + Math.cos(a) * 13.5, y = 11 + Math.sin(a) * 3;
+      const inside = ((x - 15) / 7.5) ** 2 + ((y - 10) / 7.5) ** 2 < 1;
+      if (Math.sin(a) > 0 || !inside) { p.px(x, y, '#ffe58a'); p.px(15 + Math.cos(a) * 12, 11 + Math.sin(a) * 2.4, '#ffd23f'); }
+    }
+    for (const [x, y] of [[2, 2], [27, 3], [4, 17]]) { p.px(x, y, '#fff6b8'); p.px(x - 1, y, '#ffe58a'); p.px(x + 1, y, '#ffe58a'); p.px(x, y - 1, '#ffe58a'); p.px(x, y + 1, '#ffe58a'); }
+  },
+  fishmobile(p, cs) { // paper fish hanging from a stick
+    p.rect(1, 1, 34, 2, '#a8703f'); p.hline(1, 34, 1, '#c98c55');
+    [[7, 12], [18, 19], [29, 10]].forEach(([x, y], i) => {
+      const c = cs[i % cs.length];
+      p.vline(x, 3, y - 4, '#9a8da8');
+      p.ball(x, y, 4.5, 3.2, c); for (let j = 0; j < 4; j++) p.vline(x + 4 + j, y - j, y + j, darken(c, 0.1));
+      p.px(x - 2, y - 1, INK); p.px(x, y + 1, lighten(c, 0.5)); p.px(x + 1, y, lighten(c, 0.5));
+    });
+    p.px(13, 6, '#ffffff'); p.px(24, 13, '#ffffff'); p.px(33, 20, '#ffffff');
+  },
+  snowflakes(p, c) {
+    [[7, 12, 5], [20, 15, 6], [33, 10, 5]].forEach(([x, y, r]) => {
+      p.vline(x, 0, y - r - 1, '#a9b8cc');
+      for (let k = 0; k < 6; k++) {
+        const a = k * Math.PI / 3 + Math.PI / 2, ex = x + Math.cos(a) * r, ey = y + Math.sin(a) * r;
+        p.line(x, y, ex, ey, c);
+        const mx = x + Math.cos(a) * r * 0.6, my = y + Math.sin(a) * r * 0.6;
+        p.line(mx, my, mx + Math.cos(a + 0.9) * 2, my + Math.sin(a + 0.9) * 2, c); p.line(mx, my, mx + Math.cos(a - 0.9) * 2, my + Math.sin(a - 0.9) * 2, c);
+      }
+      p.px(x, y, '#9fd8ff');
+    });
+  },
+  leaves(p, cs) { // an autumn leaf garland
+    for (let x = 0; x < 48; x++) p.px(x, 2 + Math.round(Math.sin(x / 47 * Math.PI) * 3), '#8a6a3a');
+    for (let k = 0; k < 6; k++) {
+      const x = 3 + k * 8, y = 3 + Math.round(Math.sin(x / 47 * Math.PI) * 3), c = cs[k % cs.length];
+      p.map(x - 3, y, ['...#...', '.#.#.#.', '#######', '.#####.', '..###..', '...#...'], { '#': c });
+      p.vline(x, y + 2, y + 6, darken(c, 0.3)); p.px(x - 1, y + 2, lighten(c, 0.4));
+    }
   },
   moon(p) {
     p.ball(9, 9, 8, 8, '#ffe58a'); p.ell(13, 6, 6.4, 6.4, 0);
@@ -378,5 +579,61 @@ export function swatch(kind, i) {
   return mk('sw' + kind + i, 18, 18, p => {
     if (kind === 'wall') { const [a, b] = WALLS[i]; p.rect(1, 1, 16, 16, a); for (let x = 2; x < 17; x += 4) p.rect(x, 1, 2, 16, b); }
     else { const [a, b, s] = FLOORS[i]; for (let y = 1; y < 17; y += 4) { p.rect(1, y, 16, 4, (y >> 2) % 2 ? a : b); p.hline(1, 16, y + 3, s); } }
+  });
+}
+
+// ------------------------------------------------------------------ v2.0 decorating: tab + bubble icons, theme emblems
+export function decoIcon(name) {
+  return mk('dico' + name, 18, 18, p => {
+    if (name === 'themes') { // a magic wand: one tap, a whole room
+      p.line(2, 16, 10, 8, '#a8703f'); p.line(3, 16, 11, 8, '#c98c55');
+      p.map(7, 0, ['....#....', '...###...', '#########', '.#######.', '..#####..', '.###.###.', '.##...##.'], { '#': '#ffd23f' });
+      p.px(11, 3, '#fff6b8'); p.px(10, 2, '#fff6b8');
+      p.px(3, 3, '#ff9ec4'); p.px(2, 4, '#ff9ec4'); p.px(4, 4, '#ff9ec4'); p.px(3, 5, '#ff9ec4');
+      p.px(16, 12, '#7ec8ff'); p.px(15, 13, '#7ec8ff'); p.px(17, 13, '#7ec8ff'); p.px(16, 14, '#7ec8ff');
+    }
+    if (name === 'desks') { // a little desk with an apple on it
+      p.ball(9, 4.5, 3.4, 3, '#ef4b4b'); p.px(9, 1, '#7a4a2a'); p.ell(11, 1.5, 1.4, 0.8, '#6cc44f');
+      p.rect(1, 8, 16, 3, '#c98c55'); p.hline(1, 16, 8, '#dda36c'); p.rect(2, 11, 14, 2, '#a8703f');
+      p.rect(2, 13, 2, 4, '#6f7b8f'); p.rect(14, 13, 2, 4, '#6f7b8f');
+    }
+    if (name === 'colors') { // a paint roller with a rainbow stripe
+      ['#ef6f6c', '#ffd23f', '#7dd370', '#64a8e8'].forEach((c, i) => p.rect(2, 2 + Math.round(i * 1.5), 12, 2, c));
+      p.rect(14, 3, 2, 5, '#9aa7b8'); p.rect(8, 8, 8, 1, '#9aa7b8'); p.rect(8, 9, 2, 8, '#a8703f');
+    }
+    if (name === 'undo') { // a curly arrow going back
+      for (let a = -0.5; a < 3.15; a += 0.04) { p.px(9.5 + Math.cos(a) * 6.5, 11 - Math.sin(a) * 6, '#2f7de1'); p.px(9.5 + Math.cos(a) * 5, 11 - Math.sin(a) * 4.6, '#2f7de1'); p.px(9.5 + Math.cos(a) * 5.75, 11 - Math.sin(a) * 5.3, '#64a8e8'); }
+      p.map(0, 11, ['#######', '.#####.', '..###..', '...#...'], { '#': '#2f7de1' }); p.hline(1, 5, 11, '#64a8e8');
+    }
+    if (name === 'size') { // small box and big box with a ↔ arrow
+      p.rect(1, 8, 5, 5, '#7ec8ff'); p.hline(1, 5, 8, '#bfe6ff');
+      p.rect(8, 2, 9, 11, '#ff9ec4'); p.hline(8, 16, 2, '#ffd0e2');
+      p.hline(2, 15, 15, '#7a5b6a'); p.px(3, 14, '#7a5b6a'); p.px(3, 16, '#7a5b6a'); p.px(14, 14, '#7a5b6a'); p.px(14, 16, '#7a5b6a');
+    }
+    if (name === 'bin') { // the trash can, small
+      const body = '#7fb7e0', dark = '#4f86b8';
+      for (let y = 6; y < 17; y++) { const inset = Math.floor((y - 6) / 6); p.hline(4 + inset, 13 - inset, y, body); }
+      for (const x of [7, 10]) p.vline(x, 8, 14, dark);
+      p.rect(2, 3, 14, 2, '#5f96c8'); p.rect(7, 1, 4, 2, '#3f6f9a'); p.px(5, 8, '#bfe0f5'); p.px(5, 9, '#bfe0f5');
+    }
+    if (name === 'left' || name === 'right') { // scroll arrows
+      for (let j = 0; j < 9; j++) { const w = 5 - Math.abs(j - 4); for (let i = 0; i < w; i++) p.px(name === 'left' ? 11 - i : 7 + i, 4 + j, i === w - 1 ? '#ffd23f' : '#e0a820'); }
+    }
+  });
+}
+export function themeIcon(id) {
+  return mk('them' + id, 20, 20, p => {
+    if (id === 'oceano') { p.ball(9, 10, 7, 5, '#64a8e8'); for (let j = 0; j < 6; j++) p.vline(15 + j, 10 - j, 10 + j, '#4f8fd0'); p.px(5, 8, INK); p.px(6, 7, '#ffffff'); p.hline(6, 11, 12, '#bfe6ff'); p.px(3, 3, '#bfe6ff'); p.px(2, 1, '#bfe6ff'); }
+    if (id === 'espacio') { // a rocket
+      for (let y = 0; y < 6; y++) p.hline(10 - Math.floor(y * 0.7), 10 + Math.floor(y * 0.7), y + 1, '#ef6f6c');
+      p.rect(6, 7, 9, 8, '#fffaf0'); p.ball(10.5, 10, 2.2, 2.2, '#7ec8ff'); p.rect(3, 12, 3, 4, '#ef6f6c'); p.rect(15, 12, 3, 4, '#ef6f6c');
+      p.rect(8, 15, 5, 2, '#ffd23f'); p.rect(9, 17, 3, 2, '#ffa65c');
+    }
+    if (id === 'jardin') { for (let a = 0; a < 5; a++) p.ball(10 + Math.cos(a * 1.257 - 1.57) * 4, 8 + Math.sin(a * 1.257 - 1.57) * 4, 3, 3, '#ff8fb8', { hi: false }); p.ball(10, 8, 2.4, 2.4, '#ffd23f'); p.vline(10, 13, 19, '#4fae45'); p.ell(7, 16, 2.6, 1.2, '#6cc44f'); p.ell(13, 15, 2.6, 1.2, '#6cc44f'); }
+    if (id === 'arcoiris') { ['#ef6f6c', '#ffa65c', '#ffd23f', '#7dd370', '#64a8e8', '#b48be6'].forEach((c, i) => p.ell(10, 16, 9.5 - i * 1.4, 9.5 - i * 1.4, c, { y1: 15 })); p.ell(10, 16, 1.4, 1.4, 0, { y1: 15 }); p.ball(3, 15, 3, 2, '#ffffff', { hi: false }); p.ball(17, 15, 3, 2, '#ffffff', { hi: false }); }
+    if (id === 'otono') { p.map(2, 2, ['.......#.......', '.....#.#.#.....', '..#..#####..#..', '..###########..', '.#############.', '###############', '.#############.', '..###########..', '...#########...', '....#######....', '......###......', '.......#.......'], { '#': '#e8602c' }); p.vline(9, 7, 18, '#8a3a1a'); p.px(7, 7, '#ffb020'); p.px(6, 8, '#ffb020'); }
+    if (id === 'fiesta') { [[6, 6, '#ef6f6c'], [14, 5, '#64a8e8'], [10, 9, '#ffd23f']].forEach(([x, y, c]) => { p.line(x, y + 5, 10, 19, '#a99caa'); p.ball(x, y, 3.6, 4.4, c); }); }
+    if (id === 'invierno') { for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3; p.line(10, 10, 10 + Math.cos(a) * 8, 10 + Math.sin(a) * 8, '#7ec8ff'); p.line(10 + Math.cos(a) * 5, 10 + Math.sin(a) * 5, 10 + Math.cos(a + 0.7) * 7, 10 + Math.sin(a + 0.7) * 7, '#bfe6ff'); } p.ball(10, 10, 2, 2, '#ffffff', { hi: false }); }
+    if (id === 'cuentos') { p.rect(1, 5, 9, 12, '#ef6f6c'); p.rect(10, 5, 9, 12, '#64a8e8'); p.rect(2, 6, 7, 10, '#fffaf0'); p.rect(11, 6, 7, 10, '#fffaf0'); for (const y of [8, 10, 12, 14]) { p.hline(3, 7, y, '#c8bcc4'); p.hline(12, 16, y, '#c8bcc4'); } p.vline(9, 4, 17, '#a8703f'); p.vline(10, 4, 17, '#a8703f'); }
   });
 }
