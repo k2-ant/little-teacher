@@ -2,7 +2,7 @@
 import { G, rand, pick } from './state.js';
 import * as S from './sprites.js';
 import { sfx } from './audio.js';
-import { act, acting, hop, speak, animalSound, coax, physics, pose, traits, randomCheer } from './students.js';
+import { act, acting, hop, speak, animalSound, coax, physics, pose, traits, randomCheer, tapEscalate, crowned } from './students.js';
 
 export function makeRow(students) {
   let ledge = 0, xs = [];
@@ -44,6 +44,7 @@ export function makeRow(students) {
         const r = rect(s);
         const { st, dx } = pose(s);
         D(c, S.student(s.kind, st), r.x + dx, r.y - s.z);
+        if (crowned(s)) { const o = S.CROWN_AT[s.kind]; D(c, S.crown(), r.x + dx + o[0] - 1, r.y - s.z + (s.hide > 0 ? 19 : o[1]) - 1); }
         if (s.bubble) D(c, S.bubbleImg(s.bubble.kind), r.x + 20, r.y - 6 - s.z);
       }
       R(c, 0, ledge, W, H - ledge, ledgeCol); R(c, 0, ledge, W, 1, '#f0c792'); R(c, 0, ledge + 3, W, 1, '#b77942');
@@ -62,6 +63,7 @@ export function makeRow(students) {
     tap(s) {
       const r = rect(s), hx = r.x + S.SW / 2, hy = r.y + 10;
       if (coax(s)) return;
+      if (!acting(s, 'raise') && tapEscalate(s, { burst: (k, n, cols, o) => row.burst(k, hx, hy - s.z, n, cols, o), neighbours: awake })) return;
       if (acting(s, 'raise')) { act(s, 'cheer', 1.2); hop(s, 80); sfx.cheer(1.2); speak(s, randomCheer(), 'yay'); row.burst('star', hx, hy, 6, ['#ffd23f', '#ff9ec4', '#7ec8ff'], { up: true }); }
       else if (s.kind === 'frog') { act(s, 'giggle', 1.2); sfx.giggle(1.3, 6); row.burst('note', hx, hy, 3, ['#7a5bc0', '#ff6f91'], { up: true }); }
       else { act(s, 'happy', 0.9); hop(s, 70); animalSound(s); row.burst('heart', hx, hy, 2, ['#ff6f91'], { up: true, sp: 30 }); }
