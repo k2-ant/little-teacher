@@ -1,5 +1,5 @@
 // Offline cache: everything the game needs is cached on first load.
-const CACHE = 'little-teacher-v5';
+const CACHE = 'little-teacher-v6';
 const FILES = [
   './', './index.html', './manifest.webmanifest',
   './js/main.js', './js/state.js', './js/raster.js', './js/sprites.js', './js/audio.js',

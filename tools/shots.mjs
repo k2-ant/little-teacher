@@ -118,6 +118,18 @@ await shot('05-dragstar');
 await p.mouse.up();
 await p.waitForTimeout(500);
 await shot('06-starglow');
+// behaviour: the frog acts up, she gives a red card; then a green card to the owl
+await p.evaluate(() => window.__ltNaughty(4));
+await p.waitForTimeout(700);
+await shot('06a-naughty');
+const dragTo = async (from, to) => { await p.mouse.move(...from); await p.mouse.down(); await p.mouse.move((from[0] + to[0]) / 2, (from[1] + to[1]) / 2, { steps: 4 }); await p.mouse.move(...to, { steps: 4 }); await p.mouse.up(); };
+let heads = await p.evaluate(() => window.__ltDeskPts());
+await dragTo(await p.evaluate(() => window.__ltBtn('cardRed')), heads[4]);
+await p.waitForTimeout(500);
+await shot('06b-redcard');
+await dragTo(await p.evaluate(() => window.__ltBtn('cardGreen')), heads[3]);
+await p.waitForTimeout(500);
+await shot('06c-greencard');
 // move a plant
 const plant = await p.evaluate(() => window.__ltFurn('plant'));
 await p.mouse.move(plant[0], plant[1]); await p.mouse.down();
@@ -205,6 +217,19 @@ await p.mouse.up();
 await p.waitForTimeout(300);
 await tapAt(...sh.back); await p.waitForTimeout(900);
 await p.evaluate(() => window.__lt.G.save.lang = 'en');
+// centros
+const toysB = await p.evaluate(() => window.__ltBtn('toys'));
+await tapAt(...toysB); await p.waitForTimeout(200);
+const mitems = await p.evaluate(() => window.__ltMenu());
+await tapAt(...mitems[3]); await p.waitForTimeout(400);
+await shot('11a-centros-chart');
+let cen = await p.evaluate(() => window.__ltCentros());
+await tapAt(...cen.start); await p.waitForTimeout(3500);
+await shot('11b-centros-run');
+await tapAt(...toysB); await p.waitForTimeout(3500);
+await shot('11c-centros-rotate');
+await tapAt(...(await p.evaluate(() => window.__ltBtn('cdone'))));
+await p.waitForFunction(() => window.__lt.room.phase === 'class', null, { timeout: 30000 });
 // story time
 const toys = await p.evaluate(() => window.__ltBtn('toys'));
 await tapAt(...toys); await p.waitForTimeout(200);

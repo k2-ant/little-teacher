@@ -298,6 +298,21 @@ export function trayIcon(name) {
     if (name === 'wall') { p.rect(2, 2, 14, 14, '#d6a35c'); p.rect(4, 4, 10, 10, '#fffaf0'); heartPix(p, 5, 6); }
     if (name === 'desk') { p.ball(9, 10, 6, 5.4, '#ef4b4b'); p.px(9, 3, '#7a4a2a'); p.ell(12, 3.5, 2, 1, '#6cc44f'); }
     if (name === 'decorate') { p.rect(2, 3, 11, 6, '#ffd23f'); p.rect(2, 3, 11, 2, '#fff2a0'); p.rect(12, 5, 3, 1, '#9aa7b8'); p.rect(14, 5, 1, 5, '#9aa7b8'); p.rect(7, 10, 8, 1, '#9aa7b8'); p.rect(7, 11, 3, 6, '#ef6f6c'); p.px(3, 10, '#ff8fb8'); p.px(4, 12, '#7ec8ff'); p.px(2, 14, '#7dd370'); }
+    if (name === 'cardGreen' || name === 'cardRed') {
+      const c = name === 'cardGreen' ? '#3cb44b' : '#ef4b4b';
+      p.rect(4, 1, 11, 16, darken(c, 0.25)); p.rect(5, 2, 9, 14, c); p.rect(6, 3, 3, 6, lighten(c, 0.45)); p.px(12, 13, lighten(c, 0.3));
+      if (name === 'cardGreen') { p.px(9, 10, '#ffffff'); p.px(10, 11, '#ffffff'); p.px(11, 10, '#ffffff'); p.px(12, 9, '#ffffff'); }
+    }
+    if (name === 'palette') {
+      p.ball(9, 10, 8, 6.5, '#e8b06a', { hi: false }); p.ell(12, 13, 2, 1.6, 0);
+      for (const [x, y, c] of [[5, 8, '#ef4b4b'], [8, 6, '#ffd23f'], [12, 6, '#3cb44b'], [15, 9, '#2f7de1']]) p.ball(x, y, 1.6, 1.6, c, { hi: false });
+      p.line(13, 16, 17, 11, '#a8703f');
+    }
+    if (name === 'aa') { p.rect(1, 2, 16, 14, '#fffaf0'); p.map(3, 5, ['.#.', '#.#', '###', '#.#', '#.#'], { '#': '#ef5b5b' }, 2); p.map(10, 9, ['.##', '#.#', '.##'], { '#': '#2f7de1' }, 2); }
+    if (name === 'centros') {
+      const cs = ['#ef6f6c', '#64a8e8', '#ffd23f', '#7dd370'];
+      cs.forEach((c, i) => { const x = 1 + (i % 2) * 9, y = 1 + Math.floor(i / 2) * 9; p.rect(x, y, 7, 7, c); p.rect(x + 1, y + 1, 2, 2, lighten(c, 0.5)); });
+    }
     if (name === 'bell') { p.ball(9, 9, 6, 6.5, '#ffd23f', { clip: { y1: 12 } }); p.rect(2, 12, 14, 2, '#e0a820'); p.ball(9, 15, 1.6, 1.6, '#a8703f'); p.rect(8, 1, 2, 2, '#a8703f'); }
   });
 }

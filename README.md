@@ -31,6 +31,18 @@ To regenerate the clips after changing any lines: `ELEVENLABS_API_KEY=... node t
 - **💬 Students ask questions:** tap a student with a raised paw and they might say "Maestra, tengo una pregunta…". She answers by tapping one of three pictures. Questions cover colours ("¿De qué color es el sol?"), shapes, counting stars, animals, letters, and big/small. A wrong answer just gets "Mmm… creo que no." and the right one glows.
 - **💛 Feelings (emociones):** now and then a student feels triste, enojado/a, asustado/a or cansado/a. Their face shows it, with a little bubble. Tap them to help in two steps: "¿Cómo me siento?" (pick the matching face), then "¿Qué me ayuda?" (un abrazo, un juguete, agua, descansar, respirar profundo). The student says "¡Gracias, maestra! Ya me siento mejor."
 
+## Tarjetas verdes y rojas (behavior cards)
+Everyone starts the day on green ("¡Todos empiezan en verde!"). Now and then a student acts up:
+- the frog has a giggle fit ("¡Jajaja!")
+- the owl shouts out "¡Yo sé! ¡Yo sé!"
+- the bunny chats ("¡Oye, oye!")
+- the puppy wanders off
+
+Drag the **red card** (bottom right) onto a student and they stop, look sorry and say "Lo siento, maestra.". The **green card** makes a student proud: "¡Gracias, maestra!". Each student's card shows on their desk and on the attendance chart. At goodbye: "¡Mañana es un nuevo día!", and everyone goes back to green.
+
+## Centros
+In the toy box, choose the four-squares icon to open the **centros chart**. Drag the students' faces between **arte** 🎨, **biblioteca** 📚, **letras** 🔤 and **bloques** 🧱, then ring the 🔔. The students walk to their stations and paint at the easel, read on the rug, write at the ABC board, or build at the shape table. The bell rotates everyone to the next centro ("¡Cambio de centro!"), and ✔ ends centros. Tap a station's sign to join that activity.
+
 ## Learning corners
 - **Alphabet board** (chalkboard on the wall): pick A–Z (including Ñ) or 0–10 and trace it the way it's taught in school, stroke by stroke:
   - a green **start dot** shows the stroke number, and arrows show which way to go

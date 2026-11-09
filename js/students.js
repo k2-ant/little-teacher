@@ -117,6 +117,8 @@ export function pose(s) {
       case 'yawn': st.eyes = 'closed'; st.mouth = 'open'; st.armL = st.armR = 'up'; break;
       case 'happy': st.eyes = 'happy'; st.mouth = 'open'; st.wag = alt(10); break;
       case 'look': st.eyes = 'open'; st.mouth = 'o'; break;
+      case 'sorry': st.eyes = 'open'; st.mouth = 'frown'; st.mood = 'sad'; st.earUp = false; st.tongue = false; break;
+      case 'paint': st.armL = alt(3) ? 'front' : 'up'; st.eyes = 'happy'; st.mouth = 'smile'; break;
     }
   }
   if (s.mood && !a && !s.sleep) {

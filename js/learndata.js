@@ -61,6 +61,15 @@ export const WORDS = [
 ];
 export const SIL_HELLO = '¡Vamos a leer!';
 
+// ------------------------------------------------------------------ behaviour cards + centros
+export const CARD_LINES = { sorry: 'Lo siento, maestra.', thanks: '¡Gracias, maestra!', allGreen: '¡Todos empiezan en verde!', newDay: '¡Mañana es un nuevo día!' };
+export const NAUGHTY_LINES = { frog: '¡Jajaja!', owl: '¡Yo sé! ¡Yo sé!', bunny: '¡Oye, oye!' };
+export const CENTERS = [
+  { id: 'arte', line: '¡Me encanta pintar!' }, { id: 'biblioteca', line: '¡Me gusta leer!' },
+  { id: 'letras', line: '¡Estoy escribiendo!' }, { id: 'bloques', line: '¡Mira mis bloques!' },
+];
+export const CENTRO_LINES = { start: '¡Hora de centros!', change: '¡Cambio de centro!' };
+
 /** lines spoken by any student */
 export function studentPhrases() {
   const out = new Set([Q_INTRO, ...Q_RIGHT, Q_WRONG, FEEL_CALL, FEEL_Q1, FEEL_Q2, FEEL_DONE]);
@@ -75,6 +84,10 @@ export function studentPhrases() {
   for (const m of MOODS) { out.add(m); out.add(m.replace(/o$/, 'a')); out.add(`Estoy ${m}.`); out.add(`Estoy ${m.replace(/o$/, 'a')}.`); }
   out.add('feliz'); out.add('Estoy feliz.');
   HELPS.forEach(h => out.add(h.word));
+  Object.values(CARD_LINES).forEach(l => out.add(l));
+  Object.values(NAUGHTY_LINES).forEach(l => out.add(l));
+  CENTERS.forEach(c => { out.add(c.id); out.add(c.line); });
+  Object.values(CENTRO_LINES).forEach(l => out.add(l));
   return [...out];
 }
 /** lines only the owl (our reading helper) says */
