@@ -1,6 +1,7 @@
 import { G, makeView, persist, rand, pick, wait } from './state.js';
 import { Pix, cached, hex, darken, lighten } from './raster.js';
 import * as S from './sprites.js';
+import { WALLS } from './decor.js';
 import { sfx, strokeStart, strokeSpeed, strokeEnd } from './audio.js';
 import { act, acting, hop, talk, speak, animalSound, coax, physics, pose, traits, startle, randomCheer } from './students.js';
 
@@ -248,8 +249,9 @@ export function createBoard(students, hooks) {
   function render() {
     const c = V.ctx, { W, H } = V;
     // wall behind the board
-    R(c, 0, 0, W, H, '#f7e6c4');
-    for (let x = 2; x < W; x += 9) R(c, x, 0, 3, H, '#f2dcb3');
+    const [wa, wb] = WALLS[G.save.paint.wall] || WALLS[0];
+    R(c, 0, 0, W, H, wa);
+    for (let x = 2; x < W; x += 9) R(c, x, 0, 3, H, wb);
     // board frame + surface
     const { bx, by } = L;
     R(c, bx - 4, by - 4, BW + 8, BH + 8, '#6f7b8f');

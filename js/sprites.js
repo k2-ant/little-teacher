@@ -229,8 +229,8 @@ export function student(kind, st) {
 // ---------------------------------------------------------------- furniture
 export const CHAIR_COLS = ['#ef7a63', '#64a8e8', '#f6c445', '#79c96b', '#b48be6', '#ff9ec4'];
 export const DESK_W = 32, DESK_H = 22;
-export function desk(i) {
-  return cached('desk' + i, () => {
+export function desk(i, bare = false) {
+  return cached('desk' + i + bare, () => {
     const p = new Pix(DESK_W, DESK_H);
     const wood = '#dca46a';
     p.rect(3, 11, 2, 10, '#7f8ca3'); p.rect(27, 11, 2, 10, '#7f8ca3');
@@ -241,7 +241,7 @@ export function desk(i) {
     p.rect(1, 9, 30, 2, '#b77942');
     p.px(8, 7, '#c88f55'); p.px(9, 7, '#c88f55'); p.px(20, 6, '#c88f55'); p.px(21, 6, '#c88f55'); p.px(22, 6, '#c88f55');
     // a little thing on each desk
-    const k = i % 5;
+    const k = bare ? -1 : i % 5;
     if (k === 0) { p.hline(21, 27, 6, '#ffcf4a'); p.px(28, 6, '#ff9aa8'); p.px(20, 6, INK); }
     if (k === 1) { p.rect(4, 5, 6, 3, '#6fb6ff'); p.hline(4, 9, 5, '#a9d4ff'); p.vline(7, 5, 7, '#fff'); }
     if (k === 2) { p.rect(23, 5, 4, 3, '#ff8f8f'); p.px(24, 4, '#7dc96b'); }
@@ -262,17 +262,17 @@ export function chair(i) {
     return p.canvas();
   });
 }
-export function rug() {
-  return cached('rug', () => {
+export function rug(cols = ['#e8738a', '#ffd166', '#6cc2b8', '#fff6e6', '#b892e0']) {
+  return cached('rug' + cols.join(), () => {
     const p = new Pix(84, 32);
-    const rings = [['#e8738a', 40.5, 15], ['#ffd166', 35, 12.5], ['#6cc2b8', 28.5, 10], ['#fff6e6', 21, 7.2], ['#b892e0', 12, 4.2]];
+    const rings = [[cols[0], 40.5, 15], [cols[1], 35, 12.5], [cols[2], 28.5, 10], [cols[3], 21, 7.2], [cols[4], 12, 4.2]];
     for (const [c, rx, ry] of rings) p.ell(42, 16, rx, ry, c);
     // stars on the yellow ring
     for (const a of [0.3, 1.1, 2.0, 2.9, 3.6, 4.5, 5.3]) {
       const x = 42 + Math.cos(a) * 31.5, y = 16 + Math.sin(a) * 11.2;
       p.px(x, y, '#ff9f3a'); p.px(x - 1, y, '#ffb85c'); p.px(x + 1, y, '#ffb85c'); p.px(x, y - 1, '#ffb85c'); p.px(x, y + 1, '#ffb85c');
     }
-    for (let a = 0; a < Math.PI * 2; a += 0.25) p.px(42 + Math.cos(a) * 38, 16 + Math.sin(a) * 13.6, '#ffb3c1');
+    for (let a = 0; a < Math.PI * 2; a += 0.25) p.px(42 + Math.cos(a) * 38, 16 + Math.sin(a) * 13.6, lighten(cols[0], 0.45));
     p.outline('#5a2a3a', 0.5);
     return p.canvas();
   });

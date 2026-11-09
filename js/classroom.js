@@ -1,9 +1,10 @@
 import { G, makeView, wait, persist, rand, pick, clamp } from './state.js';
-import { Pix, cached, glow, darken, lighten } from './raster.js';
+import { Pix, cached, glow, darken, lighten, mix } from './raster.js';
 import * as S from './sprites.js';
 import { sfx, hush } from './audio.js';
 import { act, acting, hop, talk, speak, animalSound, coax, physics, walkStep, walkTo, pose, traits, startle, GREETINGS, BYES, randomCheer } from './students.js';
 import { PAGES } from './pages.js';
+import * as DC from './decor.js';
 
 const R = (c, x, y, w, h, col) => { c.fillStyle = col; c.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); };
 const D = (c, img, x, y) => c.drawImage(img, Math.round(x), Math.round(y));
@@ -12,7 +13,10 @@ const FURN_DEFAULT = {
   desk0: [0.30, 0.34], desk1: [0.50, 0.34], desk2: [0.70, 0.34], desk3: [0.40, 0.77], desk4: [0.60, 0.77],
   rug: [0.15, 0.93], plant: [0.93, 0.62], shelf: [0.9, 0.13],
 };
-const FURN_SIZE = { desk: [S.DESK_W, S.DESK_H], rug: [84, 32], plant: [28, 38], shelf: [38, 46] };
+const FURN_SIZE = { desk: [S.DESK_W, S.DESK_H], rug: [84, 32], plant: [28, 38], shelf: [38, 46], teacher: [22, DC.TH] };
+const sizeOf = (f) => FURN_SIZE[f.type] || [DC.DECOR[f.type].w, DC.DECOR[f.type].h];
+const layerOf = (f) => (DC.DECOR[f.type] ? DC.DECOR[f.type].layer : 'floor');
+let uid = 0;
 
 // ------------------------------------------------------------------ mini faces for the attendance chart
 function miniFace(kind, on) {
@@ -61,6 +65,15 @@ export function createClassroom(students, hooks) {
     const [fx, fy] = saved || FURN_DEFAULT[id];
     furn[id] = { id, type, i: type === 'desk' ? +id.slice(4) : 0, fx, fy, x: 0, y: 0, lift: 0 };
   }
+  {
+    const t = G.save.furniture.teacher;
+    furn.teacher = { id: 'teacher', type: 'teacher', fx: t ? t[0] : -1, fy: t ? t[1] : 0.08, x: 0, y: 0, lift: 0 };
+  }
+  for (const d of G.save.decor) {
+    if (!DC.DECOR[d.t]) continue;
+    const id = 'd' + (uid++);
+    furn[id] = { id, type: d.t, deco: true, v: d.v || 0, fx: d.fx, fy: d.fy, x: 0, y: 0, lift: 0 };
+  }
   if (G.save.seats) students.forEach(s => { if (G.save.seats[s.kind] !== undefined) s.desk = G.save.seats[s.kind]; });
   students.forEach(s => { s.stars = G.save.stars[s.kind] || 0; });
 
@@ -79,6 +92,25 @@ export function createClassroom(students, hooks) {
   let attendanceDone = false;
   let btns = [];
   let lastTap = 0;
+  let deco = null; // decorate tray: { tab }
+  let T = null; // tray layout
+  const teach = { act: null, z: 0, vz: 0, blinkT: 2, blink: 0, pointRight: true };
+  function teacherAct(name, dur = 1.2) { teach.act = { name, t0: G.time, dur }; }
+  function teacherPose() {
+    const t = G.time;
+    const a = teach.act && t < teach.act.t0 + teach.act.dur ? teach.act : null;
+    const st = { eyes: teach.blink > 0 ? 'blink' : 'happy', mouth: 'grin', armL: 'down', armR: 'down', feet: 0, sway: Math.floor(t * 1.2) % 2 };
+    let flip = false;
+    if (a) {
+      const k = t - a.t0, alt = (hz) => Math.floor(k * hz) % 2 === 0;
+      if (a.name === 'wave') { st.armL = alt(5) ? 'wave1' : 'wave2'; st.mouth = 'open'; }
+      if (a.name === 'clap') { st.armL = st.armR = alt(7) ? 'clap' : 'front'; st.mouth = 'open'; }
+      if (a.name === 'point') { st.armL = 'point'; st.eyes = 'open'; st.mouth = alt(3) ? 'open' : 'grin'; flip = teach.pointRight; }
+      if (a.name === 'twirl') { flip = alt(8); st.armL = st.armR = 'up'; st.mouth = 'open'; }
+      if (a.name === 'cheer') { st.armL = st.armR = 'up'; st.mouth = 'open'; }
+    }
+    return { st, flip };
+  }
 
   // ---------------------------------------------------------------- layout
   function resize() {
@@ -97,18 +129,43 @@ export function createClassroom(students, hooks) {
     btns = [
       { id: 'stickers', x: i.l + 4, y: i.t + 4, w: B, h: B, icon: S.ICONS.stickers },
       { id: 'home', x: V.W - i.r - B - 4, y: i.t + 4, w: B, h: B, icon: S.ICONS.home },
-      { id: 'toys', x: i.l + 4, y: V.H - i.b - B - 4, w: B, h: B, icon: S.ICONS.toys },
+      { id: 'bell', x: V.W - i.r - B - 4, y: i.t + 4, w: B, h: B, icon: () => DC.trayIcon('bell') },
+      { id: 'decorate', x: i.l + 4, y: V.H - i.b - B - 4, w: B, h: B, icon: () => DC.trayIcon('decorate') },
+      { id: 'toys', x: i.l + 4 + B + 4, y: V.H - i.b - B - 4, w: B, h: B, icon: S.ICONS.toys },
       { id: 'star', x: V.W - i.r - B - 4, y: V.H - i.b - B - 4, w: B, h: B, icon: S.ICONS.star },
     ];
+    const db = btns.find(b => b.id === 'decorate');
+    T = { x: db.x + db.w + 3, y: V.H - i.b - 52, h: 50 };
+    T.w = V.W - i.r - 2 - T.x;
     L.chart = { x: i.l + 34, y: i.t + 7 };
     bg = drawBg();
     return V;
   }
   function place(f) {
-    const [w] = FURN_SIZE[f.type];
+    if (f.type === 'teacher' && f.fx < 0) f.fx = (L.door.x + L.door.w + 17) / V.W;
+    const [w] = sizeOf(f);
     f.x = clamp(Math.round(f.fx * V.W), w / 2 + 2, V.W - w / 2 - 2);
-    const minY = L.floorTop + (f.type === 'rug' ? 22 : f.type === 'shelf' ? 8 : 12);
-    f.y = clamp(Math.round(L.floorTop + f.fy * L.floorH), minY, V.H - 2);
+    if (layerOf(f) === 'wall') { f.y = Math.round(f.fy * L.wallH); clampItem(f); return; }
+    f.y = Math.round(L.floorTop + f.fy * L.floorH);
+    clampItem(f);
+  }
+  function clampItem(f) {
+    const [w, h] = sizeOf(f);
+    f.x = clamp(f.x, w / 2 + 2, V.W - w / 2 - 2);
+    if (layerOf(f) === 'wall') f.y = clamp(f.y, h + 4, L.wallH - 20);
+    else f.y = clamp(f.y, L.floorTop + (f.type === 'rug' ? 22 : f.type === 'shelf' ? 8 : 12), V.H - 2);
+  }
+  function remember(f) {
+    if (layerOf(f) === 'wall') { f.fx = f.x / V.W; f.fy = f.y / L.wallH; }
+    else { f.fx = f.x / V.W; f.fy = (f.y - L.floorTop) / L.floorH; }
+    if (f.deco) saveDecor();
+    else G.save.furniture[f.id] = [+f.fx.toFixed(4), +f.fy.toFixed(4)];
+    persist();
+  }
+  function saveDecor() {
+    G.save.decor = Object.values(furn).filter(f => f.deco).map(f => ({ t: f.type, fx: +f.fx.toFixed(4), fy: +f.fy.toFixed(4), v: f.v }));
+    G.save.decorStamp++;
+    persist();
   }
   function seat(s) { const d = desks[s.desk]; return { x: d.x, y: d.y - 13 }; }
 
@@ -118,8 +175,10 @@ export function createClassroom(students, hooks) {
     const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
     const c = cv.getContext('2d');
     const wh = L.wallH;
-    R(c, 0, 0, W, wh, '#f7e6c4');
-    for (let x = 2; x < W; x += 9) R(c, x, 3, 3, wh - 22, '#f2dcb3');
+    const [wa, wb] = DC.WALLS[G.save.paint.wall] || DC.WALLS[0];
+    const [fa, fb, fs] = DC.FLOORS[G.save.paint.floor] || DC.FLOORS[0];
+    R(c, 0, 0, W, wh, wa);
+    for (let x = 2; x < W; x += 9) R(c, x, 3, 3, wh - 22, wb);
     for (let x = 6; x < W; x += 18) for (let y = 10; y < wh - 24; y += 14) { R(c, x, y, 1, 1, '#f9c8b0'); R(c, x + 9, y + 7, 1, 1, '#cde3c8'); }
     R(c, 0, 0, W, 3, '#e3c592'); R(c, 0, 3, W, 1, '#fff3d9');
     R(c, 0, wh - 20, W, 20, '#bfe0d0');
@@ -128,12 +187,12 @@ export function createClassroom(students, hooks) {
     R(c, 0, wh - 4, W, 4, '#8c5a3c'); R(c, 0, wh - 4, W, 1, '#a8714a');
     // floor planks
     for (let y = wh, r = 0; y < H; y += 7, r++) {
-      R(c, 0, y, W, 7, r % 2 ? '#d7a46a' : '#dcab70');
-      R(c, 0, y + 6, W, 1, '#bd8650');
-      for (let x = (r * 23) % 44; x < W; x += 44) R(c, x, y, 1, 6, '#c48e57');
-      for (let x = (r * 37) % 31; x < W; x += 31) R(c, x + 5, y + 2, 2, 1, '#e4b67e');
+      R(c, 0, y, W, 7, r % 2 ? fb : fa);
+      R(c, 0, y + 6, W, 1, fs);
+      for (let x = (r * 23) % 44; x < W; x += 44) R(c, x, y, 1, 6, mix(fa, fs, 0.6));
+      for (let x = (r * 37) % 31; x < W; x += 31) R(c, x + 5, y + 2, 2, 1, lighten(fa, 0.25));
     }
-    R(c, 0, wh, W, 2, '#bf8a55');
+    R(c, 0, wh, W, 2, fs);
     // sun patch from the window
     for (let j = 0; j < 46; j++) {
       const y = wh + 2 + j; if (y >= H) break;
@@ -288,9 +347,10 @@ export function createClassroom(students, hooks) {
   }
   function sortY(s) { return s.mode === 'seated' ? desks[s.desk].y : s.y; }
   function hitFurn(x, y) {
-    const list = Object.values(furn).sort((a, b) => (b.type === 'rug' ? -1e4 : b.y) - (a.type === 'rug' ? -1e4 : a.y));
+    const key = (f) => (f.type === 'rug' ? -1e5 : layerOf(f) === 'wall' ? -1e4 + f.y : f.y);
+    const list = Object.values(furn).sort((a, b) => key(b) - key(a));
     for (const f of list) {
-      const [w, h] = FURN_SIZE[f.type];
+      const [w, h] = sizeOf(f);
       const top = f.type === 'desk' ? f.y - h + 2 : f.y - h;
       if (x >= f.x - w / 2 && x <= f.x + w / 2 && y >= top && y <= f.y) {
         if (f.type === 'rug') { const dx = (x - f.x) / (w / 2), dy = (y - (f.y - h / 2)) / (h / 2); if (dx * dx + dy * dy > 1) continue; }
@@ -336,7 +396,7 @@ export function createClassroom(students, hooks) {
       if (students.every(t => t.here) && !attendanceDone) {
         attendanceDone = true;
         wait(1.4).then(() => {
-          sfx.chime();
+          sfx.chime(); teacherAct('clap', 1.4);
           for (const t of awake()) { act(t, 'cheer', 1.3); hop(t, 60); }
           burst('confetti', V.W / 2, 30, 40, ['#ef6f6c', '#ffd23f', '#7dd370', '#64a8e8', '#b48be6'], { sp: 90, g: 80, life: 1.6 });
         });
@@ -356,7 +416,7 @@ export function createClassroom(students, hooks) {
   function awardStar(s) {
     if (s.sleep) { s.sleep = false; s.sleepT = rand(25, 45); }
     if (s.hide > 0) { s.hide = 0; s.hideT = rand(40, 60); }
-    s.glowT = 2.2; s.stars++;
+    s.glowT = 2.2; s.stars++; teacherAct('clap', 1.3);
     G.save.stars[s.kind] = s.stars; persist();
     act(s, 'wiggle', 2); hop(s, 80);
     sfx.sparkle(); speak(s, pick(['Thank you!', 'Yay! A star!', 'Wow!', 'I love it!']), 'yay');
@@ -384,7 +444,8 @@ export function createClassroom(students, hooks) {
       await walkTo(s, L.doorPt.x + 4, L.doorPt.y + 8, 40);
       walkTo(s, p.x, p.y, 44).then(() => {
         s.mode = 'seated'; s.look = 0;
-        act(s, 'wave', 1.6); talk(s, 'sun', 1.8);
+        act(s, 'wave', 1.6); talk(s, 'sun', 1.8); teacherAct('wave', 1.4);
+        if (G.save.deskItems[s.desk]) wait(1.7).then(() => talk(s, 'heart', 1.4));
         speak(s, GREETINGS[s.kind], 'hi');
         if (s.kind === 'turtle') wait(1.8).then(() => { s.hide = 1; s.hideT = rand(30, 45); sfx.softPop(); });
         if (s.kind === 'bunny') s.sleepT = rand(8, 14);
@@ -393,6 +454,17 @@ export function createClassroom(students, hooks) {
     }
     doorTarget = 0; sfx.door();
     for (let i = 0; i < 40 && students.some(s => s.mode !== 'seated'); i++) await wait(0.2);
+    if (G.save.decorStamp !== G.save.decorSeen) { // they notice what she did to the room!
+      G.save.decorSeen = G.save.decorStamp; persist();
+      await wait(0.4);
+      for (const s of students) { s.sleep = false; act(s, 'gasp', 0.9); }
+      sfx.ooh(1.25);
+      await wait(0.9);
+      for (const s of students) { act(s, 'clap', 1.4); burst('star', ...headPos(s), 2, ['#ffd23f', '#ff9ec4'], { up: true }); }
+      speak(students[4], 'Ooh, so pretty!', 'yay'); sfx.clap(8, 1);
+      teacherAct('cheer', 1.2);
+      await wait(1.2);
+    }
     busy = false; phase = 'class'; sky = 'day';
     hintT = 3;
   }
@@ -407,6 +479,7 @@ export function createClassroom(students, hooks) {
     for (const s of students) { s.mode = 'stand'; Object.assign(s, seat(s)); s.y += 2; }
     await wait(0.4);
     for (const s of students) { act(s, 'wave', 2.4); talk(s, 'heart', 2.4); }
+    teacherAct('wave', 3);
     speak(students[3], 'Goodbye, teacher!', 'bye'); sfx.bye(1.2);
     await wait(2.4);
     for (const s of students) {
@@ -436,7 +509,7 @@ export function createClassroom(students, hooks) {
     G.save.stickers.push(reward.id);
     G.save.day = (G.save.day || 1) + 1;
     persist();
-    wait(1.0).then(() => { sfx.chime(); reward = null; phase = 'night'; });
+    wait(1.0).then(() => { sfx.chime(); reward = null; phase = 'night'; deco = null; });
   }
 
   // ---------------------------------------------------------------- free time
@@ -525,6 +598,8 @@ export function createClassroom(students, hooks) {
 
   // ---------------------------------------------------------------- update
   function update(dt) {
+    teach.blinkT -= dt; if (teach.blinkT < 0) { teach.blink = 0.14; teach.blinkT = rand(2, 5); } if (teach.blink > 0) teach.blink -= dt;
+    if (teach.z > 0 || teach.vz > 0) { teach.vz -= 380 * dt; teach.z += teach.vz * dt; if (teach.z <= 0) { teach.z = 0; teach.vz = 0; } }
     doorOpen += (doorTarget - doorOpen) * Math.min(1, dt * 10);
     dusk += (duskTarget - dusk) * Math.min(1, dt * 1.5);
     if (phase === 'class') hintT -= dt; if (hintT < 0) hintT = rand(10, 16);
@@ -593,7 +668,9 @@ export function createClassroom(students, hooks) {
     D(c, S.chair(d.i), d.x - 12, d.y - 34 - d.lift);
     const s = students.find(t => t.desk === d.i && t.mode === 'seated');
     if (s) drawStudent(c, s, d.x - S.SW / 2, d.y - 15 - S.SH - d.lift);
-    D(c, S.desk(d.i), d.x - S.DESK_W / 2, d.y - S.DESK_H - d.lift);
+    const item = G.save.deskItems[d.i];
+    D(c, S.desk(d.i, !!item), d.x - S.DESK_W / 2, d.y - S.DESK_H - d.lift);
+    if (item) D(c, DC.deskItem(item), d.x + 3, d.y - 28 - d.lift);
     if (s && s.snack) D(c, S.snack(s.kind, s.snack.bites), d.x - 6, d.y - 26 - d.lift);
     if (s && s.stars) {
       const n = Math.min(3, s.stars);
@@ -606,27 +683,62 @@ export function createClassroom(students, hooks) {
     c.fillRect(Math.round(x - w / 2 + 2), Math.round(y - 2), Math.round(w - 4), 4);
   }
 
+  function drawItem(c, f) {
+    const lift = f.lift || 0;
+    if (f.type === 'desk') return drawDeskUnit(c, f);
+    if (f.type === 'rug') { shadow(c, f.x, f.y, 80); return D(c, S.rug(DC.RUGS[G.save.rugV % DC.RUGS.length]), f.x - 42, f.y - 32 - lift); }
+    if (f.type === 'plant') return D(c, S.plant(), f.x - 14, f.y - 38 - lift);
+    if (f.type === 'shelf') return D(c, S.bookshelf(), f.x - 19, f.y - 46 - lift);
+    if (f.type === 'teacher') return drawTeacher(c, f);
+    const [w, h] = sizeOf(f);
+    const bob = f.pop && G.time < f.pop ? -1 : 0;
+    if (layerOf(f) === 'floor') shadow(c, f.x, f.y, w * 0.7);
+    D(c, DC.decor(f.type, f.v), f.x - w / 2, f.y - h - lift + bob);
+    if (f.type === 'fishtank' && Math.floor(G.time * 2 + f.x) % 3 === 0) R(c, f.x + 5, f.y - h + 6 - Math.floor(G.time * 6) % 8, 1, 1, '#ffffff');
+    if (f.type === 'lamp' && (sky === 'night' || sky === 'sunset' || dusk > 0.1)) { c.fillStyle = 'rgba(255,240,170,0.18)'; c.fillRect(Math.round(f.x - 14), Math.round(f.y - h + 10), 28, h - 10); }
+  }
+  function drawTeacher(c, f) {
+    const { st, flip } = teacherPose();
+    const img = DC.teacher(st);
+    const x = Math.round(f.x - DC.TW / 2), y = Math.round(f.y - DC.TH - (f.lift || 0) - teach.z);
+    shadow(c, f.x, f.y, 18);
+    if (flip) { c.save(); c.translate(x + DC.TW, y); c.scale(-1, 1); c.drawImage(img, 0, 0); c.restore(); }
+    else D(c, img, x, y);
+  }
+  function drawPoofHint(c, f) {
+    const [w, h] = sizeOf(f);
+    c.fillStyle = 'rgba(255,255,255,0.4)'; c.fillRect(Math.round(f.x - w / 2), Math.round(f.y - h), w, h);
+  }
+  function drawNewGhost(c) {
+    const d = drag;
+    if (d.desk) {
+      const tgt = deskAt(d.px, d.py + 6);
+      if (tgt) { c.fillStyle = 'rgba(255,230,110,0.6)'; c.fillRect(tgt.x - 16, tgt.y - 19, 32, 6); }
+      D(c, scaled(DC.deskItem(d.type), 2), d.px - 14, d.py - 12);
+      return;
+    }
+    const def = DC.DECOR[d.type];
+    D(c, DC.decor(d.type, 0), d.px - def.w / 2, d.py - def.h / 2);
+  }
+
   function render() {
     const c = V.ctx, { W, H } = V;
     c.drawImage(bg, 0, 0);
     drawWindow(c); drawClock(c); drawDoor(c); drawBoard(c);
+    // wall decorations
+    for (const f of Object.values(furn)) if (layerOf(f) === 'wall' && !(drag && drag.f === f)) drawItem(c, f);
     // rug
     const rug = furn.rug;
-    if (rug.lift) shadow(c, rug.x, rug.y, 80);
-    D(c, S.rug(), rug.x - 42, rug.y - 32 - rug.lift);
+    if (!(drag && drag.f === rug)) D(c, S.rug(DC.RUGS[G.save.rugV % DC.RUGS.length]), rug.x - 42, rug.y - 32);
     // y-sorted objects
     const objs = [];
-    for (const f of Object.values(furn)) if (f.type !== 'rug' && !(drag && drag.f === f)) objs.push({ y: f.y, f });
+    for (const f of Object.values(furn)) if (f.type !== 'rug' && layerOf(f) === 'floor' && !(drag && drag.f === f)) objs.push({ y: f.y, f });
     for (const s of students) if (s.mode !== 'seated' && s.mode !== 'away' && s.mode !== 'held') objs.push({ y: s.y, s });
     if (recess) objs.push({ y: recess.ball.y, ball: recess.ball });
     objs.sort((a, b) => a.y - b.y);
     for (const o of objs) {
-      if (o.f) {
-        const f = o.f;
-        if (f.type === 'desk') drawDeskUnit(c, f);
-        else if (f.type === 'plant') D(c, S.plant(), f.x - 14, f.y - 38);
-        else if (f.type === 'shelf') D(c, S.bookshelf(), f.x - 19, f.y - 46);
-      } else if (o.s) {
+      if (o.f) drawItem(c, o.f);
+      else if (o.s) {
         shadow(c, o.s.x, o.s.y, 16);
         drawStudent(c, o.s, o.s.x - S.SW / 2, o.s.y - S.SH);
       } else if (o.ball) {
@@ -637,14 +749,12 @@ export function createClassroom(students, hooks) {
     }
     // things being dragged float on top
     if (drag && drag.f) {
-      const f = drag.f, [w, h] = FURN_SIZE[f.type];
-      shadow(c, f.x, f.y, w * 0.8);
-      if (f.type === 'desk') drawDeskUnit(c, f);
-      else if (f.type === 'plant') D(c, S.plant(), f.x - 14, f.y - 38 - f.lift);
-      else if (f.type === 'shelf') D(c, S.bookshelf(), f.x - 19, f.y - 46 - f.lift);
-      else if (f.type === 'rug') { /* drawn above */ }
-      void h;
+      const f = drag.f;
+      if (layerOf(f) === 'floor') shadow(c, f.x, f.y, sizeOf(f)[0] * 0.8);
+      drawItem(c, f);
+      if (deco && overTray(drag.px, drag.py) && f.deco) drawPoofHint(c, f);
     }
+    if (drag && drag.kind === 'new') drawNewGhost(c);
     // particles + bubbles
     for (const p of parts) {
       if (p.life - p.t < 0.25 && Math.floor(p.t * 20) % 2) continue;
@@ -680,19 +790,34 @@ export function createClassroom(students, hooks) {
     D(c, btnFrame(b.w, b.h), b.x, b.y + (pressed ? 1 : 0));
     D(c, b.icon(), b.x + (b.w - 18) / 2, b.y + (b.h - 18) / 2 - 1 + (pressed ? 1 : 0));
   }
-  function hudVisible() { return phase === 'class' || phase === 'activity'; }
+  function hudVisible() { return phase === 'class' || phase === 'activity' || phase === 'prep'; }
+  function shownBtns() {
+    if (phase === 'prep') return btns.filter(b => ['stickers', 'bell', 'decorate'].includes(b.id));
+    if (phase !== 'class' && phase !== 'activity') return [];
+    return btns.filter(b => ['stickers', 'home', 'decorate'].includes(b.id) || (!deco && (b.id === 'star' || b.id === 'toys')) || (recess && b.id === 'toys'));
+  }
   function drawHud(c) {
     if (!hudVisible()) return;
-    for (const b of btns) {
+    if (deco && !(drag && drag.kind === 'new' && drag.left)) drawTray(c);
+    for (const b of shownBtns()) {
       if (b.id === 'toys' && (story || recess)) continue;
-      drawButton(c, b, press && press.btn === b);
+      if (b.id === 'bell') { // big pulsing "start class" bell
+        const k = Math.sin(G.time * 5) > 0.3 ? 1 : 0;
+        D(c, btnFrame(b.w, b.h, k ? '#fff6c8' : '#fff3dc'), b.x, b.y - k);
+        D(c, b.icon(), b.x + 4, b.y + 3 - k + (Math.floor(G.time * 6) % 2 && k ? 1 : 0));
+        continue;
+      }
+      const on = b.id === 'decorate' && deco;
+      D(c, btnFrame(b.w, b.h, on ? '#fff6c8' : '#fff3dc', on ? 'on' : ''), b.x, b.y + (press && press.btn === b ? 1 : 0));
+      D(c, b.icon(), b.x + (b.w - 18) / 2, b.y + (b.h - 18) / 2 - 1 + (press && press.btn === b ? 1 : 0));
     }
-    if (recess) { // bell to end recess early
+    if (recess && !deco) { // bell to end recess early
       const b = btns.find(x => x.id === 'toys');
       D(c, btnFrame(b.w, b.h, '#fff3dc'), b.x, b.y);
       D(c, cached('bellicon', bellIcon), b.x + 4, b.y + 3);
     }
     // attendance chart
+    if (phase === 'prep') return;
     const ch = L.chart;
     D(c, btnFrame(5 * 14 + 4, 18, '#fffaf0', 'chart'), ch.x, ch.y);
     students.forEach((s, k) => {
@@ -706,6 +831,95 @@ export function createClassroom(students, hooks) {
     const p = new Pix(18, 18);
     p.ball(9, 9, 6, 6.5, '#ffd23f', { clip: { y1: 12 } }); p.rect(2, 12, 14, 2, '#e0a820'); p.ball(9, 15, 1.6, 1.6, '#a8703f'); p.rect(8, 1, 2, 2, '#a8703f');
     p.outline(); return p.canvas();
+  }
+
+  // ---------------------------------------------------------------- decorate tray
+  function trayItems() {
+    const tab = deco.tab, out = [];
+    const ix0 = T.x + 48, iw = T.x + T.w - ix0 - 3;
+    if (tab === 'floor' || tab === 'wall') {
+      const list = tab === 'floor' ? DC.FLOOR_ITEMS : DC.WALL_ITEMS;
+      const sum = list.reduce((a, t) => a + DC.DECOR[t].w, 0);
+      const gap = Math.max(0, (iw - sum) / list.length);
+      let x = ix0 + gap / 2;
+      for (const t of list) {
+        const d = DC.DECOR[t];
+        out.push({ kind: tab, id: t, x, y: T.y + 2, w: d.w, h: T.h - 4, img: DC.decor(t, 0), ix: x, iy: T.y + T.h - 3 - Math.min(d.h, T.h - 6) - (tab === 'wall' ? Math.floor((T.h - 6 - d.h) / 2) : 0) });
+        x += d.w + gap;
+      }
+    } else if (tab === 'desk') {
+      const n = DC.DESK_ITEMS.length, cw = Math.min(34, Math.floor(iw / n));
+      DC.DESK_ITEMS.forEach((t, k) => out.push({ kind: 'desk', id: t, x: ix0 + k * cw, y: T.y + 2, w: cw, h: T.h - 4, img: scaled(DC.deskItem(t), 2), ix: ix0 + k * cw + (cw - 28) / 2, iy: T.y + 13 }));
+    } else {
+      DC.WALLS.forEach((_, k) => out.push({ kind: 'paintWall', id: k, x: ix0 + k * 22, y: T.y + 3, w: 21, h: 21, img: DC.swatch('wall', k), ix: ix0 + k * 22 + 1, iy: T.y + 4 }));
+      DC.FLOORS.forEach((_, k) => out.push({ kind: 'paintFloor', id: k, x: ix0 + k * 22, y: T.y + 26, w: 21, h: 21, img: DC.swatch('floor', k), ix: ix0 + k * 22 + 1, iy: T.y + 27 }));
+      const k = DC.FLOORS.length;
+      out.push({ kind: 'rug', id: 0, x: ix0 + k * 22 + 4, y: T.y + 26, w: 30, h: 21, img: cached('rugicon', () => { const c2 = document.createElement('canvas'); c2.width = 28; c2.height = 11; const x2 = c2.getContext('2d'); x2.imageSmoothingEnabled = false; x2.drawImage(S.rug(DC.RUGS[0]), 0, 0, 84, 32, 0, 0, 28, 11); return c2; }), ix: ix0 + k * 22 + 5, iy: T.y + 31 });
+    }
+    return out;
+  }
+  const TABS = ['floor', 'wall', 'desk', 'paint'];
+  function tabRect(k) { return { x: T.x + 3 + (k % 2) * 22, y: T.y + 3 + Math.floor(k / 2) * 22, w: 21, h: 21 }; }
+  function overTray(x, y) { return deco && x >= T.x && y >= T.y; }
+  function drawTray(c) {
+    D(c, btnFrame(Math.round(T.w), T.h, '#fff3dc', 'tray'), T.x, T.y);
+    R(c, T.x + 47, T.y + 3, 1, T.h - 7, '#e3cfae');
+    TABS.forEach((t, k) => {
+      const r = tabRect(k), on = deco.tab === t;
+      D(c, btnFrame(r.w, r.h, on ? '#ffe08a' : '#fffaf0', 'tab' + on), r.x, r.y);
+      D(c, DC.trayIcon(t), r.x + 1, r.y + 1);
+    });
+    for (const it of trayItems()) {
+      const sel = (it.kind === 'paintWall' && G.save.paint.wall === it.id) || (it.kind === 'paintFloor' && G.save.paint.floor === it.id);
+      if (sel) R(c, it.x - 1, it.y - 1, it.w + 1, it.h + 1, '#ffd23f');
+      const lifted = press && press.trayItem && press.trayItem.id === it.id && press.trayItem.kind === it.kind;
+      D(c, it.img, it.ix, it.iy - (lifted ? 2 : 0));
+    }
+  }
+  function cheerDecor(x, y) {
+    burst('spark', x, y, 10, ['#ffd23f', '#ff9ec4', '#7ec8ff', '#ffffff'], { sp: 60 });
+    sfx.sparkle();
+    teacherAct(Math.random() < 0.5 ? 'clap' : 'cheer', 1);
+    const aw = awake().filter(s => s.mode === 'seated');
+    if (aw.length && Math.random() < 0.6) { const s = pick(aw); act(s, 'gasp', 0.8); speak(s, pick(['Ooh!', 'Pretty!', 'Wow!', 'I like it!']), 'ooh'); }
+  }
+  function addDecor(type, x, y) {
+    if (Object.values(furn).filter(f => f.deco).length >= 40) { sfx.softPop(); return; }
+    const id = 'd' + (uid++);
+    const def = DC.DECOR[type];
+    const f = { id, type, deco: true, v: 0, x, y: y + def.h / 2, fx: 0, fy: 0, lift: 0, pop: G.time + 0.25 };
+    furn[id] = f;
+    clampItem(f); remember(f);
+    sfx.thump(); cheerDecor(f.x, f.y - def.h / 2);
+  }
+  function quickPlace(type) {
+    const def = DC.DECOR[type];
+    if (def.layer === 'wall') addDecor(type, rand(30, V.W - 30), rand(def.h / 2 + 8, L.wallH - 22 - def.h / 2));
+    else addDecor(type, rand(30, V.W - 30), rand(L.floorTop + 20, T.y - 10) - def.h / 2);
+  }
+  function setDeskItem(d, type) {
+    G.save.deskItems[d.i] = type; G.save.decorStamp++; persist();
+    sfx.pop(1.3); burst('spark', d.x + 9, d.y - 24, 8, ['#ffd23f', '#ffffff', '#ff9ec4']);
+    const s = students.find(t => t.desk === d.i && t.mode === 'seated');
+    if (s) { act(s, 'happy', 1); talk(s, 'heart', 1.4); speak(s, 'Thank you!', 'yay'); }
+    if (desks.every(q => G.save.deskItems[q.i])) wait(0.4).then(() => { sfx.chime(); teacherAct('cheer', 1.2); for (const q of desks) burst('star', q.x, q.y - 26, 3, ['#ffd23f'], { up: true }); });
+  }
+  function removeDecor(f) {
+    delete furn[f.id];
+    saveDecor();
+    sfx.whoosh(); burst('spark', f.x, f.y - sizeOf(f)[1] / 2, 8, ['#ffffff', '#d8f0ff']);
+  }
+  function cycleVariant(f) {
+    if (f.type === 'rug') { G.save.rugV = (G.save.rugV + 1) % DC.RUGS.length; G.save.decorStamp++; persist(); }
+    else { f.v = (f.v + 1) % DC.DECOR[f.type].variants.length; saveDecor(); }
+    f.pop = G.time + 0.2; sfx.pop(1.2);
+    burst('spark', f.x, f.y - sizeOf(f)[1] / 2, 5, ['#ffd23f', '#ffffff']);
+  }
+  function enterPrep() {
+    phase = 'prep'; sky = 'morning'; duskTarget = 0; busy = false;
+    for (const s of students) Object.assign(s, { mode: 'away', act: null, bubble: null, snack: null });
+    deco = { tab: 'floor' };
+    teacherAct('wave', 1.6);
   }
 
   function drawOverlays(c) {
@@ -722,9 +936,10 @@ export function createClassroom(students, hooks) {
       L.bigBtn = { x: bx - 6, y: by - 6, w: big.width + 12, h: big.height + 12 };
       if (phase === 'title') {
         // a row of the five friends peeking up to say hello
+        D(c, DC.teacher({ eyes: Math.floor(G.time * 1.1) % 6 === 0 ? 'blink' : 'happy', mouth: 'grin', armL: Math.floor(G.time * 4) % 2 ? 'wave1' : 'wave2', armR: 'down', sway: Math.floor(G.time * 1.2) % 2 }), W / 2 - 15, H * 0.58 - 106);
         students.forEach((s, i) => {
           const img = S.student(s.kind, { eyes: Math.floor(G.time * 1.3 + i) % 5 === 0 ? 'blink' : 'happy', mouth: 'smile', armL: i % 2 ? 'wave1' : 'down', armR: 'down', feet: 0, look: 0, blush: true, hide: 0, wag: false, earUp: false, tongue: s.kind === 'puppy' });
-          D(c, img, W / 2 + (i - 2) * 38 - 17, H * 0.58 - 92 + Math.round(Math.abs(Math.sin(G.time * 3 + i)) * -3));
+          D(c, img, W / 2 + [-110, -74, 40, 76, 112][i] - 17, H * 0.58 - 92 + Math.round(Math.abs(Math.sin(G.time * 3 + i)) * -3));
         });
       } else {
         const n = G.save.stickers.length;
@@ -825,7 +1040,7 @@ export function createClassroom(students, hooks) {
 
   // ---------------------------------------------------------------- input
   function deskAt(x, y) {
-    let best = null, bd = 26;
+    let best = null, bd = 30;
     for (const d of desks) { const dd = Math.hypot(d.x - x, (d.y - 20) - y); if (dd < bd) { bd = dd; best = d; } }
     return best;
   }
@@ -836,13 +1051,19 @@ export function createClassroom(students, hooks) {
     if (bookOpen) { press.book = true; return; }
     if (menu) { press.menu = true; return; }
     if (story) { press.story = true; return; }
-    for (const b of btns) if (inRect(x, y, b) && hudVisible()) {
+    for (const b of shownBtns()) if (inRect(x, y, b)) {
       press.btn = b;
       if (b.id === 'star' && !busy) { drag = { kind: 'star', x, y }; sfx.lift(); }
       return;
     }
-    if (inRect(x, y, L.chart)) { press.chart = true; return; }
-    if (phase !== 'class' && phase !== 'activity') return;
+    if (deco && inRect(x, y, T)) {
+      press.tray = true;
+      TABS.forEach((t, k) => { if (inRect(x, y, tabRect(k))) press.tab = t; });
+      if (!press.tab) press.trayItem = trayItems().find(it => inRect(x, y, it));
+      return;
+    }
+    if (phase !== 'prep' && inRect(x, y, L.chart)) { press.chart = true; return; }
+    if (phase !== 'class' && phase !== 'activity' && phase !== 'prep') return;
     const s = hitStudent(x, y);
     if (s) { press.s = s; return; }
     if (busy) return;
@@ -856,8 +1077,12 @@ export function createClassroom(students, hooks) {
     press.x = x; press.y = y;
     if (!press.moved && Math.hypot(x - press.x0, y - press.y0) > 6) {
       press.moved = true;
-      if (press.f && !busy && !story) {
-        drag = { kind: 'furn', f: press.f, ox: press.f.x - press.x0, oy: press.f.y - press.y0 };
+      const ti = press.trayItem;
+      if (ti && ['floor', 'wall', 'desk'].includes(ti.kind)) {
+        drag = { kind: 'new', type: ti.id, desk: ti.kind === 'desk', px: x, py: y };
+        sfx.lift();
+      } else if (press.f && !busy && !story) {
+        drag = { kind: 'furn', f: press.f, ox: press.f.x - press.x0, oy: press.f.y - press.y0, px: x, py: y };
         press.f.lift = 3; sfx.lift();
       } else if (press.s && !busy && !story && !recess && (press.s.mode === 'seated' || press.s.mode === 'stand')) {
         const s = press.s;
@@ -869,11 +1094,12 @@ export function createClassroom(students, hooks) {
     }
     if (!drag) return;
     if (drag.kind === 'star') { drag.x = x; drag.y = y; }
+    if (drag.kind === 'new') { drag.px = x; drag.py = y; if (y < T.y - 4 || drag.desk) drag.left = true; }
     if (drag.kind === 'furn') {
-      const f = drag.f, [w, h] = FURN_SIZE[f.type];
-      f.x = clamp(x + drag.ox, w / 2 + 2, V.W - w / 2 - 2);
-      f.y = clamp(y + drag.oy, L.floorTop + (f.type === 'rug' ? 22 : f.type === 'shelf' ? 8 : 12), V.H - 2);
-      void h;
+      const f = drag.f;
+      drag.px = x; drag.py = y;
+      f.x = x + drag.ox; f.y = y + drag.oy;
+      clampItem(f);
     }
     if (drag.kind === 'student') { drag.s.x = x; drag.s.y = y + 16; }
   }
@@ -891,11 +1117,17 @@ export function createClassroom(students, hooks) {
         } else sfx.softPop();
         return;
       }
+      if (d.kind === 'new') {
+        if (d.desk) { const tgt = deskAt(d.px, d.py + 6); if (tgt) setDeskItem(tgt, d.type); else sfx.softPop(); return; }
+        if (!d.left && overTray(d.px, d.py)) { sfx.softPop(); return; }
+        addDecor(d.type, d.px, d.py);
+        return;
+      }
       if (d.kind === 'furn') {
         const f = d.f; f.lift = 0;
-        f.fx = f.x / V.W; f.fy = (f.y - L.floorTop) / L.floorH;
-        G.save.furniture[f.id] = [+f.fx.toFixed(4), +f.fy.toFixed(4)];
-        persist(); sfx.thump();
+        if (f.deco && overTray(d.px, d.py)) { removeDecor(f); return; }
+        remember(f); sfx.thump();
+        if (f.type === 'teacher') teacherAct('wave', 1);
         burst('crumb', f.x, f.y, 6, ['#d9c3a0', '#c9b08a'], { up: true, sp: 25, g: 100, life: 0.5 });
         return;
       }
@@ -918,7 +1150,7 @@ export function createClassroom(students, hooks) {
     }
     if (p.moved) return;
     const { x, y } = p;
-    if (p.big && inRect(x, y, L.bigBtn)) { sfx.pop(); hooks.unlock?.(); startDay(); return; }
+    if (p.big && inRect(x, y, L.bigBtn)) { sfx.pop(); hooks.unlock?.(); enterPrep(); return; }
     if (p.reward) { if (!reward.collected && G.time - reward.t > 0.6) collectReward(); return; }
     if (p.book) {
       if (inRect(x, y, L.bookClose)) { sfx.pop(); bookOpen = null; }
@@ -932,9 +1164,23 @@ export function createClassroom(students, hooks) {
       return;
     }
     if (p.story) { turnPage(); return; }
+    if (p.tray) {
+      if (p.tab) { deco.tab = p.tab; sfx.pop(1.1); return; }
+      const it = p.trayItem;
+      if (!it) return;
+      if (it.kind === 'paintWall' || it.kind === 'paintFloor') {
+        G.save.paint[it.kind === 'paintWall' ? 'wall' : 'floor'] = it.id; G.save.decorStamp++; persist();
+        bg = drawBg(); cheerDecor(V.W / 2, it.kind === 'paintWall' ? L.wallH / 2 : L.floorTop + 30);
+      } else if (it.kind === 'rug') cycleVariant(furn.rug);
+      else if (it.kind === 'desk') { const d = desks.find(q => !G.save.deskItems[q.i]) || pick(desks); setDeskItem(d, it.id); }
+      else quickPlace(it.id);
+      return;
+    }
     if (p.btn) {
       sfx.pop();
       const id = p.btn.id;
+      if (id === 'decorate') { deco = deco ? null : { tab: 'floor' }; return; }
+      if (id === 'bell') { deco = null; startDay(); return; }
       if (id === 'stickers') bookOpen = { page: 0, t: G.time };
       if (id === 'home' && !busy) {
         if (story) story = null;
@@ -963,6 +1209,12 @@ export function createClassroom(students, hooks) {
       const b = recess.ball;
       if (Math.hypot(x - b.x, y - (b.y - 5 - b.z)) < 16) { kickBall(); return; }
     }
+    if (p.f && p.f.type === 'teacher') { // twirl!
+      teacherAct('twirl', 0.9); teach.vz = 70; sfx.giggle(1.05, 4);
+      burst('heart', p.f.x, p.f.y - 50, 3, ['#ff6f91', '#ff9ec4'], { up: true, sp: 30 });
+      return;
+    }
+    if (p.f && (p.f.deco || p.f.type === 'rug')) { cycleVariant(p.f); return; }
     if (p.f) { // tap on furniture: a little wobble/sound
       p.f.lift = 2; setTimeout(() => { p.f.lift = 0; }, 120); sfx.tap();
       if (p.f.type === 'shelf') sfx.page();
@@ -980,6 +1232,8 @@ export function createClassroom(students, hooks) {
   function watchBoard() { // after a lesson: students react to the new drawing
     for (const s of students) if (s.mode === 'seated' && !s.sleep && !(s.hide > 0)) { act(s, Math.random() < 0.5 ? 'clap' : 'happy', 1.4); }
     sfx.clap(6, 1); sfx.ooh(1.2);
+    teach.pointRight = furn.teacher.x < L.board.x + 52;
+    teacherAct('point', 1.6);
   }
 
   // hooks for automated screenshot tests
@@ -988,6 +1242,9 @@ export function createClassroom(students, hooks) {
   window.__ltBtn = (id) => { const b = btns.find(q => q.id === id); return css(b.x + 13, b.y + 13); };
   window.__ltFurn = (id) => { const f = furn[id]; return css(f.x, f.y - 8); };
   window.__ltBoardPt = () => css(L.board.x + 52, L.board.y + 30);
+  window.__ltTray = () => (deco ? { tabs: TABS.map((t, k) => { const r = tabRect(k); return css(r.x + 10, r.y + 10); }), items: trayItems().map(it => css(it.x + it.w / 2, it.y + it.h / 2)) } : null);
+  window.__ltDesks = () => desks.map(d => css(d.x, d.y - 18));
+  window.__ltTeacher = () => css(furn.teacher.x, furn.teacher.y - 30);
   window.__ltMenu = () => (menu ? menu.items.map(m => css(m.x + 24, m.y + 24)) : []);
 
   return {

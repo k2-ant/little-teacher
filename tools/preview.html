@@ -1,0 +1,11 @@
+<!DOCTYPE html><html><body style="margin:0;background:#f7e6c4"><canvas id="c" width="900" height="560"></canvas>
+<script type="module">
+import * as D from '../js/decor.js';
+const c = document.getElementById('c').getContext('2d'); c.imageSmoothingEnabled = false;
+const poses = [{}, { armL: 'wave1' }, { armL: 'clap', armR: 'clap', mouth: 'open' }, { armL: 'point', eyes: 'open', mouth: 'open' }, { eyes: 'blink', armL: 'down', armR: 'down', mouth: 'smile' }];
+poses.forEach((st, i) => c.drawImage(D.teacher({ eyes: 'happy', mouth: 'grin', armL: 'down', armR: 'down', ...st }), 10 + i * 100, 10, 90, 168));
+let x = 10, y = 200;
+for (const t of [...D.FLOOR_ITEMS, ...D.WALL_ITEMS]) { const im = D.decor(t, 0); c.drawImage(im, x, y + (48 - im.height) * 3, im.width * 3, im.height * 3); x += im.width * 3 + 12; if (x > 760) { x = 10; y += 160; } }
+D.DESK_ITEMS.forEach((d, i) => c.drawImage(D.deskItem(d), 520 + i * 60, 480, 42, 36));
+window.done = 1;
+</script></body></html>

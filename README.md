@@ -10,14 +10,23 @@ Five original pixel-art students come to class:
 - 🦉 an **eager owl** who keeps raising a wing
 - 🐸 a **giggly frog**
 
+Louise is the teacher. She stands at the front, waves, claps and points at the board, and she twirls when you tap her. You can drag her anywhere in the room.
+
 ## A day in class
-1. **Morning bell:** the students walk in one by one and say good morning.
-2. **Attendance:** tap each student and they say "Here!". Their face lights up on the chart at the top.
-3. **Set up the room:** drag desks, the rug, the plant and the bookshelf. Drag a student onto another desk to swap seats. Everything is saved.
-4. **Lesson:** tap the whiteboard to zoom in. It has 6 fat markers, stamps (star, heart, apple, sun, 1–5, A B C), an eraser and a squeegee that wipes the board clean. The students watch, raise their paws, clap, and say the stamp names and colours out loud. Tap a raised paw to make that student cheer.
-5. **Gold stars:** drag a star from the jar onto a student and they glow and wiggle.
-6. **Free time** (toy-box button): recess with a ball, snack time, or a picture-book story on the rug.
-7. **Goodbye** (house button): the students wave and leave, the sun sets, and you earn a sticker for the sticker book.
+1. **Get the room ready:** before class the room is empty and the decorate tray is open:
+   - 🛋 **floor things:** beanbag, teddy, toy box, easel, fish tank, globe, flowers, balloons, lamp
+   - 🖼 **wall things:** rainbow, poster, picture frame, butterflies, star garland, sun, moon
+   - 🍎 **desk supplies:** drop one on each desk (apple, pencils, books, crayons, cactus, snow globe)
+   - 🎨 **paint:** wall colours, floor colours, and a new rug pattern
+
+   Drag things from the tray, or tap one to drop it in. Tap anything you've placed to change its colour, and drag it back into the tray to put it away. Ring the 🔔 when the room is ready. The decorate tray (paint roller button) is also open during class.
+2. **Morning bell:** the students walk in one by one and say good morning. If you changed the room, they gasp "Ooh, so pretty!" and clap.
+3. **Attendance:** tap each student and they say "Here!". Their face lights up on the chart at the top.
+4. **Move things around:** drag desks, the rug, the plant and the bookshelf. Drag a student onto another desk to swap seats. Everything is saved.
+5. **Lesson:** tap the whiteboard to zoom in. It has 6 fat markers, stamps (star, heart, apple, sun, 1–5, A B C), an eraser and a squeegee that wipes the board clean. The students watch, raise their paws, clap, and say the stamp names and colours out loud. Tap a raised paw to make that student cheer.
+6. **Gold stars:** drag a star from the jar onto a student and they glow and wiggle.
+7. **Free time** (toy-box button): recess with a ball, snack time, or a picture-book story on the rug.
+8. **Goodbye** (house button): the students wave and leave, the sun sets, and you earn a sticker for the sticker book.
 
 There are no fail states, timers, scores, ads, accounts or network features. Progress is saved in `localStorage`. All art is drawn in code and all sounds are made with WebAudio. The students' words use the device's built-in speech voice.
 
@@ -46,6 +55,7 @@ Tip: turn on **Guided Access** (Settings → Accessibility → Guided Access) an
 | `js/classroom.js` | the room, furniture, daily loop, free time, HUD, sticker book |
 | `js/board.js` | full-screen whiteboard |
 | `js/students.js` | student poses, actions, personality traits |
+| `js/decor.js` | decorations, desk supplies, paint colours, and the teacher (Louise) |
 | `js/sprites.js` | all pixel art (students, furniture, icons, stamps, stickers) |
 | `js/raster.js` | tiny no-anti-aliasing pixel rasterizer |
 | `js/audio.js` | synthesized sound effects and speech |

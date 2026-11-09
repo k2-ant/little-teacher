@@ -40,6 +40,8 @@ export function loadSave() {
   try { s = JSON.parse(localStorage.getItem(KEY)); } catch (e) { s = null; }
   if (!s || s.v !== 1) s = { v: 1, day: 1, furniture: {}, seats: null, board: null, stickers: [], stars: {} };
   s.stickers ||= []; s.furniture ||= {}; s.stars ||= {};
+  s.decor ||= []; s.deskItems ||= {}; s.paint ||= { wall: 0, floor: 0 }; s.rugV ||= 0;
+  s.decorStamp ||= 0; s.decorSeen ||= 0;
   G.save = s;
   return s;
 }
