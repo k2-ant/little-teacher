@@ -60,6 +60,17 @@ export const WORDS = [
   { w: 'tomate', s: ['to', 'ma', 'te'], pic: 'tomato' }, { w: 'mariposa', s: ['ma', 'ri', 'po', 'sa'], pic: 'butterfly' },
 ];
 export const SIL_HELLO = '¡Vamos a leer!';
+// ---- v2.0 playground
+// recess happens outside (playground.js): what the friends say while they play, and the owl's hints
+export const YARD_LINES = {
+  yay: '¡Yupi!', higher: '¡Más alto!', myTurn: '¡Me toca!', castle: '¡Mi castillo!', snowman: '¡Un muñeco de nieve!',
+  caught: '¡Te atrapé!', up: '¡Arriba!', puddles: '¡Charcos!',
+};
+export const YARD_HINTS = { // merged into HINTS by playground.js
+  yardSwing: 'Toca el columpio.', yardSlide: 'Toca la resbaladilla.', yardBall: '¡Patea la pelota!', yardSand: 'Toca el arenero.',
+  yardSeesaw: 'Toca el subibaja.', yardHop: 'Toca la rayuela.', yardTree: 'Toca el árbol.', yardPuddle: '¡Salta en los charcos!',
+  yardSnow: '¡Hagamos un muñeco de nieve!', yardWhistle: '¿Volvemos a clase? Toca el silbato.',
+};
 
 // ------------------------------------------------------------------ whiteboard
 export const STAR_COUNT_LINE = '¡Cuántas estrellas!';
@@ -165,6 +176,7 @@ export function studentPhrases() {
   V19_STUDENT().forEach(l => out.add(l));
   Object.values(ALIVE_LINES).forEach(l => out.add(l));
   [...WEATHER.map(w => w.word), ...Object.values(WEATHER_RECESS), ...JOBS.map(j => j.word), ...Object.values(JOB_LINES)].forEach(l => out.add(l));
+  Object.values(YARD_LINES).forEach(l => out.add(l));
   return [...out];
 }
 /** lines only the owl (our reading helper) says */
@@ -176,5 +188,6 @@ export function narratorPhrases() {
   V19_OWL().forEach(l => out.add(l));
   Object.values(ALIVE_OWL).forEach(x => out.add(x));
   [WEATHER_ASK, ...WEATHER.map(w => w.line), ...Object.values(RITUAL_UI), ...Object.values(RITUAL_HINTS)].forEach(l => out.add(l));
+  Object.values(YARD_HINTS).forEach(l => out.add(l));
   return [...out];
 }

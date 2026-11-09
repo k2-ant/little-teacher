@@ -4,7 +4,7 @@ const CACHE = 'little-teacher-' + (new URL(self.location).searchParams.get('v') 
 const FILES = [
   './', './index.html', './manifest.webmanifest',
   './js/main.js', './js/version.js', './js/state.js', './js/raster.js', './js/sprites.js', './js/audio.js',
-  './js/students.js', './js/classroom.js', './js/board.js', './js/pages.js', './js/decor.js', './js/i18n.js', './js/pictures.js', './js/row.js', './js/letters.js', './js/shapes.js', './js/strokes.js', './js/hints.js', './js/music.js', './js/learndata.js', './js/quiz.js', './js/silabas.js', './audio/clips.json',
+  './js/students.js', './js/classroom.js', './js/board.js', './js/pages.js', './js/decor.js', './js/i18n.js', './js/pictures.js', './js/row.js', './js/letters.js', './js/shapes.js', './js/playground.js', './js/strokes.js', './js/hints.js', './js/music.js', './js/learndata.js', './js/quiz.js', './js/silabas.js', './audio/clips.json',
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png', './icons/apple-touch-icon.png',
 ];
 self.addEventListener('install', (e) => {

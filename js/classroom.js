@@ -1418,17 +1418,40 @@ export function createClassroom(students, hooks) {
     busy = false; phase = 'class';
   }
   async function recessTime() {
-    busy = true; phase = 'activity'; calmMoods();
+    // v2.0: recess is outside. Line up, walk out of the door, play in the yard (playground.js),
+    // and when the whistle calls everyone back in, come through the door and sit. Resolves when recess is over.
+    busy = true; phase = 'activity'; calmMoods(); menu = null;
     for (const s of students) { s.sleep = false; s.hide = 0; s.snack = null; }
     sfx.ding(988);
-    recess = { until: G.time + 30, ball: { x: V.W / 2, y: L.floorTop + L.floorH * 0.6, z: 0, vx: 0, vy: 0, vz: 0 } };
-    RT.recessStart(recess);
+    const out = students.filter(s => s.mode !== 'away');
     speak(students[1], 'Recess! Yay!', 'yay');
-    for (const s of students) {
+    for (const s of out) {
       if (s.mode === 'seated') { Object.assign(s, seat(s)); s.mode = 'stand'; }
       act(s, 'cheer', 1); hop(s, 60);
     }
-    busy = false;
+    await wait(1);
+    await RT.leaderGo(); // the line leader goes first: "¡Síganme!"
+    const order = RT.lineOrder().filter(s => out.includes(s));
+    for (const s of order) {
+      doorTarget = 1;
+      walkTo(s, L.doorPt.x + 4, L.doorPt.y + 8, 56).then(() => walkTo(s, L.doorPt.x, L.doorPt.y - 2, 40)).then(() => { s.mode = 'away'; });
+      await wait(0.45);
+    }
+    for (let i = 0; i < 60 && order.some(s => s.mode !== 'away'); i++) await wait(0.15);
+    for (const s of order) { s.mode = 'away'; s.target = null; s.onArrive = null; }
+    doorTarget = 0; sfx.door();
+    if (hooks.openYard) await hooks.openYard(order);
+    // back inside: in through the door and to the seats
+    for (const s of order) {
+      doorTarget = 1;
+      s.x = L.doorPt.x; s.y = L.doorPt.y; s.z = 0; s.vz = 0; s.mode = 'walk'; s.act = null;
+      walkTo(s, L.doorPt.x + 4, L.doorPt.y + 10, 56).then(() => sendToSeat(s));
+      await wait(0.4);
+    }
+    for (let i = 0; i < 80 && order.some(s => s.mode !== 'seated'); i++) await wait(0.15);
+    await gatherSeats();
+    doorTarget = 0; sfx.door();
+    busy = false; phase = 'class';
   }
   function kickBall(dirx = rand(-1, 1)) {
     const b = recess.ball;

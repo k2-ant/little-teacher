@@ -221,6 +221,22 @@ export const sfx = {
   door() { if (!ok()) return; tone({ f: 220, f2: 180, dur: 0.25, vol: 0.06, type: 'triangle' }); noise({ dur: 0.12, vol: 0.06, type: 'lowpass', f: 900 }); },
   boing() { if (!ok()) return; tone({ f: 180, f2: 520, dur: 0.22, vol: 0.18, type: 'triangle' }); },
   tap() { if (!ok()) return; tone({ f: 900, f2: 1200, dur: 0.05, vol: 0.08 }); },
+  // v2.0 playground
+  whistle() {
+    if (!ok()) return;
+    for (const [t, d] of [[0, 0.22], [0.3, 0.6]]) {
+      const o = tone({ type: 'sine', f: 2300, dur: d, vol: 0.13, t, a: 0.01 });
+      const T = now() + t, l = ac.createOscillator(), lg = ac.createGain();
+      l.frequency.value = 28; lg.gain.value = 170; l.connect(lg); lg.connect(o.frequency); l.start(T); l.stop(T + d + 0.05);
+      noise({ t, dur: d, vol: 0.04, f: 2500, q: 2 });
+    }
+  },
+  splash() {
+    if (!ok()) return;
+    noise({ dur: 0.32, vol: 0.18, type: 'lowpass', f: 2600, f2: 500, a: 0.004 });
+    for (let i = 0; i < 4; i++) tone({ f: 500 + Math.random() * 500, f2: 1200 + Math.random() * 600, t: 0.03 + i * 0.05, dur: 0.06, vol: 0.06 });
+  },
+  rustle() { if (!ok()) return; for (let i = 0; i < 6; i++) noise({ t: i * 0.07, dur: 0.12, vol: 0.07, type: 'highpass', f: 2500 + Math.random() * 1500, a: 0.02 }); },
   peel() { if (!ok()) return; noise({ dur: 0.35, vol: 0.12, f: 2500, f2: 5000, q: 2 }); },
 };
 

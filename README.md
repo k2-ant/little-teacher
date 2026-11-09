@@ -89,7 +89,8 @@ In the toy box, choose the four-squares icon to open the **centros chart**. Drag
 7. **Move things around:** drag desks, the rug, the plant and the bookshelf. Drag a student onto another desk to swap seats. Everything is saved.
 8. **Lesson:** tap the whiteboard to zoom in. It has 6 fat markers, stamps (star, heart, apple, sun, 1–5, A B C), an eraser and a squeegee that wipes the board clean. The students watch, raise their paws, clap, and say the stamp names and colours out loud. Tap a raised paw to make that student cheer. Number stamps make the class count together.
 9. **Gold stars:** drag a star from the jar onto a student and they glow and wiggle. Every 5th star earns a crown for the day.
-10. **Free time** (toy-box button): recess with a ball, snack time (she hands out the snacks and the owl counts), or story time with three books to choose from.
+10. **Free time** (toy-box button): recess outside on the playground, snack time (she hands out the snacks and the owl counts), or story time with three books to choose from.
+    - **Recreo (el patio):** the class lines up and walks out of the door. Outside there's a slide, two swings, a sandbox, a seesaw, an apple tree, a ball and a chalk hopscotch (rayuela) with the numbers 1–8. The friends play on their own; tap a piece of equipment and a friend runs over, tap a friend on the swing to push them higher, drag a friend onto anything, flick the ball, shake the tree for apples, and tap the hopscotch numbers to hear them (friends count out loud as they hop). Rainy days have puddles and umbrellas, snowy days have scarves and a snowman to build. The big whistle calls everyone back to class.
 11. **Goodbye** (house button): the students wave and leave, the line leader goes first, an all-green day ends with a dance (a bigger one on viernes), the sun sets, and you earn a sticker for the sticker book.
 
 There are no fail states, timers, scores, ads, accounts or network features. Progress is saved in `localStorage`. All art is drawn in code and all sounds are made with WebAudio. The students' words use the device's built-in speech voice.
@@ -128,6 +129,7 @@ Tip: turn on **Guided Access** (Settings → Accessibility → Guided Access) an
 | `audio/` | ElevenLabs voice clips (one folder per student) + `clips.json` |
 | `js/letters.js` | alphabet & numbers tracing board |
 | `js/shapes.js` | shape sorter |
+| `js/playground.js` | the outdoor playground for recess (weather-aware) |
 | `js/pictures.js` | word pictures for the alphabet |
 | `js/row.js` | the row of watching students used by the learning corners |
 | `js/sprites.js` | all pixel art (students, furniture, icons, stamps, stickers) |

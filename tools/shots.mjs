@@ -267,9 +267,10 @@ await p.waitForFunction(() => !!window.__ltSnack(), null, { timeout: 20000 }); a
 await p.waitForFunction(() => !window.__ltSnack() || window.__ltSnack().done, null, { timeout: 30000 });
 await p.waitForFunction(() => window.__lt.room.phase === 'class', null, { timeout: 30000 });
 await tapAt(...toys); await p.waitForTimeout(200);
-await tapAt(...items[0]); await p.waitForTimeout(2500);
+await tapAt(...items[0]); // recess: the class walks out to the playground (v2.0)
+await p.waitForFunction(() => window.__lt.yard.isOpen, null, { timeout: 30000 }); await p.waitForTimeout(3500);
 await shot('14-recess');
-await tapAt(...toys); // bell ends recess
+await tapAt(...(await p.evaluate(() => window.__ltYard().pts.whistle))); // the whistle ends recess
 await p.waitForFunction(() => window.__lt.room.phase === 'class', null, { timeout: 30000 });
 const home = await p.evaluate(() => window.__ltBtn('home'));
 await tapAt(...home); await p.waitForTimeout(300); await tapAt(...home); // 🏠 asks first, the second tap goes home

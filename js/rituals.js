@@ -157,10 +157,11 @@ function wateringCan() {
     p.outline(); return p.canvas();
   });
 }
-function scarf(kind) {
+/** snowy-day scarf (also worn in the v2.0 playground) */
+export function scarf(kind) {
   return cached('rtscarf' + kind, () => {
     const p = new Pix(22, 9);
-    const c = { bunny: '#ef4b4b', puppy: '#64a8e8', turtle: '#ffd23f', owl: '#b48be6', frog: '#ff8fb8' }[kind];
+    const c = { bunny: '#ef4b4b', puppy: '#64a8e8', turtle: '#ffd23f', owl: '#b48be6', frog: '#ff8fb8' }[kind] || ['#ff9a2e', '#3cb44b', '#ff5fa8', '#2f7de1'][kind.length % 4];
     p.rect(1, 0, 20, 3, c); for (let x = 2; x < 21; x += 3) p.vline(x, 0, 2, lighten(c, 0.4));
     p.rect(14, 2, 3, 6, c); p.hline(14, 16, 8, darken(c, 0.2)); p.px(15, 4, lighten(c, 0.4));
     p.outline(); return p.canvas();

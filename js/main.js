@@ -5,6 +5,7 @@ import { createClassroom } from './classroom.js';
 import { createBoard, BW, BH } from './board.js';
 import { createLetters } from './letters.js';
 import { createShapes } from './shapes.js';
+import { createPlayground } from './playground.js';
 import { VERSION } from './version.js';
 import { Pix, cached } from './raster.js';
 
@@ -23,11 +24,14 @@ const go = (to, kind = 'fade', extra = {}) => { trans = { from: mode, to, kind, 
 const board = createBoard(students, { close(drew) { go('class', 'zoom', { drew }); } });
 const letters = createLetters(students, { close() { go('class'); } });
 const shapes = createShapes(students, { close() { go('class'); } });
+const yard = createPlayground(students, { close() { go('class'); } }); // v2.0: recess outside
 const room = createClassroom(students, {
   boardCanvas: () => board.canvas(),
   openBoard() { board.opened(); go('board', 'zoom'); },
   openLetters() { letters.open(); go('letters'); },
   openShapes() { shapes.open(); go('shapes'); },
+  // recess: the class walks out to the playground; resolves when the whistle has called everyone back in
+  openYard(kids) { return new Promise(res => { yard.open(kids, res); go('yard'); }); },
   unlock() { goFullscreen(); },
   // grown-up refresh: only when we can really reach the server, so an offline tap never bricks the app.
   // Returns false (and changes nothing) when offline.
@@ -49,7 +53,7 @@ const room = createClassroom(students, {
   },
   setMusic(onOff) { G.save.music = onOff; music.setOn(onOff); },
 });
-const scenes = { class: room, board, letters, shapes };
+const scenes = { class: room, board, letters, shapes, yard };
 
 function readInsets() {
   const cs = getComputedStyle(probe);
@@ -62,7 +66,7 @@ function resize() {
   canvas.width = G.devW; canvas.height = G.devH;
   canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
   readInsets();
-  room.resize(); board.resize(); letters.resize(); shapes.resize();
+  room.resize(); board.resize(); letters.resize(); shapes.resize(); yard.resize();
   ctx.imageSmoothingEnabled = false;
 }
 window.addEventListener('resize', resize);
@@ -122,7 +126,7 @@ function frame(now) {
   G.time += dt;
   tickTimers();
   room.update(dt);
-  music.play(room.musicTrack);
+  music.play(yard.isOpen ? yard.musicTrack : room.musicTrack);
   if (mode !== 'class') scenes[mode].update(dt);
   render();
   requestAnimationFrame(frame);
@@ -204,4 +208,4 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js?v=' + VERSION).catch(() => {}));
 }
 // expose a tiny debug hook for automated screenshots
-window.__lt = { G, room, board, students, sfx };
+window.__lt = { G, room, board, yard, students, sfx };
