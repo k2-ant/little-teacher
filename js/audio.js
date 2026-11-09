@@ -106,6 +106,7 @@ export const VOICE_FOLDERS = ['bunny', 'puppy', 'turtle', 'owl', 'frog', 'cat', 
 export const BORROWED_VOICE = {}; // every student now has their own recorded voice (kind -> [folder, rate] to borrow one)
 /** play a recorded line for a student. Returns false if there is no clip (caller falls back to speech). */
 export function playClip(kind, key, rate = 1) {
+  if (window.__ltSaid) window.__ltSaid.push(kind + ': ' + key); // test log (only when a test defines it)
   const bv = BORROWED_VOICE[kind];
   const url = clipUrl(bv ? bv[0] : kind, key);
   if (bv) rate *= bv[1];
@@ -147,6 +148,7 @@ function pickVoice(lang = 'en') {
   return en.find(v => /samantha|karen|moira|tessa|female|zira|aria|jenny/i.test(v.name)) || en.find(v => v.localService) || en[0];
 }
 export function say(text, pitch = 1.6, rate = 1.05, lang = 'en') {
+  if (window.__ltSaid) window.__ltSaid.push('tts: ' + text);
   if (muted) return false;
   if (!window.speechSynthesis) return false;
   try {
