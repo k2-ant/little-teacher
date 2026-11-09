@@ -6,39 +6,50 @@ const BLUSH = '#ff9fb4';
 const PINK = '#ff8fae';
 
 // ---------------------------------------------------------------- students
+// KINDS is today's class roster; ALL_KINDS is every student the art, voices and data know about.
+// (v2.0 phase 2 switches the roster to ALL_KINDS and re-lays out the room.)
 export const KINDS = ['bunny', 'puppy', 'turtle', 'owl', 'frog'];
+export const ALL_KINDS = ['bunny', 'puppy', 'turtle', 'owl', 'frog', 'cat', 'bear', 'mouse'];
 export const PAL = {
   bunny: { fur: '#fff4ee', shadow: '#ead2d4', inner: '#ffb7c9', top: '#b9a5ec', feet: '#fff4ee', voice: 1.9, accent: '#b9a5ec' },
   puppy: { fur: '#f1c27c', shadow: '#d39b55', ear: '#8f5a3a', muzzle: '#fff1d8', top: '#f1c27c', feet: '#f1c27c', voice: 1.5, accent: '#e0475b' },
   turtle: { fur: '#97d883', shadow: '#6db35d', shell: '#3f9a72', shellHi: '#6fcb9b', rim: '#e3c97a', top: '#f3e09e', feet: '#97d883', voice: 1.2, accent: '#ffcf4a' },
   owl: { fur: '#ad7d5a', shadow: '#87583c', disk: '#f6e3c2', top: '#ad7d5a', belly: '#ecd2a4', feet: '#ff9f3a', voice: 1.4, accent: '#7a5bc0' },
   frog: { fur: '#86d36a', shadow: '#5fae4c', belly: '#e3f5b0', top: '#86d36a', feet: '#86d36a', voice: 1.7, accent: '#ff7fb5' },
+  // v2.0: gatito (ginger tabby in a striped tee), osito (the biggest, in dungarees), ratoncito (the smallest, shirt + bow tie)
+  cat: { fur: '#f7a65e', shadow: '#d9823f', stripe: '#d0702c', muzzle: '#ffe3c6', inner: '#ffb7c9', top: '#46bfb3', stripeTop: '#e6fbf7', feet: '#f7a65e', voice: 1.55, accent: '#46bfb3' },
+  bear: { fur: '#a5673d', shadow: '#82492a', muzzle: '#f3d6ab', inner: '#e9b48a', belly: '#f3d6ab', top: '#a5673d', pants: '#5b8fe0', feet: '#a5673d', voice: 0.8, accent: '#5b8fe0' },
+  mouse: { fur: '#c9c3d3', shadow: '#a59db3', inner: '#ffb7c9', muzzle: '#f6f2f8', top: '#8fc8ff', feet: '#ffb7c9', tail: '#f7a7bb', voice: 2.0, accent: '#ef5b5b' },
 };
 export const SW = 34, SH = 42; // student sprite size; anchor = bottom centre
 
-function arms(p, C, st, phase) {
+// arm positions per pose: [x, y] of the left arm (the right one is mirrored)
+const ARM_POS = { down: [9.4, 31], up: [5.6, 17], wave1: [4.6, 15.5], wave2: [7, 16.5], front: [13.8, 30], clap: [15.8, 29.2] };
+const ARMS = {
+  bear: { rx: 3.4, ry: 4.8, pos: { down: [7.6, 31.6], up: [4.2, 15.6], wave1: [3.4, 14], wave2: [5.8, 15], front: [12.8, 30.6], clap: [15.2, 29.8] } },
+  mouse: { rx: 2.3, ry: 3, pos: { down: [11, 33.6], up: [8.2, 22], wave1: [7.2, 20.5], wave2: [9.2, 21.5], front: [14.4, 33], clap: [16, 32.4] } },
+};
+function arms(p, C, st, phase, cfg) {
   const col = C.top;
   const big = C === PAL.owl;
-  const rx = big ? 3 : 2.6, ry = big ? 4.6 : 3.6;
+  const rx = cfg ? cfg.rx : big ? 3 : 2.6, ry = cfg ? cfg.ry : big ? 4.6 : 3.6;
+  const P = cfg ? cfg.pos : ARM_POS;
   const sides = [['L', st.armL || 'down'], ['R', st.armR || 'down']];
   for (const [side, pose] of sides) {
     const m = side === 'L' ? (x) => x : (x) => 34 - x;
     const up = pose === 'up' || pose === 'wave1' || pose === 'wave2';
     if ((phase === 'back') !== up) continue;
-    if (pose === 'down') p.limb(m(9.4), 31, rx, ry, col);
-    else if (pose === 'up') p.limb(m(5.6), 17, rx, ry + 1, col);
-    else if (pose === 'wave1') p.limb(m(4.6), 15.5, rx, ry + 1, col);
-    else if (pose === 'wave2') p.limb(m(7), 16.5, rx, ry + 1, col);
-    else if (pose === 'front') p.limb(m(13.8), 30, rx, ry - 0.6, col);
-    else if (pose === 'clap') p.limb(m(15.8), 29.2, rx, ry - 0.6, col);
+    const at = P[pose];
+    if (!at) continue;
+    p.limb(m(at[0]), at[1], rx, up ? ry + 1 : pose === 'down' ? ry : ry - 0.6, col);
   }
 }
 
-function feet(p, C, f) {
+function feet(p, C, f, g = { x: [12.8, 21.2], y: 39, rx: 3.2, ry: 2 }) {
   const lift = [0, 0, 0];
   if (f === 1) lift[0] = 1.2; if (f === 2) lift[1] = 1.2;
-  p.ball(12.8, 39 - lift[0], 3.2, 2, C.feet, { hi: false });
-  p.ball(21.2, 39 - lift[1], 3.2, 2, C.feet, { hi: false });
+  p.ball(g.x[0], g.y - lift[0], g.rx, g.ry, C.feet, { hi: false });
+  p.ball(g.x[1], g.y - lift[1], g.rx, g.ry, C.feet, { hi: false });
 }
 
 /** generic chibi face (bunny, puppy, turtle) */
@@ -217,11 +228,140 @@ function drawFrog(p, C, st) {
   p.px(15, 9, lighten(C.fur, 0.5)); // shine
 }
 
-const DRAW = { bunny: drawBunny, puppy: drawPuppy, turtle: drawTurtle, owl: drawOwl, frog: drawFrog };
+// ---- v2.0 students: gatito, osito, ratoncito
+/** whiskers go on after the outline so they stay 1px thin */
+function whiskers(p, rows, xl, xr, c) {
+  for (const [y, dy] of rows) {
+    p.px(xl, y, c); p.px(xl - 1, y + dy, c); p.px(xl - 2, y + dy, c);
+    p.px(xr, y, c); p.px(xr + 1, y + dy, c); p.px(xr + 2, y + dy, c);
+  }
+}
+/** a pointy ear: apex at (cx, top), the base leaning in towards the head (dir 1 = left ear) */
+function catEar(p, C, cx, top, dir) {
+  for (let i = 0; i <= 9; i++) {
+    const hw = i * 0.52, x = cx + dir * i * 0.3;
+    p.hline(Math.round(x - hw), Math.round(x + hw - 0.01), top + i, i ? C.fur : lighten(C.fur, 0.3));
+  }
+  for (let i = 3; i <= 8; i++) {
+    const hw = (i - 2) * 0.32, x = cx + dir * i * 0.3;
+    p.hline(Math.round(x - hw), Math.round(x + hw - 0.01), top + i, C.inner);
+  }
+}
+function drawCat(p, C, st) {
+  const sw = st.wag ? 1 : 0, eu = st.earUp ? -1 : 0;
+  // tail curling up the right side (swishes with wag)
+  const T = [[23.5, 36.5], [26.2, 35.6], [28.2, 33.6], [29.2, 31], [29.4 + sw, 28.4], [29 + sw * 1.6, 26], [27.8 + sw * 2.4, 24.2]];
+  T.forEach(([x, y], i) => p.ell(x, y, 1.7, 1.7, i >= 5 || i === 3 ? C.stripe : C.fur));
+  feet(p, C, st.feet);
+  arms(p, C, st, 'back');
+  // striped tee
+  p.ball(17, 31, 7.6, 6.6, C.top, { shadow: darken(C.top, 0.2) });
+  for (const y of [29, 32, 35]) p.ell(17, 31, 7.6, 6.6, C.stripeTop, { y0: y, y1: y }, true);
+  p.ell(17, 25, 4.5, 1.6, C.muzzle, null, true);
+  arms(p, C, st, 'front');
+  catEar(p, C, 8.5, 4 + eu, 1);
+  catEar(p, C, 25.5, 4 + eu, -1);
+  p.ball(17, 18.4, 10.8, 8.6, C.fur, { shadow: C.shadow });
+  p.under(17, 18.4, 10.8, 8.6, darken(C.top, 0.35));
+  // tabby stripes: forehead + cheeks
+  p.vline(16, 10, 12, C.stripe); p.vline(17, 10, 12, C.stripe); p.vline(13, 11, 12, C.stripe); p.vline(20, 11, 12, C.stripe);
+  p.hline(6, 8, 18, C.stripe); p.hline(6, 7, 20, C.stripe); p.hline(25, 27, 18, C.stripe); p.hline(26, 27, 20, C.stripe);
+  p.ell(15, 23.2, 2.3, 1.7, C.muzzle); p.ell(19, 23.2, 2.3, 1.7, C.muzzle); // cheek puffs
+  // little bell on the collar, peeking under the chin
+  p.rect(16, 27, 2, 2, '#ffd447'); p.px(16, 27, '#fff2a0'); p.px(17, 28, '#d9a520');
+  const l = st.look || 0, e = st.eyes || 'open';
+  eyes(p, e, 12 + l, 17, 20 + l);
+  if (e === 'open') { p.px(13 + l, 19, '#5aa86a'); p.px(21 + l, 19, '#5aa86a'); }
+  if (st.blush !== false) { p.px(9, 21, BLUSH); p.px(10, 21, BLUSH); p.px(23, 21, BLUSH); p.px(24, 21, BLUSH); }
+  p.hline(15, 18, 21, PINK); p.px(16, 22, darken(PINK, 0.15)); p.px(17, 22, darken(PINK, 0.15)); p.px(15, 21, lighten(PINK, 0.4));
+  const m = st.mouth || 'smile';
+  if (m === 'smile') { p.px(14, 23, INK); p.px(15, 24, INK); p.px(16, 23, INK); p.px(17, 23, INK); p.px(18, 24, INK); p.px(19, 23, INK); }
+  else mouth(p, m, 23, 0);
+}
+function postCat(p) { whiskers(p, [[21, 0], [23, 1]], 5, 28, '#8a5a4a'); }
+
+function drawBear(p, C, st) {
+  const eu = st.earUp ? -1 : 0, l = st.look || 0;
+  feet(p, C, st.feet, { x: [11.8, 22.2], y: 39.2, rx: 4, ry: 2.3 });
+  arms(p, C, st, 'back', ARMS.bear);
+  // round tummy in blue dungarees
+  p.ball(17, 31.2, 9.6, 7.6, C.fur, { shadow: C.shadow });
+  p.ell(17, 31.6, 6.4, 5.6, C.belly, null, true);
+  p.ell(17, 31.2, 9.6, 7.6, C.pants, { y0: 34 }, true);
+  p.rect(12, 29, 10, 5, C.pants); p.hline(12, 21, 29, lighten(C.pants, 0.3));
+  p.line(12, 29, 10, 25, C.pants); p.line(21, 29, 23, 25, C.pants);
+  p.px(12, 30, '#ffd447'); p.px(21, 30, '#ffd447');
+  p.hline(15, 18, 31, darken(C.pants, 0.2)); p.px(15, 32, darken(C.pants, 0.2)); p.px(18, 32, darken(C.pants, 0.2)); p.hline(15, 18, 33, darken(C.pants, 0.2));
+  arms(p, C, st, 'front', ARMS.bear);
+  // round ears
+  p.ball(7.2, 9.8 + eu, 3.8, 3.8, C.fur, { shadow: C.shadow, hi: false });
+  p.ball(26.8, 9.8 + eu, 3.8, 3.8, C.fur, { shadow: C.shadow, hi: false });
+  p.ell(7.4, 10.2 + eu, 1.9, 1.9, C.inner); p.ell(26.6, 10.2 + eu, 1.9, 1.9, C.inner);
+  p.ball(17, 17.6, 12, 9.8, C.fur, { shadow: C.shadow });
+  p.under(17, 17.6, 12, 9.8, C.shadow);
+  p.ell(17, 22.4, 5.2, 3.8, C.muzzle);
+  eyes(p, st.eyes || 'open', 11 + l, 16, 21 + l);
+  if (st.blush !== false) { p.px(8, 21, BLUSH); p.px(9, 21, BLUSH); p.px(24, 21, BLUSH); p.px(25, 21, BLUSH); }
+  p.hline(15, 18, 20, INK); p.hline(16, 17, 21, INK); p.px(15, 20, '#8a7c90');
+  const m = st.mouth || 'smile';
+  if (m === 'smile') { p.px(16, 22, INK); p.px(17, 22, INK); p.px(14, 23, INK); p.px(15, 24, INK); p.px(16, 24, INK); p.px(17, 24, INK); p.px(18, 24, INK); p.px(19, 23, INK); }
+  else mouth(p, m, 23, 0);
+}
+
+function drawMouse(p, C, st) {
+  const hide = st.hide || 0, l = st.look || 0;
+  if (hide > 0) { // ducked down under the desk: only the big ears and the top of the head show
+    p.ball(10.4, 27.6, 4.6, 4.4, C.fur, { shadow: C.shadow, hi: false });
+    p.ball(23.6, 27.6, 4.6, 4.4, C.fur, { shadow: C.shadow, hi: false });
+    p.ell(10.6, 28, 2.8, 2.6, C.inner); p.ell(23.4, 28, 2.8, 2.6, C.inner);
+    p.ball(17, 34, 8.6, 6.8, C.fur, { shadow: C.shadow });
+    if (hide >= 1) { // paws over the eyes
+      p.ball(13.4, 31.6, 2.6, 2.2, C.fur, { shadow: C.shadow, hi: false }); p.ball(20.6, 31.6, 2.6, 2.2, C.fur, { shadow: C.shadow, hi: false });
+      p.px(12, 31, C.inner); p.px(14, 31, C.inner); p.px(19, 31, C.inner); p.px(21, 31, C.inner);
+    } else { // peeking
+      eyes(p, 'wide', 14 + l, 30, 20 + l);
+      p.ball(11.6, 35, 2.2, 1.8, C.fur, { shadow: C.shadow, hi: false }); p.ball(22.4, 35, 2.2, 1.8, C.fur, { shadow: C.shadow, hi: false });
+    }
+    p.px(16, 34, PINK); p.px(17, 34, PINK);
+    return;
+  }
+  const eu = st.earUp ? -1 : 0;
+  // long pink tail with a curl
+  const w = st.wag ? 1 : 0;
+  p.line(21, 37, 25, 37, C.tail); p.line(25, 37, 28, 35, C.tail); p.line(28, 35, 29 + w, 32, C.tail);
+  p.line(29 + w, 32, 28 + w, 29, C.tail); p.px(27 + w, 29, C.tail); p.px(26 + w, 30, C.tail);
+  feet(p, C, st.feet, { x: [14, 20], y: 39.6, rx: 2.4, ry: 1.5 });
+  arms(p, C, st, 'back', ARMS.mouse);
+  p.ball(17, 33.4, 6.2, 5.2, C.top, { shadow: darken(C.top, 0.2) });
+  arms(p, C, st, 'front', ARMS.mouse);
+  // big round ears
+  p.ball(8.8, 14.4 + eu, 5, 5, C.fur, { shadow: C.shadow, hi: false });
+  p.ball(25.2, 14.4 + eu, 5, 5, C.fur, { shadow: C.shadow, hi: false });
+  p.ell(9, 14.8 + eu, 3.2, 3.2, C.inner); p.ell(25, 14.8 + eu, 3.2, 3.2, C.inner);
+  p.ball(17, 22, 8.6, 7.2, C.fur, { shadow: C.shadow });
+  p.under(17, 22, 8.6, 7.2, darken(C.top, 0.3));
+  p.ell(17, 25.4, 3.6, 2.4, C.muzzle);
+  // red bow tie
+  p.map(14, 28, ['#...#', '##@##', '#...#'], { '#': C.accent, '@': darken(C.accent, 0.25) });
+  p.px(14, 28, lighten(C.accent, 0.4));
+  eyes(p, st.eyes || 'open', 13 + l, 20, 19 + l);
+  if (st.blush !== false) { p.px(10, 24, BLUSH); p.px(11, 24, BLUSH); p.px(22, 24, BLUSH); p.px(23, 24, BLUSH); }
+  p.px(16, 24, PINK); p.px(17, 24, PINK);
+  const m = st.mouth || 'smile';
+  if (m === 'smile') { p.px(15, 25, INK); p.px(16, 26, INK); p.px(17, 26, INK); p.px(18, 25, INK); }
+  else mouth(p, m, 25, 0);
+}
+function postMouse(p, st) { if (!(st.hide > 0)) whiskers(p, [[24, 0], [26, 1]], 6, 27, '#7a6a80'); }
+
+const DRAW = { bunny: drawBunny, puppy: drawPuppy, turtle: drawTurtle, owl: drawOwl, frog: drawFrog, cat: drawCat, bear: drawBear, mouse: drawMouse };
+const POST = { cat: postCat, mouse: postMouse }; // drawn after the outline
 // feelings overlays: eyebrows, tears, anger marks, sweat drops
-const EYES = { bunny: [12, 20, 17], puppy: [12, 20, 17], turtle: [12, 20, 17], owl: [13, 21, 16], frog: [10, 22, 11] };
+const EYES = { bunny: [12, 20, 17], puppy: [12, 20, 17], turtle: [12, 20, 17], owl: [13, 21, 16], frog: [10, 22, 11], cat: [12, 20, 17], bear: [11, 21, 16], mouse: [13, 19, 20] };
+// where the anger mark / sweat drop sit, relative to the original spot (top-right of the head)
+const MOOD_AT = { bear: { angry: [2, -2], scared: [2, -2] }, mouse: { angry: [-4, 7], scared: [0, 6] } };
 function drawMood(p, kind, mood, look) {
-  const [xl0, xr0, ey] = EYES[kind];
+  const [xl0, xr0, ey] = EYES[kind] || EYES.bunny;
+  const [mx, my] = (MOOD_AT[kind] && MOOD_AT[kind][mood]) || [0, 0];
   const xl = xl0 + look, xr = xr0 + look, by = ey - 2, B = '#5a3a4a';
   if (mood === 'sad') {
     p.px(xl - 1, by + 1, B); p.px(xl, by, B); p.px(xl + 1, by, B);
@@ -230,10 +370,10 @@ function drawMood(p, kind, mood, look) {
   } else if (mood === 'angry') {
     p.px(xl - 1, by, B); p.px(xl, by, B); p.px(xl + 1, by + 1, B);
     p.px(xr + 2, by, B); p.px(xr + 1, by, B); p.px(xr, by + 1, B);
-    for (const [x, y] of [[26, 8], [28, 8], [27, 9], [26, 10], [28, 10]]) p.px(x, y, '#ef4b4b');
+    for (const [x, y] of [[26, 8], [28, 8], [27, 9], [26, 10], [28, 10]]) p.px(x + mx, y + my, '#ef4b4b');
   } else if (mood === 'scared') {
     p.hline(xl - 1, xl + 1, by - 1, B); p.hline(xr, xr + 2, by - 1, B);
-    p.px(27, 12, '#9fd8ff'); p.px(27, 13, '#9fd8ff'); p.px(26, 13, '#bfe6ff'); p.px(27, 14, '#7ec8ff');
+    p.px(27 + mx, 12 + my, '#9fd8ff'); p.px(27 + mx, 13 + my, '#9fd8ff'); p.px(26 + mx, 13 + my, '#bfe6ff'); p.px(27 + mx, 14 + my, '#7ec8ff');
   }
 }
 export function student(kind, st) {
@@ -242,6 +382,34 @@ export function student(kind, st) {
     const p = new Pix(SW, SH);
     DRAW[kind](p, PAL[kind], st);
     if (st.mood && !(st.hide > 0)) drawMood(p, kind, st.mood, st.look | 0);
+    p.outline();
+    if (POST[kind]) POST[kind](p, st);
+    return p.canvas();
+  });
+}
+
+/** 13x13 face for the attendance chart (same look as classroom.js's miniFace, covering all eight students) */
+export function miniFace(kind, on) {
+  return cached('mini8' + kind + on, () => {
+    const p = new Pix(13, 13);
+    const C = PAL[kind];
+    const g = (c) => on ? c : darken(lighten(c, 0.5), 0.15);
+    if (kind === 'bunny') { p.ell(4.5, 3, 1.5, 3.4, g(C.fur)); p.ell(8.5, 3, 1.5, 3.4, g(C.fur)); p.px(4, 2, g(C.inner)); p.px(8, 2, g(C.inner)); }
+    if (kind === 'owl') { p.ell(3, 3.5, 1.5, 2, g(C.fur)); p.ell(10, 3.5, 1.5, 2, g(C.fur)); }
+    if (kind === 'frog') { p.ell(4, 4.5, 2.4, 2.2, g(C.fur)); p.ell(9, 4.5, 2.4, 2.2, g(C.fur)); }
+    if (kind === 'cat') { for (let i = 0; i < 4; i++) { p.hline(2 - (i > 1 ? 1 : 0), 2 + Math.floor(i / 2), 1 + i, g(C.fur)); p.hline(10 - Math.floor(i / 2), 10 + (i > 1 ? 1 : 0), 1 + i, g(C.fur)); } p.px(2, 3, g(C.inner)); p.px(10, 3, g(C.inner)); }
+    if (kind === 'bear') { p.ell(2.4, 3.4, 2.2, 2.2, g(C.fur)); p.ell(10.6, 3.4, 2.2, 2.2, g(C.fur)); p.px(2, 3, g(C.inner)); p.px(10, 3, g(C.inner)); }
+    if (kind === 'mouse') { p.ell(2.6, 4, 2.6, 2.6, g(C.fur)); p.ell(10.4, 4, 2.6, 2.6, g(C.fur)); p.ell(2.6, 4, 1.4, 1.4, g(C.inner)); p.ell(10.4, 4, 1.4, 1.4, g(C.inner)); }
+    p.ball(6.5, 7.5, 5.5, 4.6, g(C.fur), { hi: false });
+    if (kind === 'puppy') { p.ell(1.6, 7, 1.5, 3, g(C.ear)); p.ell(11.4, 7, 1.5, 3, g(C.ear)); }
+    if (kind === 'turtle') p.ell(6.5, 4.6, 5, 2.4, g(C.accent), { y1: 4 });
+    if (kind === 'owl') { p.ell(4.5, 7.5, 2, 2, g(C.disk)); p.ell(8.5, 7.5, 2, 2, g(C.disk)); p.px(6, 9, g('#ffae4a')); }
+    if (kind === 'cat') { p.px(6, 4, g(C.stripe)); p.px(6, 5, g(C.stripe)); p.px(6, 9, g(PINK)); }
+    if (kind === 'bear') { p.ell(6.5, 9.4, 2.4, 1.6, g(C.muzzle)); p.px(6, 9, g(INK)); }
+    if (kind === 'mouse') p.px(6, 9, g(PINK));
+    const e = on ? INK : '#9a8d98';
+    if (kind === 'frog') { p.px(4, 4, e); p.px(9, 4, e); } else { p.px(4, 7, e); p.px(8, 7, e); }
+    if (on) { p.px(5, 10, INK); p.px(6, 10, INK); p.px(7, 10, INK); }
     p.outline();
     return p.canvas();
   });
@@ -572,6 +740,25 @@ export function snack(kind, bites) {
     } else if (kind === 'owl') { // muffin
       if (bites < 3) { p.ball(6, 5, 4.4 - bites, 3 - bites * 0.6, '#b07040'); p.px(5, 4, '#5a3a2a'); p.px(7, 5, '#5a3a2a'); }
       p.rect(3, 7, 7, 4, '#ff9ec4'); p.vline(5, 7, 10, '#e07aa0'); p.vline(7, 7, 10, '#e07aa0');
+    } else if (kind === 'cat') { // fish-shaped cracker
+      const n = 3 - bites; // 3 = whole, 0 = a crumb
+      if (n >= 1) { p.ball(5, 6.5, n >= 2 ? 3.6 : 2.4, n >= 2 ? 2.6 : 2, '#ffa94d'); p.px(3, 5, '#fff2a0'); }
+      if (n >= 2) p.px(3, 6, INK);
+      if (n >= 3) { for (let i = 0; i < 3; i++) p.vline(8 + i, 5 - i, 8 + i, '#ff9533'); }
+      if (n >= 2) { p.px(6, 6, '#e8802a'); p.px(6, 7, '#e8802a'); }
+      if (n === 0) { p.rect(5, 7, 2, 2, '#ffa94d'); }
+    } else if (kind === 'bear') { // honey pot
+      p.ball(6, 7.8, 4.8, 3.6, '#c97b45', { shadow: '#9c5a32' }); // clay pot
+      p.rect(3, 3, 7, 2, '#b5683a'); p.hline(3, 9, 3, '#d98f58'); // rim
+      if (bites < 3) { p.ell(6.5, 2.6, 3.6 - bites * 0.5, 1.4 - bites * 0.3, '#ffc43a'); p.px(5, 2, '#fff2a0'); } // honey on top
+      if (bites < 2) { p.vline(4, 4, 7, '#ffc43a'); p.px(4, 8, '#ffb020'); }
+      p.rect(5, 8, 3, 2, '#f6e3c2'); // little label
+    } else if (kind === 'mouse') { // cheese wedge
+      const w = 9 - bites * 2;
+      for (let y = 0; y < 6; y++) p.hline(1 + Math.max(0, Math.floor((5 - y) * w / 6)), 1 + w, 3 + y, y === 0 ? '#ffe680' : '#ffd23f');
+      if (bites < 3) p.rect(1, 9, w + 1, 2, '#f0b820');
+      if (bites < 2) { p.px(5, 6, '#e0a820'); p.px(7, 8, '#e0a820'); }
+      if (bites < 1) p.px(9, 5, '#e0a820');
     } else { // frog: blueberry cupcake
       if (bites < 3) p.ball(6, 5, 4.4 - bites, 3.2 - bites * 0.6, '#c9a2ff');
       if (bites < 2) p.px(6, 2, '#ef4b4b');
@@ -652,7 +839,9 @@ export function sticker(id) {
 }
 
 // ---------------------------------------------------------------- paper crown ('star of the week') + tiny alphabet-line cards
-export const CROWN_AT = { bunny: [12, 4], puppy: [12, 5], turtle: [12, 2], owl: [12, 5], frog: [12, 3] }; // top-left on the student sprite
+export const CROWN_AT = { bunny: [12, 4], puppy: [12, 5], turtle: [12, 2], owl: [12, 5], frog: [12, 3], cat: [12, 5], bear: [12, 2], mouse: [12, 10] }; // top-left on the student sprite
+/** crown y while hiding (turtle in her shell, mouse ducked under the desk) */
+export const CROWN_HIDE = { turtle: 19, mouse: 23 };
 export function crown() {
   return cached('crown', () => {
     const p = new Pix(11, 8);

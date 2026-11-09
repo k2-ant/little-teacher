@@ -3,6 +3,14 @@
 // students' grammatical gender (for "Estoy cansado / cansada")
 export const GENDER = { bunny: 'f', puppy: 'm', turtle: 'm', owl: 'f', frog: 'f' };
 export const ANIMAL_WORD = { bunny: 'conejo', puppy: 'perro', turtle: 'tortuga', owl: 'búho', frog: 'rana' };
+// ---- v2.0 animals: gatito (cat), osito (bear, the biggest), ratoncito (mouse, the smallest)
+Object.assign(GENDER, { cat: 'm', bear: 'm', mouse: 'm' });
+Object.assign(ANIMAL_WORD, { cat: 'gato', bear: 'oso', mouse: 'ratón' });
+export const PET_WORD = { cat: 'gatito', bear: 'osito', mouse: 'ratoncito' }; // what the class calls them
+const V20_ANIMAL_QS = { cat: '¿Dónde está el gato?', bear: '¿Dónde está el oso?', mouse: '¿Dónde está el ratón?' };
+const V20_NAUGHTY = { cat: '¡Miau, miau!', bear: '¡Tengo hambre!', mouse: '¡Cuic, cuic!' };
+export const V20_LINES = { hug: '¡Un abrazo de oso!', honey: '¡Me encanta la miel!', peek: '¡Aquí estoy!', nap: '¡Qué rica siesta!' };
+const V20_STUDENT = () => [...Object.values(PET_WORD), ...Object.values(V20_LINES)];
 
 // ------------------------------------------------------------------ questions
 export const COLORS = {
@@ -26,7 +34,7 @@ export const SHAPE_QS = {
 export const COUNT_Q = '¿Cuántas estrellas hay?';
 export const ANIMAL_QS = {
   bunny: '¿Dónde está el conejo?', puppy: '¿Dónde está el perro?', turtle: '¿Dónde está la tortuga?',
-  owl: '¿Dónde está el búho?', frog: '¿Dónde está la rana?',
+  owl: '¿Dónde está el búho?', frog: '¿Dónde está la rana?', ...V20_ANIMAL_QS,
 };
 export const LETTER_QS = { A: '¿Cuál es la letra A?', E: '¿Cuál es la letra E?', I: '¿Cuál es la letra I?', O: '¿Cuál es la letra O?', U: '¿Cuál es la letra U?', M: '¿Cuál es la letra M?', P: '¿Cuál es la letra P?', S: '¿Cuál es la letra S?' };
 export const SIZE_QS = { grande: '¿Cuál es grande?', 'pequeño': '¿Cuál es pequeño?' };
@@ -66,7 +74,7 @@ export const STAR_COUNT_LINE = '¡Cuántas estrellas!';
 
 // ------------------------------------------------------------------ behaviour cards + centros
 export const CARD_LINES = { sorry: 'Lo siento, maestra.', thanks: '¡Gracias, maestra!', allGreen: '¡Todos empiezan en verde!', newDay: '¡Mañana es un nuevo día!' };
-export const NAUGHTY_LINES = { frog: '¡Jajaja!', owl: '¡Yo sé! ¡Yo sé!', bunny: '¡Oye, oye!' };
+export const NAUGHTY_LINES = { frog: '¡Jajaja!', owl: '¡Yo sé! ¡Yo sé!', bunny: '¡Oye, oye!', ...V20_NAUGHTY };
 // ---- v1.9 alive
 export const ALIVE_LINES = { starWeek: '¡Soy la estrella de la semana!', shell: '¡Mira mi caparazón!', again: '¡Otra vez!' };
 export const ALIVE_OWL = { allGreen: '¡Todos terminaron en verde!', friday: '¡Es viernes!', newLetter: '¡Mira, una letra nueva!' };
@@ -124,7 +132,7 @@ export const HINTS = {
 // ---- v1.9 activities
 // serve snack (students say '¡Gracias!' / '¡Qué rico!'; the owl counts 'uno'…'cinco' — clips exist)
 export const SNACK_THANKS = ['¡Gracias!', '¡Qué rico!'];
-export const COUNT_WORDS = ['uno', 'dos', 'tres', 'cuatro', 'cinco'];
+export const COUNT_WORDS = ['uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho']; // v2.0: up to eight friends (number clips already exist)
 export const SNACK_FULL = '¡Ya comí!';
 // knock-knock door
 export const DOOR_LINES = { late: '¡Perdón, maestra! Llegué tarde.', ball: '¡Mi pelota!', parcel: '¡Algo nuevo para el salón!' };
@@ -163,6 +171,7 @@ export function studentPhrases() {
   Object.values(CENTRO_LINES).forEach(l => out.add(l));
   out.add(STAR_COUNT_LINE);
   V19_STUDENT().forEach(l => out.add(l));
+  V20_STUDENT().forEach(l => out.add(l));
   Object.values(ALIVE_LINES).forEach(l => out.add(l));
   [...WEATHER.map(w => w.word), ...Object.values(WEATHER_RECESS), ...JOBS.map(j => j.word), ...Object.values(JOB_LINES)].forEach(l => out.add(l));
   return [...out];

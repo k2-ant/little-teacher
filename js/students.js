@@ -2,7 +2,7 @@ import { G, rand, pick, wait } from './state.js';
 import { KINDS, PAL } from './sprites.js';
 import { say, sfx, playClip } from './audio.js';
 import { tr, lang } from './i18n.js';
-import { ALIVE_LINES } from './learndata.js';
+import { ALIVE_LINES, NAUGHTY_LINES, V20_LINES } from './learndata.js';
 
 export function makeStudents() {
   return KINDS.map((kind, i) => ({
@@ -22,24 +22,40 @@ export function acting(s, name) { return s.act && s.act.name === name && G.time 
 export function hop(s, v = 70) { if (s.z <= 0.01) s.vz = v; }
 export function talk(s, kind, dur = 1.4) { s.bubble = { kind, until: G.time + dur }; }
 
-const VOICE = { bunny: 1.85, puppy: 1.45, turtle: 1.15, owl: 1.35, frog: 1.7 };
-const SQUEAK = { bunny: 1.35, puppy: 1.0, turtle: 0.8, owl: 1.1, frog: 1.2 };
+// speechSynthesis fallback pitch / rate, and the pitch of the squeaky no-speech fallback
+const VOICE = { bunny: 1.85, puppy: 1.45, turtle: 1.15, owl: 1.35, frog: 1.7, cat: 1.55, bear: 0.8, mouse: 2 };
+const RATE = { turtle: 0.9, bear: 0.88, mouse: 1.2 };
+const SQUEAK = { bunny: 1.35, puppy: 1.0, turtle: 0.8, owl: 1.1, frog: 1.2, cat: 1.15, bear: 0.7, mouse: 1.6 };
 export function speak(s, text, fallback = 'here') {
   if (!s) return;
   const line = tr(text);
   if (playClip(s.kind, line)) return;
-  if (!say(line, VOICE[s.kind], s.kind === 'turtle' ? 0.9 : 1.08, lang())) sfx[fallback](SQUEAK[s.kind]);
+  if (!say(line, VOICE[s.kind] ?? 1.5, RATE[s.kind] ?? 1.08, lang())) sfx[fallback](SQUEAK[s.kind] ?? 1);
 }
-export function squeakPitch(s) { return SQUEAK[s.kind]; }
-export function animalSound(s) {
-  ({ bunny: () => sfx.squeak(), puppy: () => sfx.woof(), turtle: () => sfx.hum(), owl: () => sfx.hoot(), frog: () => sfx.ribbit() })[s.kind]();
-}
+export function squeakPitch(s) { return SQUEAK[s.kind] ?? 1; }
+const ANIMAL_SOUNDS = {
+  bunny: () => sfx.squeak(), puppy: () => sfx.woof(), turtle: () => sfx.hum(), owl: () => sfx.hoot(), frog: () => sfx.ribbit(),
+  cat: () => sfx.meow(), bear: () => sfx.rumble(), mouse: () => sfx.squeakMouse(),
+};
+export function animalSound(s) { (ANIMAL_SOUNDS[s.kind] || ANIMAL_SOUNDS.bunny)(); }
 
-/** wake a sleepy bunny / coax the turtle; returns true if the tap was "used up" by that */
+/** wake a sleepy bunny / napping cat, coax the turtle / the mouse out; returns true if the tap was "used up" by that */
 export function coax(s) {
   if (s.kind === 'bunny' && s.sleep) {
     s.sleep = false; s.sleepT = rand(25, 45);
     act(s, 'gasp', 0.7); sfx.gasp(1.3); hop(s, 60);
+    return true;
+  }
+  if (s.kind === 'cat' && s.sleep) {
+    s.sleep = false; s.napT = rand(40, 60);
+    act(s, 'stretch', 0.9); sfx.meow(1.1);
+    return true;
+  }
+  if (s.kind === 'mouse' && s.hide > 0) { // first tap: peek, second tap: out he pops
+    s.hide = s.hide >= 1 ? 0.5 : 0;
+    s.hideT = rand(25, 45); s.peekT = rand(2.5, 4);
+    if (s.hide === 0) { act(s, 'happy', 1); hop(s, 70); sfx.squeakMouse(); }
+    else sfx.softPop();
     return true;
   }
   if (s.kind === 'turtle' && s.hide > 0) {
@@ -85,9 +101,10 @@ export function walkStep(s, dt) {
     if (s.stepT < 0) { s.stepT = 0.25; sfx.step(Math.floor(G.time * 4)); }
   }
 }
+const PACE = { mouse: 1.25, bear: 0.88 }; // the tiny mouse scurries, the big bear ambles
 export function walkTo(s, x, y, speed = 42) {
   return new Promise(res => {
-    s.mode = 'walk'; s.target = { x, y }; s.speed = speed; s.onArrive = res;
+    s.mode = 'walk'; s.target = { x, y }; s.speed = speed * (PACE[s.kind] ?? 1); s.onArrive = res;
   });
 }
 
@@ -96,7 +113,7 @@ export function pose(s) {
   const t = G.time;
   const st = { eyes: 'open', mouth: 'smile', armL: 'down', armR: 'down', feet: 0, look: s.look | 0, blush: true, hide: 0, wag: false, earUp: false, tongue: s.kind === 'puppy' };
   let dx = 0;
-  if (s.kind === 'turtle') st.hide = s.hide;
+  if (s.kind === 'turtle' || s.kind === 'mouse') st.hide = s.hide;
   if (s.mode === 'walk') { st.feet = (Math.floor(t * 7) % 2) + 1; st.wag = Math.floor(t * 8) % 2 === 0; }
   if (s.mode === 'held') { st.armL = 'up'; st.armR = 'up'; st.feet = (Math.floor(t * 6) % 2) + 1; st.eyes = 'happy'; st.mouth = 'open'; st.wag = Math.floor(t * 10) % 2 === 0; }
   if (s.kind === 'puppy' && s.mode === 'stand') st.wag = Math.floor(t * 5) % 2 === 0;
@@ -124,6 +141,15 @@ export function pose(s) {
       case 'look': st.eyes = 'open'; st.mouth = 'o'; break;
       case 'sorry': st.eyes = 'open'; st.mouth = 'frown'; st.mood = 'sad'; st.earUp = false; st.tongue = false; break;
       case 'paint': st.armL = alt(3) ? 'front' : 'up'; st.eyes = 'happy'; st.mouth = 'smile'; break;
+      // v2.0: cat / bear / mouse
+      case 'stretch': st.armL = st.armR = 'up'; st.eyes = 'closed'; st.mouth = k < a.dur * 0.6 ? 'open' : 'smile'; st.earUp = true; break;
+      case 'purr': st.eyes = 'happy'; st.mouth = 'smile'; st.wag = alt(3); dx = alt(16) ? 1 : 0; break;
+      case 'crouch': st.armL = st.armR = 'front'; st.eyes = 'wide'; st.mouth = 'o'; st.earUp = true; st.wag = alt(10); dx = alt(10) ? 1 : -1; break;
+      case 'pounce': st.armL = st.armR = 'up'; st.eyes = 'happy'; st.mouth = 'open'; st.earUp = true; st.wag = alt(10); break;
+      case 'swat': st.armL = alt(5) ? 'up' : 'front'; st.eyes = 'wide'; st.mouth = 'grin'; st.earUp = true; st.wag = alt(6); break;
+      case 'hug': st.armL = st.armR = 'clap'; st.eyes = 'happy'; st.mouth = 'open'; dx = alt(3) ? 1 : 0; break;
+      case 'rub': st.armL = st.armR = alt(4) ? 'clap' : 'front'; st.eyes = 'closed'; st.mouth = 'open'; break;
+      case 'scurry': st.feet = alt(16) ? 1 : 2; st.eyes = 'happy'; st.mouth = 'open'; st.armL = st.armR = 'front'; st.wag = alt(12); dx = alt(8) ? 2 : -2; break;
     }
   }
   if (s.mood && !a && !s.sleep) {
@@ -161,6 +187,34 @@ export function traits(s, dt, opts = {}) {
     s.giggleT -= dt;
     if (s.giggleT < 0) { act(s, 'giggle', 1.1); if (opts.sounds !== false) sfx.giggle(1.25, 4); s.giggleT = rand(9, 16); }
   }
+  // v2.0: the curious cat purrs and takes catnaps, the big gentle bear yawns, the shy mouse ducks under the desk
+  if (s.kind === 'cat') {
+    if (s.sleep) {
+      if (G.time > (s.napUntil ?? 0)) { s.sleep = false; s.napT = rand(40, 60); act(s, 'stretch', 1.1); if (opts.sounds !== false) sfx.meow(1.1); }
+      else { s.snoreT = (s.snoreT ?? 2) - dt; if (s.snoreT < 0) { s.snoreT = rand(2.5, 4); if (opts.snore !== false) sfx.purr(); } }
+    } else if (!busy) {
+      s.napT = (s.napT ?? rand(35, 55)) - dt;
+      s.purrT = (s.purrT ?? rand(12, 20)) - dt;
+      if (s.napT < 0 && !opts.noSleep) { act(s, 'stretch', 1.1); s.napT = 999; setTimeout(() => { if (!s.act || s.act.name === 'stretch') { s.sleep = true; s.napUntil = G.time + rand(9, 15); } }, 1100); }
+      else if (s.purrT < 0) { act(s, 'purr', 1.6); if (opts.sounds !== false) sfx.purr(); s.purrT = rand(14, 24); }
+    }
+  }
+  if (s.kind === 'bear' && !busy) {
+    s.yawnT = (s.yawnT ?? rand(16, 26)) - dt;
+    if (s.yawnT < 0) { act(s, 'yawn', 1.5); if (opts.sounds !== false) sfx.yawn(); s.yawnT = rand(20, 32); }
+  }
+  if (s.kind === 'mouse') {
+    if (s.hide === 0 && !busy) {
+      s.hideT -= dt;
+      if (s.hideT < 0) { s.hide = 1; s.hideT = rand(25, 45); s.peekT = rand(3, 5); if (opts.sounds !== false) sfx.squeakMouse(); }
+    } else if (s.hide > 0) { // he never stays down for long: peek, then pop back up
+      s.peekT = (s.peekT ?? 3) - dt;
+      if (s.peekT < 0) {
+        if (s.hide >= 1) { s.hide = 0.5; s.peekT = rand(1.5, 2.5); }
+        else { s.hide = 0; act(s, 'happy', 0.8); hop(s, 50); }
+      }
+    }
+  }
 }
 
 /** everyone gets curious now and then and raises a paw (the owl does it far more often, above) */
@@ -174,6 +228,9 @@ function curious(s, dt, opts, busy) {
   if (s.kind === 'puppy') sfx.woof();
   if (s.kind === 'frog') sfx.giggle(1.3, 3);
   if (s.kind === 'bunny') sfx.squeak();
+  if (s.kind === 'cat') sfx.meow(1.15);
+  if (s.kind === 'bear') sfx.rumble();
+  if (s.kind === 'mouse') sfx.squeakMouse();
 }
 
 // ---------------------------------------------------------------- taps escalate: 1 = today's reaction, 2 = hello, 3 = trick, 5+ = "¡Otra vez!"
@@ -198,6 +255,27 @@ export function trick(s, fx = {}) {
     sfx.ribbit(); wait(0.3).then(() => { sfx.note(784); b('note', 4, ['#7a5bc0', '#ff6f91', '#3cb44b'], { up: true }); });
     wait(0.55).then(() => sfx.note(988)); wait(0.8).then(() => sfx.note(1175));
   }
+  if (s.kind === 'cat') { // wiggle-wiggle... pounce!
+    act(s, 'crouch', 0.6); sfx.purr();
+    wait(0.6).then(() => { act(s, 'pounce', 1.0); s.vz = 140; sfx.meow(1.2); b('spark', 6, ['#ffd23f', '#46bfb3', '#ffffff'], { up: true }); });
+  }
+  if (s.kind === 'bear') { // a big bear hug
+    act(s, 'hug', 1.6); hop(s, 40); sfx.rumble(); wait(0.35).then(() => sfx.thump());
+    b('heart', 5, ['#ff6f91', '#ff9ec4', '#ffd23f'], { up: true, sp: 40 });
+    wait(0.5).then(() => speak(s, V20_LINES.hug, 'yay'));
+  }
+  if (s.kind === 'mouse') { // zoom-zoom on the spot, then a tiny big jump
+    act(s, 'scurry', 0.9); sfx.squeakMouse(); wait(0.3).then(() => sfx.squeakMouse(1.15));
+    wait(0.9).then(() => { act(s, 'cheer', 0.9); s.vz = 160; sfx.boing(); b('star', 5, ['#ffd23f', '#8fc8ff', '#ff9ec4'], { up: true }); });
+  }
+}
+/** v2.0: what the new students do when they act up (for the behaviour-card naughtiness loop).
+ *  Returns false for the original five, whose naughty acts live in classroom.js. */
+export function naughtyAct(s) {
+  if (s.kind === 'cat') { act(s, 'swat', 1.5); sfx.meow(1.2); if (Math.random() < 0.45) speak(s, NAUGHTY_LINES.cat, 'here'); return true; }
+  if (s.kind === 'bear') { act(s, 'rub', 1.6); sfx.rumble(); if (Math.random() < 0.5) speak(s, NAUGHTY_LINES.bear, 'here'); return true; }
+  if (s.kind === 'mouse') { act(s, 'scurry', 1.4); sfx.squeakMouse(); if (Math.random() < 0.45) speak(s, NAUGHTY_LINES.mouse, 'here'); return true; }
+  return false;
 }
 /** taps 2, 3 and 5+ in a row; returns false for a plain tap (caller does its usual reaction).
  *  fx: { burst(kind, n, colors, opts), neighbours: () => students that giggle along } */
@@ -218,14 +296,16 @@ export function tapEscalate(s, fx = {}) {
 /** paper crown for the 'star of the week' (only for today) */
 export function crowned(s) { const c = G.save && G.save.crown; return !!c && c.kind === s.kind && c.day === G.save.day; }
 
-/** make a student hide (turtle) after loud stuff */
+/** make a student hide (turtle, and the even shyer mouse) after loud stuff */
 export function startle(s) {
   if (s.kind === 'turtle' && s.hide === 0 && Math.random() < 0.35) { s.hide = 1; s.hideT = rand(30, 50); }
+  if (s.kind === 'mouse' && s.hide === 0 && Math.random() < 0.5) { s.hide = 1; s.hideT = rand(25, 45); s.peekT = rand(2, 3.5); }
 }
 
 export const GREETINGS = {
   bunny: 'Good morning!', puppy: 'Hi teacher!', turtle: 'hi...', owl: 'Good morning, teacher!', frog: 'Hello hello!',
+  cat: 'Hi teacher!', bear: 'Good morning, teacher!', mouse: 'hi...', // existing lines, so the borrowed voices already have clips
 };
-export const BYES = { bunny: 'Bye bye!', puppy: 'See you tomorrow!', turtle: 'bye...', owl: 'Goodbye, teacher!', frog: 'Bye bye!' };
+export const BYES = { bunny: 'Bye bye!', puppy: 'See you tomorrow!', turtle: 'bye...', owl: 'Goodbye, teacher!', frog: 'Bye bye!', cat: 'See you tomorrow!', bear: 'Goodbye, teacher!', mouse: 'bye...' };
 export const CHEERS = ['Yay!', 'Me! Me!', 'Ooh!', 'I know!', 'Hooray!', 'Wow!'];
 export const randomCheer = () => pick(CHEERS);

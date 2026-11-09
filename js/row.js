@@ -16,8 +16,9 @@ export function makeRow(students) {
     parts,
     layout(W, ledgeY, x0, x1) {
       ledge = ledgeY;
-      const sp = Math.min(44, Math.floor((x1 - x0) / 5));
-      xs = students.map((s, k) => Math.round((x0 + x1) / 2 + (k - 2) * sp));
+      const n = students.length;
+      const sp = Math.min(44, Math.floor((x1 - x0) / n));
+      xs = students.map((s, k) => Math.round((x0 + x1) / 2 + (k - (n - 1) / 2) * sp));
     },
     burst(kind, x, y, n, colors, o = {}) {
       for (let i = 0; i < n; i++) {
@@ -31,7 +32,7 @@ export function makeRow(students) {
         if (s.mode === 'away') continue;
         if (s.mode === 'walk' || s.mode === 'stand') { s.mode = 'seated'; s.target = null; const cb = s.onArrive; s.onArrive = null; cb?.(); }
         traits(s, dt, { sounds: false, snore: false });
-        if (s.kind === 'bunny' && s.sleep && Math.random() < dt * 0.9) { const r = rect(s); parts.push({ kind: 'z', color: '#6f8fd6', x: r.x + 22, y: r.y + 8, vx: rand(4, 9), vy: -14, g: 0, life: 1.4, t: 0 }); }
+        if (s.sleep && Math.random() < dt * 0.9) { const r = rect(s); parts.push({ kind: 'z', color: '#6f8fd6', x: r.x + 22, y: r.y + 8, vx: rand(4, 9), vy: -14, g: 0, life: 1.4, t: 0 }); }
       }
       for (let i = parts.length - 1; i >= 0; i--) {
         const p = parts[i]; p.t += dt;
@@ -44,7 +45,7 @@ export function makeRow(students) {
         const r = rect(s);
         const { st, dx } = pose(s);
         D(c, S.student(s.kind, st), r.x + dx, r.y - s.z);
-        if (crowned(s)) { const o = S.CROWN_AT[s.kind]; D(c, S.crown(), r.x + dx + o[0] - 1, r.y - s.z + (s.hide > 0 ? 19 : o[1]) - 1); }
+        if (crowned(s)) { const o = S.CROWN_AT[s.kind]; D(c, S.crown(), r.x + dx + o[0] - 1, r.y - s.z + (s.hide > 0 ? S.CROWN_HIDE[s.kind] ?? 19 : o[1]) - 1); }
         if (s.bubble) D(c, S.bubbleImg(s.bubble.kind), r.x + 20, r.y - 6 - s.z);
       }
       R(c, 0, ledge, W, H - ledge, ledgeCol); R(c, 0, ledge, W, 1, '#f0c792'); R(c, 0, ledge + 3, W, 1, '#b77942');
