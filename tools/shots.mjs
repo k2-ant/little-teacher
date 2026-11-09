@@ -269,6 +269,9 @@ await p.waitForFunction(() => !!window.__ltSnack(), null, { timeout: 30000 }); a
 await expectBlock('almuerzo');
 pts = await ev(() => window.__ltDeskPts());
 for (let j = 0; j < pts.length; j++) { const sn = await ev(() => window.__ltSnack()); const sl = sn && sn.slots.find(s => s); if (!sl) break; await tapAt(...sl); await p.waitForTimeout(150); await tapAt(...pts[j]); await p.waitForTimeout(500); if (j === 1) await shot('13-snack'); }
+{ const sv = await ev(() => window.__ltSnack()); if (sv && sv.served !== pts.length) throw new Error(`served ${sv.served} of ${pts.length} friends`); } // everyone in the class gets one
+await p.waitForTimeout(700);
+await shot('13b-snack-all');
 await p.waitForFunction(() => !window.__ltSnack() || window.__ltSnack().done, null, { timeout: 30000 });
 await p.waitForFunction(() => window.__lt.room.phase === 'class', null, { timeout: 30000 });
 

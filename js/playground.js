@@ -26,6 +26,8 @@ const UMB_MORE = ['#ff9a2e', '#3cb44b', '#2f7de1', '#ff5fa8', '#9b59d0'];
 const LIKES = {
   puppy: ['ball', 'ball', 'chase', 'slide', 'seesaw'], bunny: ['swing', 'hop', 'swing', 'chase', 'slide'],
   turtle: ['sand', 'sand', 'swing', 'hop'], owl: ['hop', 'slide', 'seesaw', 'swing'], frog: ['seesaw', 'slide', 'ball', 'chase'],
+  // v2.0: the cat climbs and chases, the bear digs and seesaws, the tiny mouse slides and hops
+  cat: ['slide', 'chase', 'swing', 'ball'], bear: ['sand', 'seesaw', 'sand', 'swing'], mouse: ['slide', 'hop', 'slide', 'sand'],
 };
 const ALL = ['ball', 'slide', 'swing', 'sand', 'seesaw', 'hop', 'chase'];
 
@@ -394,9 +396,13 @@ export function createPlayground(students, hooks) {
     if (eq === 'seesaw') return see.seats.some(x => !x);
     if (eq === 'hop') return !hop.cur;
     if (eq === 'chase') return active().some(o => o !== k && (o.st === 'idle' || o.st === 'wander'));
-    if (eq === 'snow') return snowStage < 4 || Math.random() < 0.3;
+    if (eq === 'snow') return (snowStage < 4 || Math.random() < 0.3) && busyAt(['toSnow', 'roll']) < 2;
+    // v2.0: eight friends; a few at a time on the ball and in each puddle so nobody piles up
+    if (eq === 'ball') return busyAt(['ball']) < 3;
+    if (eq === 'puddle') return busyAt(['toPuddle', 'splash']) < E.puddles.length + 1;
     return true;
   }
+  const busyAt = (sts) => active().filter(o => sts.includes(o.st)).length;
   function choose(k) {
     const opts = likes(k).filter(e => canDo(e, k));
     if (!opts.length || Math.random() < 0.15) return wander(k);
@@ -434,7 +440,8 @@ export function createPlayground(students, hooks) {
     }
     if (eq === 'ball') { k.st = 'ball'; k.until = G.time + rand(10, 18); k.t = 0; return true; }
     if (eq === 'puddle') {
-      const pd = pick(E.puddles); k.st = 'toPuddle'; k.pd = pd;
+      const n = (p) => active().filter(o => o.pd === p && (o.st === 'toPuddle' || o.st === 'splash')).length;
+      const pd = pick(E.puddles.filter(p => n(p) === Math.min(...E.puddles.map(n)))); k.st = 'toPuddle'; k.pd = pd;
       goTo(k, pd.x + rand(-6, 6), pd.y + 1, sp, () => { k.st = 'splash'; k.n = 0; k.t = 0.2; });
       return true;
     }

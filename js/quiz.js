@@ -92,6 +92,10 @@ export function makeQuestion(asker, students) {
     return { prompt: LD.LETTER_QS[a], options: opts.map((l, i) => ({ img: wordSprite(l, cols[i], 4), say: letterName(l), right: l === a })) };
   }
   const which = pick(['grande', 'pequeño']);
+  if (S.KINDS.includes('bear') && S.KINDS.includes('mouse') && Math.random() < 0.5) { // v2.0: the big bear and the tiny mouse, same scale
+    const kid = (k) => S.student(k, { eyes: 'happy', mouth: 'smile', armL: 'down', armR: 'down', feet: 0, look: 0, blush: true, hide: 0 });
+    return { prompt: LD.SIZE_QS[which], options: shuffle([{ img: kid('bear'), say: 'grande', right: which === 'grande' }, { img: kid('mouse'), say: 'pequeño', right: which === 'pequeño' }]) };
+  }
   const big = { img: picture('apple'), big: true, say: 'grande', right: which === 'grande' };
   const small = { img: S.stamp('apple'), small: true, say: 'pequeño', right: which === 'pequeño' };
   return { prompt: LD.SIZE_QS[which], options: shuffle([big, small]) };

@@ -6,10 +6,9 @@ const BLUSH = '#ff9fb4';
 const PINK = '#ff8fae';
 
 // ---------------------------------------------------------------- students
-// KINDS is today's class roster; ALL_KINDS is every student the art, voices and data know about.
-// (v2.0 phase 2 switches the roster to ALL_KINDS and re-lays out the room.)
-export const KINDS = ['bunny', 'puppy', 'turtle', 'owl', 'frog'];
+// KINDS is the class roster (v2.0: all eight friends); ALL_KINDS is every student the art, voices and data know about.
 export const ALL_KINDS = ['bunny', 'puppy', 'turtle', 'owl', 'frog', 'cat', 'bear', 'mouse'];
+export const KINDS = ALL_KINDS;
 export const PAL = {
   bunny: { fur: '#fff4ee', shadow: '#ead2d4', inner: '#ffb7c9', top: '#b9a5ec', feet: '#fff4ee', voice: 1.9, accent: '#b9a5ec' },
   puppy: { fur: '#f1c27c', shadow: '#d39b55', ear: '#8f5a3a', muzzle: '#fff1d8', top: '#f1c27c', feet: '#f1c27c', voice: 1.5, accent: '#e0475b' },
