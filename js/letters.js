@@ -368,7 +368,11 @@ export function createLetters(students, hooks) {
   };
   return {
     resize, update, render, down, move, up,
-    open() { select(cur, true); setTimeout(() => select(cur), 300); },
+    open(tab) { // v2.0: the Horario's choice cards open a tab directly (abc / 123 / ma)
+      if (tab && tab !== set) { set = tab; resize(); if (set === 'ma') { sil.select(sil.gridItems()[0]); return; } cur = items()[0]; }
+      else if (tab === 'ma') return;
+      select(cur, true); setTimeout(() => select(cur), 300);
+    },
     get view() { return V; },
   };
 }
