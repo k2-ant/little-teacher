@@ -106,6 +106,10 @@ await pickOpt(false); await p.waitForTimeout(600);
 await shot('04b-question-wrong');
 await pickOpt(true); await p.waitForTimeout(1600);
 // feelings
+await p.evaluate(() => { const lt = window.__lt; const s = lt.students; s[1].mood = 'triste'; s[4].mood = 'enojado'; s[0].mood = 'asustado'; s[2].mood = 'cansado'; for (const k of [0, 1, 2, 4]) s[k].bubble = { kind: 'm:' + s[k].mood, until: lt.G.time + 999 }; s[0].sleep = false; s[2].hide = 0; });
+await p.waitForTimeout(900);
+await shot('04bb-moods');
+await p.evaluate(() => { const s = window.__lt.students; for (const k of [0, 2, 4]) { s[k].mood = null; s[k].bubble = null; } });
 await p.evaluate(() => window.__ltFeel(1, 'triste'));
 await p.waitForTimeout(500);
 await shot('04c-feelings-1');

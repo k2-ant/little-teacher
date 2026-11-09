@@ -1,5 +1,5 @@
 import { G, loadSave, tickTimers, persistNow } from './state.js';
-import { unlock, sfx, loadClips, prefetchClips } from './audio.js';
+import { unlock, sfx, loadClips, prefetchClips, music } from './audio.js';
 import { makeStudents } from './students.js';
 import { createClassroom } from './classroom.js';
 import { createBoard, BW, BH } from './board.js';
@@ -29,6 +29,15 @@ const room = createClassroom(students, {
   openLetters() { letters.open(); go('letters'); },
   openShapes() { shapes.open(); go('shapes'); },
   unlock() { goFullscreen(); },
+  async forceUpdate() {
+    try {
+      const ks = await caches.keys(); await Promise.all(ks.map(k => caches.delete(k)));
+      const regs = navigator.serviceWorker && navigator.serviceWorker.getRegistrations ? await navigator.serviceWorker.getRegistrations() : [];
+      for (const r of regs) await r.unregister();
+    } catch (e) { /* ignore */ }
+    location.reload();
+  },
+  setMusic(onOff) { G.save.music = onOff; music.setOn(onOff); },
 });
 const scenes = { class: room, board, letters, shapes };
 
@@ -62,7 +71,7 @@ function toLocal(e) {
 canvas.addEventListener('pointerdown', (e) => {
   e.preventDefault();
   unlock();
-  if (!prefetched) { prefetched = true; setTimeout(prefetchClips, 3000); }
+  if (!prefetched) { prefetched = true; setTimeout(prefetchClips, 3000); music.setOn(G.save.music !== false); music.start(); }
   if (activeId !== null || trans || portrait()) return;
   activeId = e.pointerId;
   try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
@@ -103,6 +112,7 @@ function frame(now) {
   G.time += dt;
   tickTimers();
   room.update(dt);
+  music.play(room.musicTrack);
   if (mode !== 'class') scenes[mode].update(dt);
   render();
   requestAnimationFrame(frame);

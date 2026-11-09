@@ -98,6 +98,7 @@ export function createClassroom(students, hooks) {
   let menu = null; // free-time chooser
   let story = null, recess = null, centros = null;
   let naughtyT = 55;
+  let updateAvail = null, updateChecked = false;
   // ---- spoken button names + "what do I do next?" hints
   let lastInput = 0, nextHintAt = 12, hint = null, hintIdx = 0, prepStamp = 0;
   const saidHint = {};
@@ -152,7 +153,8 @@ export function createClassroom(students, hooks) {
   let deco = null; // decorate tray: { tab }
   let dayCard = null; // morning 'today is...' card
   let lastQ = -99, feelT = 40;
-  const MOOD_BUBBLE = { triste: 'sad', enojado: 'angry', asustado: 'scared', cansado: 'zzz' };
+  const MOOD_BUBBLE = { triste: 'm:triste', enojado: 'm:enojado', asustado: 'm:asustado', cansado: 'm:cansado' };
+  const MOOD_COL = { triste: '#7ec8ff', enojado: '#ff6b5b', asustado: '#c9a2ff', cansado: '#cbbbe8' };
   const quiz = createQuiz({ burst: (x, y, cols) => burst('star', x, y, 8, cols, { up: true }), teacher: (n) => teacherAct(n, 1.2) });
   function askQuestion(s) {
     lastQ = G.time;
@@ -862,6 +864,20 @@ export function createClassroom(students, hooks) {
     }
     const calm = phase === 'class' && !drag && !quiz.active;
     naughtyTick(dt, calm);
+    for (const s of students) {
+      if (!s.mood || s.mode === 'away' || quiz.active) continue;
+      const [hx, hy] = headPos(s);
+      if (s.mood === 'enojado' && Math.random() < dt * 5) parts.push({ kind: 'puff', color: Math.random() < 0.5 ? '#f0e6e6' : '#ffb3a8', x: hx + (Math.random() < 0.5 ? -9 : 9), y: hy + 2, vx: rand(-6, 6), vy: -18, g: 0, life: 0.8, t: 0 });
+      if (s.mood === 'cansado' && Math.random() < dt * 0.8) floatUp('z', '#6f8fd6', hx + 6, hy);
+      s.moodT = (s.moodT ?? 2) - dt;
+      if (s.moodT < 0) {
+        s.moodT = rand(4.5, 6.5);
+        if (s.mood === 'triste') { sfx.sniff(); act(s, 'sorry', 1.4); }
+        if (s.mood === 'enojado') { sfx.grumble(); hop(s, 30); }
+        if (s.mood === 'asustado') { sfx.whimper(); }
+        if (s.mood === 'cansado') { sfx.yawn(); act(s, 'yawn', 1.2); }
+      }
+    }
     centrosTick(dt);
     if (calm && !busy && !story && !recess && !bookOpen) {
       feelT -= dt;
@@ -925,6 +941,12 @@ export function createClassroom(students, hooks) {
     const { st, dx } = pose(s);
     const img = S.student(s.kind, st);
     const yy = y - s.z;
+    if (s.mood && !(s.hide > 0)) {
+      c.globalAlpha = 0.7 + 0.3 * Math.sin(G.time * 4);
+      D(c, glow(img, MOOD_COL[s.mood], s.kind + JSON.stringify(st) + s.mood), x + dx - 2, yy - 2);
+      c.globalAlpha = 1;
+      if (s.mood === 'asustado' && Math.floor(G.time * 8) % 2) { for (const sx of [x + 4, x + S.SW - 5]) { R(c, sx, yy + 14, 1, 3, '#9a8db8'); R(c, sx + (sx < x + 10 ? -2 : 2), yy + 16, 1, 3, '#9a8db8'); } }
+    }
     if (s.glowT > 0 && (s.glowT > 0.6 || Math.floor(G.time * 10) % 2)) {
       D(c, glow(img, Math.floor(G.time * 6) % 2 ? '#ffe36e' : '#fff6b8', s.kind + JSON.stringify(st)), x + dx - 2, yy - 2);
     }
@@ -1049,9 +1071,13 @@ export function createClassroom(students, hooks) {
       D(c, img, p.x - img.width / 2, p.y - img.height / 2);
     }
     for (const s of students) {
-      if (!s.bubble || s.mode === 'away') continue;
+      if (s.mode === 'away') continue;
       const r = spriteRect(s);
-      D(c, S.bubble(s.bubble.kind), r.x + 20, r.y - 4 - s.z + Math.round(Math.sin(G.time * 4)));
+      if (s.mood === 'triste' && !(s.hide > 0)) D(c, S.rainCloud(Math.floor(G.time * 4) % 2), r.x - 2, r.y - 6 - s.z + Math.round(Math.sin(G.time * 2)));
+      if (!s.bubble) continue;
+      const bk = s.bubble.kind;
+      const im = bk.startsWith('m:') ? S.moodBubble(bk.slice(2)) : S.bubble(bk);
+      D(c, im, r.x + 20, r.y - 4 - s.z + Math.round(Math.sin(G.time * 4)) - (bk.startsWith('m:') ? 8 : 0));
     }
     // dusk tint
     if (dusk > 0.01) { c.fillStyle = `rgba(40,30,90,${dusk * 0.55})`; c.fillRect(0, 0, W, H); }
@@ -1268,9 +1294,19 @@ export function createClassroom(students, hooks) {
       D(c, btnFrame(big.width + 12, big.height + 12, '#fff3dc', 'big'), bx - 6, by - 6);
       D(c, big, bx, by);
       L.bigBtn = { x: bx - 6, y: by - 6, w: big.width + 12, h: big.height + 12 };
-      if (phase === 'title' || phase === 'night') { // version tag for grown-ups
+      if (phase === 'title' || phase === 'night') { // grown-up corner: version, refresh, music on/off
         const vt = wsprite('v' + VERSION, '#8a7a90');
-        D(c, vt, W - V.inset.r - vt.width - 4, H - V.inset.b - vt.height - 3);
+        const vx = W - V.inset.r - vt.width - 4, vy = H - V.inset.b - vt.height - 3;
+        D(c, vt, vx, vy);
+        L.updBtn = { x: vx - 24, y: vy - 8, w: 22, h: 22 };
+        const glowOn = updateAvail && Math.floor(G.time * 3) % 2;
+        D(c, btnFrame(22, 22, glowOn ? '#fff3a0' : '#fff3dc', 'upd' + !!glowOn), L.updBtn.x, L.updBtn.y);
+        D(c, cached('updicon', () => { const p = new Pix(16, 16); for (let a = -2.6; a < 2.0; a += 0.06) { p.px(8 + Math.cos(a) * 5.5, 8 + Math.sin(a) * 5.5, '#3cb44b'); p.px(8 + Math.cos(a) * 4.6, 8 + Math.sin(a) * 4.6, '#3cb44b'); } p.map(10, 1, ['###', '.##', '..#'], { '#': '#3cb44b' }); p.outline(); return p.canvas(); }), L.updBtn.x + 3, L.updBtn.y + 2);
+        L.musBtn = { x: W - V.inset.r - 26, y: V.inset.t + 4, w: 22, h: 22 };
+        const mOn = G.save.music !== false;
+        D(c, btnFrame(22, 22, '#fff3dc', 'mus'), L.musBtn.x, L.musBtn.y);
+        D(c, cached('musicon' + mOn, () => { const p = new Pix(16, 16); p.map(3, 2, ['....######', '....#....#', '....#....#', '....#....#', '..###..###', '.####.####', '..##...##.'], { '#': mOn ? '#7a5bc0' : '#b9a9c0' }); if (!mOn) { p.line(1, 14, 14, 1, '#ef4b4b'); p.line(2, 14, 15, 1, '#ef4b4b'); } p.outline(); return p.canvas(); }), L.musBtn.x + 3, L.musBtn.y + 3);
+        if (!updateChecked) { updateChecked = true; fetch('js/version.js', { cache: 'no-store' }).then(r => r.text()).then(t => { const m = t.match(/VERSION = '([^']+)'/); if (m && m[1] !== VERSION) updateAvail = m[1]; }).catch(() => {}); }
       }
       if (phase === 'title') {
         // a row of the five friends peeking up to say hello
@@ -1399,7 +1435,11 @@ export function createClassroom(students, hooks) {
       const sg = centerSigns().find(r => inRect(x, y, { x: r.x - 3, y: r.y - 3, w: r.w + 6, h: r.h + 6 }));
       if (sg) { press.sign = sg; return; }
     }
-    if (phase === 'title' || phase === 'night') { if (L.bigBtn && inRect(x, y, L.bigBtn)) press.big = true; return; }
+    if (phase === 'title' || phase === 'night') {
+      if (L.updBtn && inRect(x, y, L.updBtn)) { press.upd = true; return; }
+      if (L.musBtn && inRect(x, y, L.musBtn)) { press.mus = true; return; }
+      if (L.bigBtn && inRect(x, y, L.bigBtn)) press.big = true; return;
+    }
     if (reward) { press.reward = true; return; }
     if (bookOpen) { press.book = true; return; }
     if (menu) { press.menu = true; return; }
@@ -1545,6 +1585,8 @@ export function createClassroom(students, hooks) {
       return;
     }
     if (p.moved) return;
+    if (p.upd) { sfx.chime(); hooks.forceUpdate?.(); return; }
+    if (p.mus) { const on = G.save.music === false; hooks.setMusic?.(on); persist(); sfx.pop(on ? 1.3 : 0.8); return; }
     if (p.big && inRect(x, y, L.bigBtn)) { sfx.pop(); hooks.unlock?.(); enterPrep(); return; }
     if (p.reward) { if (!reward.collected && G.time - reward.t > 0.6) collectReward(); return; }
     if (p.book) {
@@ -1692,5 +1734,6 @@ export function createClassroom(students, hooks) {
   return {
     resize, update, render, down, move, up, startDay, watchBoard, startle: () => students.forEach(startle),
     get view() { return V; }, get phase() { return phase; },
+    get musicTrack() { return ['goodbye', 'reward', 'night'].includes(phase) ? 'night' : recess ? 'recess' : 'class'; },
   };
 }

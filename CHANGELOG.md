@@ -2,6 +2,11 @@
 
 The version number shows in the bottom-right corner of the start screen (for example `v1.7`).
 
+## v1.8 (2026-11-09)
+- Background music (original, made in code): a cozy classroom tune, a bouncy recess song and a goodbye lullaby. It plays quietly and dips when someone talks. There's an on/off button on the start screen.
+- Feelings are much easier to spot: a coloured glow, big face bubbles, a rain cloud and tears for sad, steam for angry, trembling for scared, yawns for tired, plus little sounds.
+- Updates: the app now loads the newest version whenever it's online. A refresh button next to the version number forces the latest, and it glows when a newer version exists.
+
 ## v1.7 (2026-11-09)
 - The version number now shows on the start screen.
 - Every button says its name out loud, and decorations and supplies say their names when she places them.

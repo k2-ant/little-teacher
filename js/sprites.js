@@ -226,7 +226,7 @@ function drawMood(p, kind, mood, look) {
   if (mood === 'sad') {
     p.px(xl - 1, by + 1, B); p.px(xl, by, B); p.px(xl + 1, by, B);
     p.px(xr + 2, by + 1, B); p.px(xr + 1, by, B); p.px(xr, by, B);
-    p.px(xl, ey + 3, '#7ec8ff'); p.px(xl, ey + 4, '#7ec8ff'); p.px(xl - 1, ey + 5, '#bfe6ff');
+    for (const x of [xl, xr + 1]) { p.px(x, ey + 3, '#5fb4ef'); p.px(x, ey + 4, '#7ec8ff'); p.px(x, ey + 5, '#7ec8ff'); p.px(x, ey + 6, '#bfe6ff'); }
   } else if (mood === 'angry') {
     p.px(xl - 1, by, B); p.px(xl, by, B); p.px(xl + 1, by + 1, B);
     p.px(xr + 2, by, B); p.px(xr + 1, by, B); p.px(xr, by + 1, B);
@@ -497,6 +497,7 @@ const BUB = {
   scared: ['.##.', '.##.', '.##.', '.##.', '....', '.##.'],
 };
 const BUBC = { sad: { '#': '#7ea8d6' }, angry: { '#': '#ef4b4b' }, scared: { '#': '#ff9a2e' }, heart: { '#': '#ff6f91' }, star: { '#': '#ffc21f' }, sun: { '#': '#ffb020', o: '#ffd23f' }, check: { '#': '#4fbf5a' }, note: { '#': '#7a5bc0' }, bang: { '#': '#ef6f6c' }, wave: { '#': '#f1c27c' }, zzz: { '#': '#6f8fd6' }, q: { '#': '#64a8e8' } };
+export function bubbleImg(kind) { return kind.startsWith('m:') ? moodBubble(kind.slice(2)) : bubble(kind); }
 export function bubble(kind) {
   return cached('bub' + kind, () => {
     const p = new Pix(16, 15);
@@ -506,6 +507,33 @@ export function bubble(kind) {
     const w = rows[0].length;
     p.map(Math.floor(8 - w / 2), Math.floor(6 - rows.length / 2) + 1, rows, BUBC[kind]);
     p.outline('#5a3e5e', 0.75);
+    return p.canvas();
+  });
+}
+
+/** big feeling bubbles with a face in them */
+export function moodBubble(mood) {
+  return cached('mbub' + mood, () => {
+    const p = new Pix(24, 22);
+    p.ell(12, 9, 11.5, 9, '#ffffff');
+    p.px(7, 18, '#ffffff'); p.px(6, 19, '#ffffff'); p.px(8, 18, '#ffffff'); p.px(5, 20, '#ffffff');
+    const col = { triste: '#7ec8ff', enojado: '#ff7b6b', asustado: '#c9a2ff', cansado: '#d8c8f0' }[mood];
+    p.ball(12, 9, 7, 6.5, col, { hi: false });
+    const I = '#2b1d2e';
+    if (mood === 'triste') { p.px(9, 7, I); p.px(15, 7, I); p.px(8, 6, I); p.px(16, 6, I); p.hline(10, 14, 12, I); p.px(9, 13, I); p.px(15, 13, I); p.vline(9, 9, 11, '#2f7de1'); }
+    if (mood === 'enojado') { p.px(8, 6, I); p.px(9, 7, I); p.px(16, 6, I); p.px(15, 7, I); p.px(9, 8, I); p.px(15, 8, I); p.hline(10, 14, 12, I); p.px(9, 13, I); p.px(15, 13, I); p.px(19, 3, '#ef4b4b'); p.px(20, 4, '#ef4b4b'); p.px(18, 4, '#ef4b4b'); }
+    if (mood === 'asustado') { p.rect(9, 6, 2, 3, I); p.rect(14, 6, 2, 3, I); p.px(9, 6, '#fff'); p.px(14, 6, '#fff'); p.rect(11, 11, 3, 3, I); p.px(18, 5, '#7ec8ff'); p.px(18, 6, '#7ec8ff'); }
+    if (mood === 'cansado') { p.hline(8, 10, 8, I); p.hline(14, 16, 8, I); p.rect(11, 11, 3, 2, I); p.map(17, 1, ['###', '..#', '.#.', '###'], { '#': '#6f8fd6' }); }
+    p.outline('#5a3e5e', 0.75);
+    return p.canvas();
+  });
+}
+export function rainCloud(frame) {
+  return cached('rain' + frame, () => {
+    const p = new Pix(20, 14);
+    p.ball(6, 5, 4.5, 3.5, '#9fb3c8', { hi: false }); p.ball(12, 4, 5, 4, '#b4c6d8', { hi: false }); p.ball(16, 6, 3.5, 3, '#9fb3c8', { hi: false });
+    for (let i = 0; i < 4; i++) { const x = 4 + i * 4, y = 10 + ((i + frame) % 2) * 2; p.px(x, y, '#5fb4ef'); p.px(x, y + 1, '#7ec8ff'); }
+    p.outline('#4a5a70', 0.5);
     return p.canvas();
   });
 }
@@ -521,6 +549,7 @@ export function particle(kind, c) {
     else if (kind === 'confetti') { p = new Pix(2, 3); p.rect(0, 0, 2, 3, c); p.px(0, 0, lighten(c, 0.5)); return p.canvas(); }
     else if (kind === 'star') { p = new Pix(7, 7); p.map(0, 0, ['...#...', '..###..', '#######', '.#####.', '.##.##.', '#.....#'], { '#': c }); }
     else if (kind === 'crumb') { p = new Pix(2, 2); p.rect(0, 0, 2, 2, c); return p.canvas(); }
+    else if (kind === 'puff') { p = new Pix(5, 5); p.ell(2.5, 2.5, 2.5, 2.5, c); p.px(1, 1, '#ffffff'); }
     else if (kind === 'bubble') { p = new Pix(5, 5); p.ell(2.5, 2.5, 2.5, 2.5, '#d8f0ff'); p.ell(2.5, 2.5, 1.5, 1.5, '#ffffff'); }
     p.outline('#2a1630', 0.55);
     return p.canvas();

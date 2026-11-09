@@ -1,5 +1,7 @@
-// Every sound is synthesised with WebAudio - no audio files at all.
+// Sound effects and music are synthesised with WebAudio; the students' voices are recorded clips.
+import { createMusic } from './music.js';
 let ac = null, out = null, noiseBuf = null;
+export const music = createMusic(() => ac, () => out);
 let muted = false;
 
 export function unlock() {
@@ -105,6 +107,7 @@ export function playClip(kind, key, rate = 1) {
     const src = ac.createBufferSource(); src.buffer = b; src.playbackRate.value = rate;
     const g = ac.createGain(); g.gain.value = 1.25;
     src.connect(g); g.connect(out); src.start();
+    music.duck(b.duration * 1000 + 400);
     playingClip[kind] = src;
     src.onended = () => { if (playingClip[kind] === src) playingClip[kind] = null; };
   });
@@ -141,6 +144,7 @@ export function say(text, pitch = 1.6, rate = 1.05, lang = 'en') {
     u.lang = v ? v.lang : (lang === 'es' ? 'es-MX' : 'en-US');
     u.pitch = Math.min(2, pitch); u.rate = rate; u.volume = 0.9;
     speechSynthesis.speak(u);
+    music.duck(1800);
     return true;
   } catch (e) { return false; }
 }
@@ -156,6 +160,10 @@ export const sfx = {
   },
   ding(f = 1046) { if (!ok()) return; tone({ f, dur: 0.9, vol: 0.15, a: 0.002 }); tone({ f: f * 2.76, dur: 0.4, vol: 0.04, a: 0.002 }); },
   trash() { if (!ok()) return; noise({ dur: 0.18, vol: 0.18, f: 2500, q: 0.7 }); noise({ t: 0.08, dur: 0.12, vol: 0.12, f: 1800, q: 0.7 }); tone({ t: 0.22, f: 180, f2: 90, dur: 0.18, vol: 0.25 }); },
+  sniff() { if (!ok()) return; noise({ dur: 0.08, vol: 0.06, type: 'highpass', f: 2500 }); noise({ t: 0.14, dur: 0.08, vol: 0.06, type: 'highpass', f: 2800 }); voice({ t: 0.3, f0: 420, f1: 300, vowel: 'oo', dur: 0.5, vol: 0.1, vib: 7 }); },
+  grumble() { if (!ok()) return; voice({ f0: 170, f1: 140, vowel: 'er', dur: 0.5, vol: 0.16, vib: 12, scale: 1 }); },
+  whimper() { if (!ok()) return; voice({ f0: 600, f1: 760, vowel: 'ee', dur: 0.35, vol: 0.1, vib: 14 }); voice({ t: 0.4, f0: 620, f1: 700, vowel: 'ee', dur: 0.3, vol: 0.08, vib: 14 }); },
+  yawn() { if (!ok()) return; voice({ f0: 380, f1: 220, vowel: 'ah', vowel2: 'oh', dur: 0.9, vol: 0.12, vib: 3 }); },
   note(f = 784) { if (!ok()) return; tone({ type: 'triangle', f, dur: 0.35, vol: 0.14 }); tone({ f: f * 2, dur: 0.15, vol: 0.04 }); },
   pop(p = 1) { if (!ok()) return; tone({ f: 320 * p, f2: 900 * p, dur: 0.09, vol: 0.28 }); noise({ dur: 0.03, vol: 0.08, f: 3000 }); },
   softPop() { if (!ok()) return; tone({ f: 500, f2: 700, dur: 0.07, vol: 0.12 }); },

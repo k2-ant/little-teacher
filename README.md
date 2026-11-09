@@ -13,7 +13,11 @@ Five original pixel-art students come to class:
 Louise is the teacher. She stands at the front, waves, claps and points at the board, and she twirls when you tap her. You can drag her anywhere in the room.
 
 ## Which version is on the iPad?
-The version number (for example **v1.7**) is in the bottom-right corner of the start screen. See [CHANGELOG.md](CHANGELOG.md) for what's in each version. To release a new version, bump `VERSION` in `js/version.js`; that also refreshes the iPad's offline copy.
+The version number (for example **v1.7**) is in the bottom-right corner of the start screen. See [CHANGELOG.md](CHANGELOG.md) for what's in each version. To release a new version, bump `VERSION` in `js/version.js`.
+
+**Getting the newest version on the iPad:** just open the app while online; it loads the newest version automatically. To be sure, tap the green ⟳ refresh button next to the version number on the start screen. It glows when a newer version is available. Refreshing never erases her classroom, stickers or drawings.
+
+**Music:** the ♪ button in the top-right corner of the start screen turns the background music on or off.
 
 ## Help for little ones
 - Every button says its name out loud, in the owl's voice.

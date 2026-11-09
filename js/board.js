@@ -290,7 +290,7 @@ export function createBoard(students, hooks) {
       const r = studentRect(s.idx);
       const { st, dx } = pose(s);
       D(c, S.student(s.kind, st), r.x + dx, r.y - s.z);
-      if (s.bubble) D(c, S.bubble(s.bubble.kind), r.x + 20, r.y - 6 - s.z);
+      if (s.bubble) D(c, S.bubbleImg(s.bubble.kind), r.x + 20, r.y - 6 - s.z);
     }
     R(c, 0, L.ledge, W, H - L.ledge, '#dca46a'); R(c, 0, L.ledge, W, 1, '#f0c792'); R(c, 0, L.ledge + 3, W, 1, '#b77942');
     for (const p of parts) {
