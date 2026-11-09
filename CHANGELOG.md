@@ -2,6 +2,27 @@
 
 The version number shows in the bottom-right corner of the start screen (for example `v1.7`).
 
+## v1.9 (2026-11-09)
+Easier to use:
+- The refresh button needs a long press and does nothing offline (before, one tap with no Wi-Fi could break the game until back online).
+- New decorations dragged from the tray can't fall into the trash by accident.
+- 🏠 asks "¿Ya nos vamos a casa?" before ending the day.
+- Tap a star, card or snack, then tap a student (dragging still works). The hint hand shows how.
+- Hints everywhere (recess, centros, snack, story), never hidden under the tray, and they suggest ringing the bell.
+- One tap brings the turtle out for attendance. Tap to hurry the morning.
+- One back arrow (top-left) everywhere, including the whiteboard, sticker book and centros chart.
+- Feelings faces are big with their mood icon; questions without a picture show a speaker and repeat themselves.
+- Lowercase p, g, y, j, q have tails. Bigger letters and stamps on phones.
+More fun:
+- ¿Qué tiempo hace hoy? Weather at circle time changes the window, calendar and recess.
+- Ayudantes jobs chart: line leader, lights, calendar and plants.
+- Everyone raises a paw; repeated taps lead to each student's own trick.
+- A crown every 5 stars; an all-green day ends in a dance (extra on viernes); the turtle can be silly too.
+- Traced letters fill an alphabet line on the wall.
+- She serves snack herself; three story books to choose from.
+- Knock knock: a late friend, a surprise package with a new decoration, or a ball for the puppy.
+- The class counts number stamps together on the whiteboard.
+
 ## v1.8 (2026-11-09)
 - Background music (original, made in code): a cozy classroom tune, a bouncy recess song and a goodbye lullaby. It plays quietly and dips when someone talks. There's an on/off button on the start screen.
 - Feelings are much easier to spot: a coloured glow, big face bubbles, a rain cloud and tears for sad, steam for angry, trembling for scared, yawns for tired, plus little sounds.

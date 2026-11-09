@@ -15,14 +15,16 @@ Louise is the teacher. She stands at the front, waves, claps and points at the b
 ## Which version is on the iPad?
 The version number (for example **v1.7**) is in the bottom-right corner of the start screen. See [CHANGELOG.md](CHANGELOG.md) for what's in each version. To release a new version, bump `VERSION` in `js/version.js`.
 
-**Getting the newest version on the iPad:** just open the app while online; it loads the newest version automatically. To be sure, tap the green ⟳ refresh button next to the version number on the start screen. It glows when a newer version is available. Refreshing never erases her classroom, stickers or drawings.
+**Getting the newest version on the iPad:** just open the app while online; it loads the newest version automatically. To be sure, press and hold the ⟳ refresh button next to the version number on the start screen for a second and a half (a ring fills up). It glows when a newer version is available. It does nothing when the iPad is offline, so it can't break the game on a plane. Refreshing never erases her classroom, stickers or drawings.
 
 **Music:** the ♪ button in the top-right corner of the start screen turns the background music on or off.
 
 ## Help for little ones
 - Every button says its name out loud, in the owl's voice.
 - If she pauses, a **pointing hand** shows what to try next and the owl says a short hint ("Toca a cada amigo para pasar lista", "Toca la campana para empezar", "Empieza en el punto verde"…).
-- The **?** button gives a hint any time.
+- The **?** button gives a hint any time, including during recess, centros, snack and story.
+- Stars, cards and snacks can be **tapped then given**: tap the star, then tap a student (or drag, as before).
+- The 🏠 button asks "¿Ya nos vamos a casa?" first; tap it again to end the day.
 
 ## ¡Todo en español!
 The whole class is in Spanish, like her DLI classroom: greetings, "¡Presente!", cheers, colours, letters, numbers, words and shapes.
@@ -77,13 +79,18 @@ In the toy box, choose the four-squares icon to open the **centros chart**. Drag
    - 🎨 **paint:** wall colours, floor colours, and a new rug pattern
 
    Drag things from the tray, or tap one to drop it in. Tap anything you've placed to change its colour. To get rid of something, drag it to the 🗑️ trash can that appears at the bottom while you're dragging. Desk supplies can be picked up and moved to another desk, or thrown away. Ring the 🔔 when the room is ready. The decorate tray (paint roller button) is also open during class.
-2. **Morning bell:** a big calendar card shows today's day with its colour, and a student says "¡Hoy es lunes!". Each new day moves to the next school day (lunes → martes → miércoles → jueves → viernes, then back to lunes). The calendar on the wall shows the day all day; tap it to hear it again. Then the students walk in one by one and say good morning. If you changed the room, they gasp "Ooh, so pretty!" and clap.
+2. **Morning bell** (tap anywhere to hurry the morning along): a big calendar card shows today's day with its colour, and a student says "¡Hoy es lunes!". Each new day moves to the next school day (lunes → martes → miércoles → jueves → viernes, then back to lunes). The calendar on the wall shows the day all day; tap it to hear it again. Then the students walk in one by one and say good morning. If you changed the room, they gasp "Ooh, so pretty!" and clap. Sometimes one student is late and knocks later.
+   - **¿Qué tiempo hace hoy?** Pick sun, clouds, rain or snow. The window, the calendar badge and recess follow the weather all day.
+   - **Alphabet line:** letters she traced yesterday pop onto the wall line under the whiteboard. Tap a card to hear its word.
 3. **Attendance:** tap each student and they say "Here!". Their face lights up on the chart at the top.
-4. **Move things around:** drag desks, the rug, the plant and the bookshelf. Drag a student onto another desk to swap seats. Everything is saved.
-5. **Lesson:** tap the whiteboard to zoom in. It has 6 fat markers, stamps (star, heart, apple, sun, 1–5, A B C), an eraser and a squeegee that wipes the board clean. The students watch, raise their paws, clap, and say the stamp names and colours out loud. Tap a raised paw to make that student cheer.
-6. **Gold stars:** drag a star from the jar onto a student and they glow and wiggle.
-7. **Free time** (toy-box button): recess with a ball, snack time, or a picture-book story on the rug.
-8. **Goodbye** (house button): the students wave and leave, the sun sets, and you earn a sticker for the sticker book.
+4. **Students are alive:** everyone raises a paw with questions, tapping a student again and again leads to their own trick, and the bookshelf, plant, light switch and door all do something.
+5. **Ayudantes** (jobs chart button): líder de la fila, luces, calendario and plantas; jobs rotate each day.
+6. **Knock knock:** once or twice a day someone knocks: a late friend, a package with a new decoration, or a ball for the puppy.
+7. **Move things around:** drag desks, the rug, the plant and the bookshelf. Drag a student onto another desk to swap seats. Everything is saved.
+8. **Lesson:** tap the whiteboard to zoom in. It has 6 fat markers, stamps (star, heart, apple, sun, 1–5, A B C), an eraser and a squeegee that wipes the board clean. The students watch, raise their paws, clap, and say the stamp names and colours out loud. Tap a raised paw to make that student cheer. Number stamps make the class count together.
+9. **Gold stars:** drag a star from the jar onto a student and they glow and wiggle. Every 5th star earns a crown for the day.
+10. **Free time** (toy-box button): recess with a ball, snack time (she hands out the snacks and the owl counts), or story time with three books to choose from.
+11. **Goodbye** (house button): the students wave and leave, the line leader goes first, an all-green day ends with a dance (a bigger one on viernes), the sun sets, and you earn a sticker for the sticker book.
 
 There are no fail states, timers, scores, ads, accounts or network features. Progress is saved in `localStorage`. All art is drawn in code and all sounds are made with WebAudio. The students' words use the device's built-in speech voice.
 
@@ -111,6 +118,9 @@ Tip: turn on **Guided Access** (Settings → Accessibility → Guided Access) an
 | `js/main.js` | canvas, integer pixel scaling, input, scene transitions |
 | `js/classroom.js` | the room, furniture, daily loop, free time, HUD, sticker book |
 | `js/board.js` | full-screen whiteboard |
+| `js/rituals.js` | weather at circle time and the Ayudantes jobs chart |
+| `js/pages.js` | story books |
+| `js/quiz.js` | students' questions and feelings check-ins |
 | `js/students.js` | student poses, actions, personality traits |
 | `js/decor.js` | decorations, desk supplies, paint colours, and the teacher (Louise) |
 | `js/i18n.js` | Spanish phrases, letter names, words, shape names, font |
