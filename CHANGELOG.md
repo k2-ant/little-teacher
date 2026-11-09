@@ -2,6 +2,15 @@
 
 The version number shows in the bottom-right corner of the start screen (for example `v1.7`).
 
+## v2.0 (2026-11-09)
+A rethink so it's easy to understand, for kids and grown-ups.
+- **Horario:** the day follows a picture schedule down the left side, modelled on Louise's real classroom chart (Trabajo de la mañana, Calendario, Alfabeto, Recreo, Lectura con Maestra, Heggerty, S.L.A, Centros de Aprendizaje, Almuerzo, Lector Misterioso, Casa). A clothespin marks now; ▶ goes next; tap any card to jump. Each part shows only its own buttons; the free-time menu, 🏠 and the extra corner buttons are gone.
+- **Recess outside** on a new playground: slide, swings, sandbox, seesaw, hopscotch, apple tree and ball, following the day's weather.
+- **Eight students:** a cat, a bear and a mouse join, each with their own personality, trick, snack and voice. Two rows of four desks.
+- **Decorating, redone:** one-tap themes (Océano, Espacio, Jardín, Arcoíris, Otoño, Fiesta, Invierno, Cuentos), tap an item for colour / size / delete bubbles, undo, and 15 new things including an art wall with her whiteboard drawings, a reading tent and a class hamster.
+- **Lector Misterioso:** a grandma visits and reads a story.
+- **Better voices:** the owl's narration and the new students use ElevenLabs' newer model, recorded at higher quality.
+
 ## v1.9 (2026-11-09)
 Easier to use:
 - The refresh button needs a long press and does nothing offline (before, one tap with no Wi-Fi could break the game until back online).

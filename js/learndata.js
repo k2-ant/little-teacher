@@ -10,7 +10,7 @@ export const PET_WORD = { cat: 'gatito', bear: 'osito', mouse: 'ratoncito' }; //
 const V20_ANIMAL_QS = { cat: '¿Dónde está el gato?', bear: '¿Dónde está el oso?', mouse: '¿Dónde está el ratón?' };
 const V20_NAUGHTY = { cat: '¡Miau, miau!', bear: '¡Tengo hambre!', mouse: '¡Cuic, cuic!' };
 export const V20_LINES = { hug: '¡Un abrazo de oso!', honey: '¡Me encanta la miel!', peek: '¡Aquí estoy!', nap: '¡Qué rica siesta!' };
-const V20_STUDENT = () => [...Object.values(PET_WORD), ...Object.values(V20_LINES)];
+const V20_STUDENT = () => [...Object.values(PET_WORD), ...Object.values(V20_LINES), MYSTERY_LINES.kid];
 
 // ------------------------------------------------------------------ questions
 export const COLORS = {
@@ -203,6 +203,8 @@ export const MYSTERY_LINES = { guest: '¡Hola, niños! Soy el lector misterioso.
 Object.assign(UI_WORDS, SCHED_NAMES, { snack: 'Almuerzo' });
 Object.assign(HINTS, SCHED_HINTS, { snackServe: 'Dale el almuerzo a tus amigos.' });
 const V20_OWL = () => [...Object.values(SCHED_SAY), MYSTERY_LINES.guest];
+/** lines the Lector Misterioso grandma reads in her own voice (audio/guest/) */
+export const guestPhrases = () => [MYSTERY_LINES.guest, ...BOOK_TEXT.flatMap(b => [b.title, ...b.lines])];
 
 /** lines spoken by any student */
 export function studentPhrases() {

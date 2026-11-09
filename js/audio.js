@@ -85,9 +85,10 @@ function voice({ t = 0, dur = 0.3, f0 = 500, f1, vowel = 'ee', vowel2, vol = 0.2
 let clipMap = null, owlOnly = new Set();
 const bufs = new Map(), loading = new Map(), playingClip = {};
 export async function loadClips() {
-  try { const m = await (await fetch('audio/clips.json')).json(); clipMap = m.clips; owlOnly = new Set(m.owlOnly || []); } catch (e) { clipMap = null; }
+  try { const m = await (await fetch('audio/clips.json')).json(); clipMap = m.clips; owlOnly = new Set(m.owlOnly || []); guestSet = new Set(m.guest || []); } catch (e) { clipMap = null; }
 }
-function clipUrl(kind, key) { const slug = clipMap && clipMap[key]; if (slug && owlOnly.has(key)) kind = 'owl'; return slug ? `audio/${kind}/${slug}.mp3` : null; }
+let guestSet = new Set();
+function clipUrl(kind, key) { const slug = clipMap && clipMap[key]; if (kind === 'guest' && !guestSet.has(key)) kind = 'owl'; if (slug && owlOnly.has(key) && kind !== 'guest') kind = 'owl'; return slug ? `audio/${kind}/${slug}.mp3` : null; }
 function getBuf(url) {
   if (bufs.has(url)) return Promise.resolve(bufs.get(url));
   if (loading.has(url)) return loading.get(url);
@@ -101,8 +102,8 @@ function getBuf(url) {
 // turtle ~330, frog ~365, owl ~445, bunny ~470. So the bear is the puppy slowed down (~195 Hz, the lowest and
 // slowest), the mouse is the bunny sped up (~555 Hz, the highest and quickest), and the cat is the turtle's
 // boyish voice a bit brighter and quicker (~375 Hz) - a different speaker from the girlish frog it sits next to.
-export const VOICE_FOLDERS = ['bunny', 'puppy', 'turtle', 'owl', 'frog'];
-export const BORROWED_VOICE = { cat: ['turtle', 1.12], bear: ['puppy', 0.84], mouse: ['bunny', 1.18] };
+export const VOICE_FOLDERS = ['bunny', 'puppy', 'turtle', 'owl', 'frog', 'cat', 'bear', 'mouse'];
+export const BORROWED_VOICE = {}; // every student now has their own recorded voice (kind -> [folder, rate] to borrow one)
 /** play a recorded line for a student. Returns false if there is no clip (caller falls back to speech). */
 export function playClip(kind, key, rate = 1) {
   const bv = BORROWED_VOICE[kind];
@@ -128,6 +129,7 @@ export async function prefetchClips() {
   if (!clipMap) return;
   const urls = [];
   for (const kind of VOICE_FOLDERS) for (const [key, slug] of Object.entries(clipMap)) if (kind === 'owl' || !owlOnly.has(key)) urls.push(`audio/${kind}/${slug}.mp3`);
+  for (const key of guestSet) if (clipMap[key]) urls.push(`audio/guest/${clipMap[key]}.mp3`);
   const workers = Array.from({ length: 3 }, async () => { while (urls.length) { const u = urls.shift(); try { await fetch(u); } catch (e) { /* offline */ } } });
   await Promise.all(workers);
 }

@@ -4,6 +4,7 @@
 import fs from 'fs';
 import path from 'path';
 import { allPhrases, owlOnlyPhrases, ttsText, clipSlug } from '../js/i18n.js';
+import { guestPhrases } from '../js/learndata.js';
 
 export const VOICES = {
   bunny: { id: 'CPv3Zr3CQCqE4ZzuCgBP', name: 'Lulu - Adorable, Bright & Playful' },
@@ -14,19 +15,23 @@ export const VOICES = {
   cat: { id: '2CGcaXd1E04jesxY7nfq', name: 'Fruna - Playful, Mischievous, Sweet', model: 'eleven_v4' },
   bear: { id: 'cQIBhnciTWugZAxX52uW', name: 'Charlee - Playful Fantasy Character', model: 'eleven_v4' },
   mouse: { id: 'iV6xDQ4wcM3ZcXDx30GB', name: 'Betty - Quirky, Cartoonish & Warm', model: 'eleven_v4' },
+  guest: { id: 'aYQAm4rWuigkeuRA5i92', name: 'Grandma Aurora - Warm, Deep & Loving', model: 'eleven_v4', only: 'guest' }, // Lector Misterioso
 };
 const DEFAULT_MODEL = 'eleven_multilingual_v2';
 const DRY = process.argv.includes('--dry');
+const NARRATION_ONLY = process.argv.includes('--narration-only'); // with --redo=owl: only redo the owl's narrator lines
+const ONLY = new Set((process.argv.find(a => a.startsWith('--only=')) || '').slice(7).split(',').filter(Boolean));
 const REDO = new Set((process.argv.find(a => a.startsWith('--redo=')) || '').slice(7).split(',').filter(Boolean));
 const KEY = process.env.ELEVENLABS_API_KEY || 'proxy-injected';
 const OUT = 'audio';
 const phrases = allPhrases(), owlOnly = owlOnlyPhrases();
 const jobs = [];
 for (const [kind, v] of Object.entries(VOICES)) {
+  if (ONLY.size && !ONLY.has(kind)) continue;
   fs.mkdirSync(path.join(OUT, kind), { recursive: true });
-  for (const key of kind === 'owl' ? [...phrases, ...owlOnly] : phrases) {
+  for (const key of v.only === 'guest' ? guestPhrases() : kind === 'owl' ? [...phrases, ...owlOnly] : phrases) {
     const file = path.join(OUT, kind, clipSlug(key) + '.mp3');
-    if (REDO.has(kind) || !fs.existsSync(file)) jobs.push({ kind, voice: v.id, model: v.model || DEFAULT_MODEL, key, file });
+    if ((REDO.has(kind) && (!NARRATION_ONLY || owlOnly.includes(key))) || !fs.existsSync(file)) jobs.push({ kind, voice: v.id, model: v.model || DEFAULT_MODEL, key, file });
   }
 }
 const chars = jobs.reduce((n, j) => n + ttsText(j.key).length, 0);
@@ -66,7 +71,7 @@ const workers = Array.from({ length: 4 }, async () => {
 await Promise.all(workers);
 
 // manifest: phrase -> file slug, per voice
-const manifest = { voices: Object.fromEntries(Object.entries(VOICES).map(([k, v]) => [k, v.name])), clips: {}, owlOnly };
+const manifest = { voices: Object.fromEntries(Object.entries(VOICES).map(([k, v]) => [k, v.name])), clips: {}, owlOnly, guest: guestPhrases() };
 for (const key of [...phrases, ...owlOnly]) manifest.clips[key] = clipSlug(key);
 fs.writeFileSync(path.join(OUT, 'clips.json'), JSON.stringify(manifest, null, 1));
 console.log(`finished: ${done} made, ${failed} failed, ${credits} credits used`);

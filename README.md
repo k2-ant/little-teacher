@@ -2,13 +2,18 @@
 
 A cozy pretend-play classroom for a 5-year-old who loves playing teacher. You can play it on an iPad or a phone, and it doesn't need any reading.
 
-Five original pixel-art students come to class:
+Eight original pixel-art students come to class:
 
 - 🐰 a **sleepy bunny** who dozes off until you tap her
 - 🐶 a **wiggly puppy** who wanders away from his seat
 - 🐢 a **shy turtle** who hides in her shell until you coax her out
 - 🦉 an **eager owl** who keeps raising a wing
 - 🐸 a **giggly frog**
+- 🐱 a **curious cat** who purrs, naps and pounces
+- 🐻 a **big gentle bear** who gives bear hugs and loves honey
+- 🐭 a **tiny shy mouse** who ducks under his desk
+
+The day follows a picture **Horario** down the left side, just like the schedule on her real classroom wall. A clothespin marks what's happening now; the big ▶ button goes to the next part of the day, and tapping any card jumps there.
 
 Louise is the teacher. She stands at the front, waves, claps and points at the board, and she twirls when you tap her. You can drag her anywhere in the room.
 
@@ -24,7 +29,8 @@ The version number (for example **v1.7**) is in the bottom-right corner of the s
 - If she pauses, a **pointing hand** shows what to try next and the owl says a short hint ("Toca a cada amigo para pasar lista", "Toca la campana para empezar", "Empieza en el punto verde"…).
 - The **?** button gives a hint any time, including during recess, centros, snack and story.
 - Stars, cards and snacks can be **tapped then given**: tap the star, then tap a student (or drag, as before).
-- The 🏠 button asks "¿Ya nos vamos a casa?" first; tap it again to end the day.
+- Each part of the day only shows its own buttons. When it's done, ▶ glows.
+- The **Casa** card asks "¿Ya nos vamos a casa?" first; tap it again to end the day.
 
 ## ¡Todo en español!
 The whole class is in Spanish, like her DLI classroom: greetings, "¡Presente!", cheers, colours, letters, numbers, words and shapes.
@@ -38,8 +44,14 @@ Each student has their own **ElevenLabs** voice. The clips are recorded ahead of
 | 🐢 turtle | Thorthugo, a playful turtle character |
 | 🦉 owl | Kate, a playful storyteller |
 | 🐸 frog | Blackie, cute and cheerful |
+| 🐱 cat | Fruna, playful and mischievous (eleven_v4) |
+| 🐻 bear | Charlee, playful (eleven_v4) |
+| 🐭 mouse | Betty, quirky and cartoonish (eleven_v4) |
+| 👵 Lector Misterioso | Grandma Aurora, warm (eleven_v4) |
 
-To regenerate the clips after changing any lines: `ELEVENLABS_API_KEY=... node tools/voices.mjs` (Node 22+). The script only makes clips that don't exist yet. If a clip is missing, the game falls back to the iPad's built-in Spanish voice.
+The owl's narrator lines use the newer `eleven_v4` model too; the other voices use `eleven_multilingual_v2` (set per voice in `tools/voices.mjs`).
+
+To regenerate the clips after changing any lines: `ELEVENLABS_API_KEY=... node tools/voices.mjs` (Node 22+). The script only makes clips that don't exist yet; `--dry` shows how many characters it would send, `--only=cat,bear` limits it to some voices and `--redo=owl` remakes a voice. If a clip is missing, the game falls back to the iPad's built-in Spanish voice.
 
 ## Hidden learning in class
 - **💬 Students ask questions:** tap a student with a raised paw and they might say "Maestra, tengo una pregunta…". She answers by tapping one of three pictures. Questions cover colours ("¿De qué color es el sol?"), shapes, counting stars, animals, letters, and big/small. A wrong answer just gets "Mmm… creo que no." and the right one glows.
@@ -55,7 +67,7 @@ Everyone starts the day on green ("¡Todos empiezan en verde!"). Now and then a 
 Drag the **red card** (bottom right) onto a student and they stop, look sorry and say "Lo siento, maestra.". The **green card** makes a student proud: "¡Gracias, maestra!". Each student's card shows on their desk and on the attendance chart. At goodbye: "¡Mañana es un nuevo día!", and everyone goes back to green.
 
 ## Centros
-In the toy box, choose the four-squares icon to open the **centros chart**. Drag the students' faces between **arte** 🎨, **biblioteca** 📚, **letras** 🔤 and **bloques** 🧱, then ring the 🔔. The students walk to their stations and paint at the easel, read on the rug, write at the ABC board, or build at the shape table. The bell rotates everyone to the next centro ("¡Cambio de centro!"), and ✔ ends centros. Tap a station's sign to join that activity.
+The **Centros de Aprendizaje** card opens the **centros chart**. Drag the students' faces between **arte** 🎨, **biblioteca** 📚, **letras** 🔤 and **bloques** 🧱, then ring the 🔔. The students walk to their stations and paint at the easel, read on the rug, write at the ABC board, or build at the shape table. The bell rotates everyone to the next centro ("¡Cambio de centro!"), and ✔ ends centros. Tap a station's sign to join that activity.
 
 ## Learning corners
 - **Alphabet board** (chalkboard on the wall): pick A–Z (including Ñ) or 0–10 and trace it the way it's taught in school, stroke by stroke:
@@ -80,21 +92,21 @@ In the toy box, choose the four-squares icon to open the **centros chart**. Drag
    - 🎨 **Colores:** wall colours, floor colours and rugs
 
    Drag things into the room, or tap one and it finds a nice free spot. Wall things snap to the wall and floor things to the floor, with a puff and their name. Swipe the tray sideways (or tap the yellow arrows) to see more. **Tap anything you've placed** to select it: three big bubbles appear: 🎨 another colour, ↔ size (small, medium, big, then it turns around) and 🗑 throw it away. Tap somewhere else to let go. Dragging something to the 🗑️ trash can still works, and desk supplies can be moved to another desk. The blue **↶** button undoes, step by step. Press ▶ when the room is ready; the next morning the friends gasp and clap at the new room.
-2. **Morning bell** (tap anywhere to hurry the morning along): a big calendar card shows today's day with its colour, and a student says "¡Hoy es lunes!". Each new day moves to the next school day (lunes → martes → miércoles → jueves → viernes, then back to lunes). The calendar on the wall shows the day all day; tap it to hear it again. Then the students walk in one by one and say good morning. If you changed the room, they gasp "Ooh, so pretty!" and clap. Sometimes one student is late and knocks later.
-   - **¿Qué tiempo hace hoy?** Pick sun, clouds, rain or snow. The window, the calendar badge and recess follow the weather all day.
-   - **Alphabet line:** letters she traced yesterday pop onto the wall line under the whiteboard. Tap a card to hear its word.
-3. **Attendance:** tap each student and they say "Here!". Their face lights up on the chart at the top.
-4. **Students are alive:** everyone raises a paw with questions, tapping a student again and again leads to their own trick, and the bookshelf, plant, light switch and door all do something.
-5. **Ayudantes** (jobs chart button): líder de la fila, luces, calendario and plantas; jobs rotate each day.
-6. **Knock knock:** once or twice a day someone knocks: a late friend, a package with a new decoration, or a ball for the puppy.
-7. **Move things around:** drag desks, the rug, the plant and the bookshelf. Drag a student onto another desk to swap seats. Everything is saved.
-8. **Lesson:** tap the whiteboard to zoom in. It has 6 fat markers, stamps (star, heart, apple, sun, 1–5, A B C), an eraser and a squeegee that wipes the board clean. The students watch, raise their paws, clap, and say the stamp names and colours out loud. Tap a raised paw to make that student cheer. Number stamps make the class count together.
-9. **Gold stars:** drag a star from the jar onto a student and they glow and wiggle. Every 5th star earns a crown for the day.
-10. **Free time** (toy-box button): recess outside on the playground, snack time (she hands out the snacks and the owl counts), or story time with three books to choose from.
-    - **Recreo (el patio):** the class lines up and walks out of the door. Outside there's a slide, two swings, a sandbox, a seesaw, an apple tree, a ball and a chalk hopscotch (rayuela) with the numbers 1–8. The friends play on their own; tap a piece of equipment and a friend runs over, tap a friend on the swing to push them higher, drag a friend onto anything, flick the ball, shake the tree for apples, and tap the hopscotch numbers to hear them (friends count out loud as they hop). Rainy days have puddles and umbrellas, snowy days have scarves and a snowman to build. The big whistle calls everyone back to class.
-11. **Goodbye** (house button): the students wave and leave, the line leader goes first, an all-green day ends with a dance (a bigger one on viernes), the sun sets, and you earn a sticker for the sticker book.
+2. **Trabajo de la mañana:** the bell rings and the friends walk in one by one and say good morning (tap anywhere to hurry them). If you changed the room, they gasp and clap. Letters she traced yesterday pop onto the alphabet line under the whiteboard. Choice cards: **Pizarra** (whiteboard: 6 markers, stamps, eraser; number stamps make the class count together) and **Números**.
+3. **Calendario:** the big day card ("¡Hoy es lunes!"), **¿Qué tiempo hace hoy?** (sun, clouds, rain or snow; the window, the calendar and recess follow it all day), then attendance: tap each friend's big face. Choice cards: **Ayudantes** (jobs: líder de la fila, luces, calendario, plantas; they rotate daily) and **Emociones** (a friend shares a feeling).
+4. **Alfabeto:** letter tracing.
+5. **Recreo (el patio):** the class lines up and walks out of the door. Outside there's a slide, two swings, a sandbox, a seesaw, an apple tree, a ball and a chalk hopscotch with the numbers 1–8. The friends play on their own; tap equipment and a friend runs over, tap a friend on the swing to push them higher, drag a friend onto anything, flick the ball, shake the tree for apples. Rainy days have puddles and umbrellas, snowy days a snowman to build. The big whistle calls everyone back in.
+6. **Lectura con Maestra:** pick one of three picture books; the owl reads each page and a friend repeats the key word.
+7. **Heggerty:** sílabas (families and the word builder).
+8. **S.L.A:** the shape sorter and the whiteboard.
+9. **Centros de Aprendizaje:** the centros chart (above).
+10. **Almuerzo:** hand out the food (drag, or tap then tap a friend); the owl counts how many have eaten.
+11. **Lector Misterioso:** knock knock! A friend's grandma comes in and reads a story in her own voice.
+12. **Casa:** the line leader goes first, an all-green day ends with a dance (a bigger one on viernes), the sun sets, and you earn a sticker for the sticker book (on the start and night screens).
 
-There are no fail states, timers, scores, ads, accounts or network features. Progress is saved in `localStorage`. All art is drawn in code and all sounds are made with WebAudio. The students' words use the device's built-in speech voice.
+All day: tap friends (keep tapping for their own trick), give gold stars (every 5th earns a crown) and green/red cards, answer raised paws, drag desks and friends around, and answer the door when someone knocks (a late friend, a parcel with a new decoration, or a ball for the puppy).
+
+There are no fail states, timers, scores, ads, accounts or network features. Progress is saved in `localStorage`. All art is drawn in code and all sounds are made with WebAudio. The voices are pre-recorded ElevenLabs clips (see above).
 
 ## Running it
 It's a static site with no build step:

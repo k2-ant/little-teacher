@@ -2572,7 +2572,7 @@ export function createClassroom(students, hooks) {
     await guestWalk(clamp(gx, 20, V.W - 20), clamp(Math.max(...spots.map(q => q.y)) - 4, L.floorTop + 30, V.H - 4)); // beside the class
     if (guest !== g) { busy = false; return; }
     doorTarget = 0; sfx.door();
-    g.talkT = G.time + 2.4; speak({ kind: g.kind }, LD.MYSTERY_LINES.guest, 'here');
+    g.talkT = G.time + 2.4; speak({ kind: 'guest' }, LD.MYSTERY_LINES.guest, 'here');
     await wait(2.6);
     if (guest !== g) { busy = false; return; }
     if (g.kid.mode !== 'away') { act(g.kid, 'cheer', 1.4); hop(g.kid, 80); speak(g.kid, LD.MYSTERY_LINES.kid, 'yay'); burst('heart', ...headPos(g.kid), 6, ['#ff6f91', '#ff9ec4'], { up: true, sp: 45 }); }
@@ -2580,7 +2580,7 @@ export function createClassroom(students, hooks) {
     if (guest !== g) { busy = false; return; }
     for (const s of students) s.look = 0;
     const k = (dayIndex() + 1) % BOOKS.length;
-    story = { stage: 'read', book: k, def: k, page: -1, t: G.time, flipT: G.time, reader: { kind: g.kind } };
+    story = { stage: 'read', book: k, def: k, page: -1, t: G.time, flipT: G.time, reader: { kind: 'guest' } };
     g.stage = 'read'; sfx.page(); sfx.sparkle();
     const st = story;
     wait(0.4).then(() => { if (story === st && st.page < 0) { g.talkT = G.time + 1.5; speak(st.reader, LD.BOOK_TEXT[k].title, 'yay'); } });
