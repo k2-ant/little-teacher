@@ -45,8 +45,8 @@ To regenerate the clips after changing any lines: `ELEVENLABS_API_KEY=... node t
    - 🍎 **desk supplies:** drop one on each desk (apple, pencils, books, crayons, cactus, snow globe)
    - 🎨 **paint:** wall colours, floor colours, and a new rug pattern
 
-   Drag things from the tray, or tap one to drop it in. Tap anything you've placed to change its colour, and drag it back into the tray to put it away. Ring the 🔔 when the room is ready. The decorate tray (paint roller button) is also open during class.
-2. **Morning bell:** the students walk in one by one and say good morning. If you changed the room, they gasp "Ooh, so pretty!" and clap.
+   Drag things from the tray, or tap one to drop it in. Tap anything you've placed to change its colour. To get rid of something, drag it to the 🗑️ trash can that appears at the bottom while you're dragging. Desk supplies can be picked up and moved to another desk, or thrown away. Ring the 🔔 when the room is ready. The decorate tray (paint roller button) is also open during class.
+2. **Morning bell:** a big calendar card shows today's day with its colour, and a student says "¡Hoy es lunes!". Each new day moves to the next school day (lunes → martes → miércoles → jueves → viernes, then back to lunes). The calendar on the wall shows the day all day; tap it to hear it again. Then the students walk in one by one and say good morning. If you changed the room, they gasp "Ooh, so pretty!" and clap.
 3. **Attendance:** tap each student and they say "Here!". Their face lights up on the chart at the top.
 4. **Move things around:** drag desks, the rug, the plant and the bookshelf. Drag a student onto another desk to swap seats. Everything is saved.
 5. **Lesson:** tap the whiteboard to zoom in. It has 6 fat markers, stamps (star, heart, apple, sun, 1–5, A B C), an eraser and a squeegee that wipes the board clean. The students watch, raise their paws, clap, and say the stamp names and colours out loud. Tap a raised paw to make that student cheer.

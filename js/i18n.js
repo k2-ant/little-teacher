@@ -45,6 +45,14 @@ export function letterSentence(ch) {
   return lang() === 'es' ? `¡${cap(letterName(ch))} de ${w}!` : `${letterName(ch)} is for ${w}!`;
 }
 
+// ------------------------------------------------------------------ days of the week (school week: lunes-viernes)
+export const DAYS = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes'];
+export const DAY_WORDS = ['LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES'];
+export const DAY_SHORT = ['LUN', 'MAR', 'MIÉ', 'JUE', 'VIE'];
+export const DAY_COLORS = ['#ef5b5b', '#ff9a2e', '#e0a800', '#3cb44b', '#2f7de1'];
+export const dayIndex = () => ((G.save.day || 1) - 1) % DAYS.length;
+export const daySentence = (i = dayIndex()) => `¡Hoy es ${DAYS[i]}!`;
+
 // ------------------------------------------------------------------ shapes
 export const SHAPES = ['circle', 'square', 'triangle', 'rectangle', 'star', 'heart', 'oval', 'diamond'];
 const SHAPE_NAMES = {
@@ -93,6 +101,24 @@ export const FONT = {
   8: ['.###.', '#...#', '#...#', '.###.', '#...#', '#...#', '.###.'],
   9: ['.###.', '#...#', '#...#', '.####', '....#', '....#', '.###.'],
 };
+FONT['É'] = ['...#.', '..#..', '#####', '#....', '#....', '####.', '#....', '#....', '#####'];
+FONT['Á'] = ['...#.', '..#..', '.###.', '#...#', '#...#', '#####', '#...#', '#...#', '#...#'];
+/** a word drawn in the pixel font (accented letters stick up above the others) */
+export function wordSprite(word, col, scale = 1) {
+  return cached('word' + word + col + scale, () => {
+    const chars = [...word];
+    const w = chars.reduce((n, ch) => n + (FONT[ch] ? FONT[ch][0].length + 1 : 4), -1);
+    const p = new Pix(Math.max(1, w * scale), 9 * scale);
+    let x = 0;
+    for (const ch of chars) {
+      const rows = FONT[ch];
+      if (!rows) { x += 4; continue; }
+      p.map(x * scale, (9 - rows.length) * scale, rows, { '#': col }, scale);
+      x += rows[0].length + 1;
+    }
+    return p.canvas();
+  });
+}
 FONT['10'] = FONT[1].map((r, i) => r + '.' + FONT[0][i]);
 
 // ------------------------------------------------------------------ flags (US / Mexico) for the language button
@@ -118,6 +144,7 @@ export function allPhrases() {
   for (const ch of LETTERS) { out.add(NAMES.es[ch]); out.add(letterSentence(ch)); }
   NUMBER_WORDS.es.forEach(w => out.add(w));
   Object.values(SHAPE_NAMES.es).forEach(w => out.add(w));
+  DAYS.forEach((d, i) => { out.add(d); out.add(daySentence(i)); });
   return [...out];
 }
 /** what we actually send to the voice engine for a phrase (short words get a little enthusiasm) */

@@ -155,6 +155,7 @@ export const sfx = {
     }
   },
   ding(f = 1046) { if (!ok()) return; tone({ f, dur: 0.9, vol: 0.15, a: 0.002 }); tone({ f: f * 2.76, dur: 0.4, vol: 0.04, a: 0.002 }); },
+  trash() { if (!ok()) return; noise({ dur: 0.18, vol: 0.18, f: 2500, q: 0.7 }); noise({ t: 0.08, dur: 0.12, vol: 0.12, f: 1800, q: 0.7 }); tone({ t: 0.22, f: 180, f2: 90, dur: 0.18, vol: 0.25 }); },
   note(f = 784) { if (!ok()) return; tone({ type: 'triangle', f, dur: 0.35, vol: 0.14 }); tone({ f: f * 2, dur: 0.15, vol: 0.04 }); },
   pop(p = 1) { if (!ok()) return; tone({ f: 320 * p, f2: 900 * p, dur: 0.09, vol: 0.28 }); noise({ dur: 0.03, vol: 0.08, f: 3000 }); },
   softPop() { if (!ok()) return; tone({ f: 500, f2: 700, dur: 0.07, vol: 0.12 }); },

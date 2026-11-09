@@ -5,7 +5,7 @@ import { sfx, hush } from './audio.js';
 import { act, acting, hop, talk, speak, animalSound, coax, physics, walkStep, walkTo, pose, traits, startle, GREETINGS, BYES, randomCheer } from './students.js';
 import { PAGES } from './pages.js';
 import * as DC from './decor.js';
-import { lang, setLang, flag } from './i18n.js';
+import { lang, setLang, flag, DAY_WORDS, DAY_SHORT, DAY_COLORS, dayIndex, daySentence, wordSprite } from './i18n.js';
 
 const R = (c, x, y, w, h, col) => { c.fillStyle = col; c.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); };
 const D = (c, img, x, y) => c.drawImage(img, Math.round(x), Math.round(y));
@@ -70,7 +70,7 @@ export function createClassroom(students, hooks) {
     const t = G.save.furniture.teacher;
     furn.teacher = { id: 'teacher', type: 'teacher', fx: t ? t[0] : -1, fy: t ? t[1] : 0.08, x: 0, y: 0, lift: 0 };
   }
-  for (const id of ['abc', 'shapetable']) {
+  for (const id of ['abc', 'shapetable', 'calendar']) {
     const sv = G.save.furniture[id];
     furn[id] = { id, type: id, v: 0, fx: sv ? sv[0] : -1, fy: sv ? sv[1] : -1, x: 0, y: 0, lift: 0 };
   }
@@ -98,6 +98,7 @@ export function createClassroom(students, hooks) {
   let btns = [];
   let lastTap = 0;
   let deco = null; // decorate tray: { tab }
+  let dayCard = null; // morning 'today is...' card
   let T = null; // tray layout
   const teach = { act: null, z: 0, vz: 0, blinkT: 2, blink: 0, pointRight: true };
   function teacherAct(name, dur = 1.2) { teach.act = { name, t0: G.time, dur }; }
@@ -151,6 +152,7 @@ export function createClassroom(students, hooks) {
     if (f.type === 'teacher' && f.fx < 0) f.fx = (L.door.x + L.door.w + 17) / V.W;
     if (f.type === 'abc' && f.fx < 0) { f.fx = ((L.door.x + L.door.w + L.board.x) / 2 + 4) / V.W; f.fy = (L.wallH - 22) / L.wallH; }
     if (f.type === 'shapetable' && f.fx < 0) { f.fx = 0.8; f.fy = 0.93; }
+    if (f.type === 'calendar' && f.fx < 0) { f.fx = (V.W - V.inset.r - 20) / V.W; f.fy = (L.wallH - 24) / L.wallH; }
     const [w] = sizeOf(f);
     f.x = clamp(Math.round(f.fx * V.W), w / 2 + 2, V.W - w / 2 - 2);
     if (layerOf(f) === 'wall') { f.y = Math.round(f.fy * L.wallH); clampItem(f); return; }
@@ -442,7 +444,12 @@ export function createClassroom(students, hooks) {
     for (const s of students) Object.assign(s, { mode: 'away', here: false, sleep: false, hide: 0, act: null, bubble: null, glowT: 0, z: 0, vz: 0, snack: null, sleepT: rand(14, 24), wanderT: rand(20, 32), hideT: 0 });
     await wait(0.5);
     sfx.bell();
-    await wait(2.2);
+    await wait(1.2);
+    dayCard = { t0: G.time, day: dayIndex() };
+    sfx.chime(); teacherAct('point', 1.4);
+    teach.pointRight = furn.calendar.x > furn.teacher.x;
+    wait(0.4).then(() => speak(students[3], daySentence(), 'here'));
+    await wait(3.2);
     for (const s of students) {
       doorTarget = 1; sfx.door();
       await wait(0.35);
@@ -707,6 +714,12 @@ export function createClassroom(students, hooks) {
       const hand = (ang, len, col) => { for (let r = 0; r <= len; r += 0.5) R(c, cx + Math.sin(ang) * r, cy - Math.cos(ang) * r, 1, 1, col); };
       hand((d.getHours() % 12 + d.getMinutes() / 60) * Math.PI / 6, 3.5, '#2b1d2e'); hand(d.getMinutes() * Math.PI / 30, 5.5, '#5a4560');
     }
+    if (f.type === 'calendar') {
+      const di = dayIndex(), top = f.y - h - lift + bob;
+      const wd = wordSprite(DAY_SHORT[di], DAY_COLORS[di]);
+      D(c, wd, f.x - wd.width / 2, top + 9);
+      for (let k = 0; k < 5; k++) R(c, f.x - 12 + k * 5, top + 21, 4, 3, k === di ? DAY_COLORS[k] : '#e6dccb');
+    }
     if ((f.type === 'abc' || f.type === 'shapetable') && phase === 'class' && Math.floor(G.time * 2) % 9 === 0) {
       D(c, S.particle('spark', '#ffd23f'), f.x + w / 2 - 4, f.y - h - 2 + Math.round(Math.sin(G.time * 8)));
     }
@@ -793,6 +806,8 @@ export function createClassroom(students, hooks) {
       if (tgt) { c.fillStyle = 'rgba(255,230,110,0.5)'; c.fillRect(tgt.x - 17, tgt.y - 4, 34, 3); }
     }
     drawHud(c);
+    drawTrash(c);
+    if (dayCard) drawDayCard(c);
     if (drag && drag.kind === 'star') {
       const st = S.ICONS.star();
       const hov = hitStudent(drag.x, drag.y);
@@ -939,6 +954,48 @@ export function createClassroom(students, hooks) {
     teacherAct('wave', 1.6);
   }
 
+  // ---------------------------------------------------------------- trash can
+  function trashRect() { return { x: Math.round(V.W / 2 - 13), y: (deco ? T.y : V.H - V.inset.b) - 34, w: 26, h: 30 }; }
+  function trashing() { return drag && ((drag.kind === 'furn' && drag.f.deco) || drag.kind === 'new'); }
+  function overTrash(x, y) { if (!trashing()) return false; return nearTrash(x, y); }
+  function nearTrash(x, y) { const r = trashRect(); return x >= r.x - 10 && x <= r.x + r.w + 10 && y >= r.y - 10 && y <= r.y + r.h + 8; }
+  function drawTrash(c) {
+    if (!trashing()) return;
+    const r = trashRect(), over = overTrash(drag.px, drag.py);
+    c.fillStyle = 'rgba(40,30,60,0.2)'; c.fillRect(r.x + 2, r.y + r.h - 1, r.w - 4, 2);
+    D(c, DC.trash(over), r.x, r.y - (over ? 1 : 0) + (over ? 0 : Math.round(Math.sin(G.time * 5))));
+  }
+  function trashIt(x, y) {
+    sfx.trash();
+    burst('crumb', x, y, 10, ['#d8d0c8', '#bfe0f5', '#ffffff'], { up: true, sp: 50, g: 120 });
+    const r = trashRect(); burst('spark', r.x + 13, r.y + 4, 5, ['#ffffff', '#bfe6ff']);
+  }
+  function drawDayCard(c) {
+    const k = G.time - dayCard.t0, di = dayCard.day;
+    if (k > 3.1) { dayCard = null; return; }
+    const card = cached('daycard' + di, () => {
+      const cv = document.createElement('canvas'); const w = 132, h = 66; cv.width = w; cv.height = h;
+      const x = cv.getContext('2d');
+      const r = (a, b, cw, ch, col) => { x.fillStyle = col; x.fillRect(a, b, cw, ch); };
+      r(2, 4, w - 4, h - 6, '#b9a99a'); r(0, 3, w - 2, h - 5, '#fffaf0');
+      r(0, 3, w - 2, 12, DAY_COLORS[di]); r(0, 3, w - 2, 2, lighten(DAY_COLORS[di], 0.4));
+      for (const rx of [24, w - 30]) { r(rx, 0, 4, 9, '#9aa7b8'); r(rx, 0, 4, 1, '#d6dee8'); }
+      const wd = wordSprite(DAY_WORDS[di], DAY_COLORS[di], 2);
+      x.drawImage(wd, Math.round((w - 2 - wd.width) / 2), 22);
+      for (let q = 0; q < 5; q++) r(Math.round((w - 2) / 2 - 31 + q * 13), 48, 10, 8, q === di ? DAY_COLORS[q] : '#e6dccb');
+      return cv;
+    });
+    const { W, H } = V;
+    let cx = W / 2, cy = H * 0.42, s = Math.min(1, k / 0.25);
+    if (k > 2.4) { // fly to the wall calendar
+      const q = Math.min(1, (k - 2.4) / 0.6), cal = furn.calendar, [, ch] = sizeOf(cal);
+      cx += (cal.x - cx) * q; cy += (cal.y - ch / 2 - cy) * q; s = 1 - q * 0.8;
+    }
+    const w = Math.round(card.width * s), h = Math.round(card.height * s);
+    c.drawImage(card, Math.round(cx - w / 2), Math.round(cy - h / 2 + (k < 2.4 ? Math.sin(G.time * 3) * 2 : 0)), w, h);
+    if (k > 0.3 && k < 2.4 && Math.random() < 0.3) burst('spark', cx + rand(-60, 60), cy + rand(-30, 30), 1, ['#ffd23f', DAY_COLORS[di]], { sp: 20 });
+  }
+
   function drawOverlays(c) {
     const { W, H } = V;
     if (phase === 'title' || phase === 'night') {
@@ -1081,6 +1138,10 @@ export function createClassroom(students, hooks) {
     }
     if (phase !== 'prep' && inRect(x, y, L.chart)) { press.chart = true; return; }
     if (phase !== 'class' && phase !== 'activity' && phase !== 'prep') return;
+    if (!busy && !story) for (const d of desks) {
+      if (G.save.deskItems[d.i] && inRect(x, y, { x: d.x + 1, y: d.y - 30, w: 18, h: 16 })) { press.deskItem = d; break; }
+    }
+    if (press.deskItem) return;
     const s = hitStudent(x, y);
     if (s) { press.s = s; return; }
     if (busy) return;
@@ -1095,7 +1156,12 @@ export function createClassroom(students, hooks) {
     if (!press.moved && Math.hypot(x - press.x0, y - press.y0) > 6) {
       press.moved = true;
       const ti = press.trayItem;
-      if (ti && ['floor', 'wall', 'desk'].includes(ti.kind)) {
+      if (press.deskItem) {
+        const d = press.deskItem, type = G.save.deskItems[d.i];
+        delete G.save.deskItems[d.i]; persist();
+        drag = { kind: 'new', type, desk: true, from: d.i, px: x, py: y, left: true };
+        sfx.lift();
+      } else if (ti && ['floor', 'wall', 'desk'].includes(ti.kind)) {
         drag = { kind: 'new', type: ti.id, desk: ti.kind === 'desk', px: x, py: y };
         sfx.lift();
       } else if (press.f && !busy && !story) {
@@ -1135,6 +1201,12 @@ export function createClassroom(students, hooks) {
         return;
       }
       if (d.kind === 'new') {
+        if (nearTrash(d.px, d.py)) { trashIt(d.px, d.py); if (d.from !== undefined) { G.save.decorStamp++; persist(); } return; }
+        if (d.desk) {
+          const tgt = deskAt(d.px, d.py + 6);
+          if (d.from !== undefined && (!tgt || tgt.i === d.from)) { G.save.deskItems[d.from] = d.type; persist(); sfx.softPop(); return; }
+          if (d.from !== undefined && tgt && G.save.deskItems[tgt.i]) G.save.deskItems[d.from] = G.save.deskItems[tgt.i]; // swap
+        }
         if (d.desk) { const tgt = deskAt(d.px, d.py + 6); if (tgt) setDeskItem(tgt, d.type); else sfx.softPop(); return; }
         if (!d.left && overTray(d.px, d.py)) { sfx.softPop(); return; }
         addDecor(d.type, d.px, d.py);
@@ -1142,6 +1214,7 @@ export function createClassroom(students, hooks) {
       }
       if (d.kind === 'furn') {
         const f = d.f; f.lift = 0;
+        if (f.deco && nearTrash(d.px, d.py)) { delete furn[f.id]; saveDecor(); trashIt(f.x, f.y - sizeOf(f)[1] / 2); return; }
         if (f.deco && overTray(d.px, d.py)) { removeDecor(f); return; }
         remember(f); sfx.thump();
         if (f.type === 'teacher') teacherAct('wave', 1);
@@ -1232,6 +1305,11 @@ export function createClassroom(students, hooks) {
       sfx.tap();
       return;
     }
+    if (p.deskItem) {
+      const s = students.find(t => t.desk === p.deskItem.i && t.mode === 'seated');
+      if (s) tapStudent(s); else { sfx.pop(1.3); burst('spark', p.deskItem.x + 10, p.deskItem.y - 24, 4, ['#ffd23f']); }
+      return;
+    }
     if (p.s) { tapStudent(p.s); return; }
     if (recess) {
       const b = recess.ball;
@@ -1240,6 +1318,14 @@ export function createClassroom(students, hooks) {
     if (p.f && p.f.type === 'teacher') { // twirl!
       teacherAct('twirl', 0.9); teach.vz = 70; sfx.giggle(1.05, 4);
       burst('heart', p.f.x, p.f.y - 50, 3, ['#ff6f91', '#ff9ec4'], { up: true, sp: 30 });
+      return;
+    }
+    if (p.f && p.f.type === 'calendar') {
+      p.f.pop = G.time + 0.25; sfx.pop(1.2);
+      const t = awake().find(s => s.kind === 'owl') || pick(awake().length ? awake() : students);
+      speak(t, daySentence(), 'here');
+      teach.pointRight = p.f.x > furn.teacher.x; teacherAct('point', 1.2);
+      burst('spark', p.f.x, p.f.y - 14, 6, [DAY_COLORS[dayIndex()], '#ffd23f']);
       return;
     }
     if (p.f && (p.f.type === 'abc' || p.f.type === 'shapetable')) {
@@ -1279,6 +1365,8 @@ export function createClassroom(students, hooks) {
   window.__ltTray = () => (deco ? { tabs: TABS.map((t, k) => { const r = tabRect(k); return css(r.x + 10, r.y + 10); }), items: trayItems().map(it => css(it.x + it.w / 2, it.y + it.h / 2)) } : null);
   window.__ltDesks = () => desks.map(d => css(d.x, d.y - 18));
   window.__ltFurnPt = (id) => { const f = furn[id]; const [, h] = sizeOf(f); return css(f.x, f.y - h / 2); };
+  window.__ltDeskItem = (i) => { const d = desks[i]; return css(d.x + 10, d.y - 22); };
+  window.__ltTrash = () => { const r = trashRect(); return css(r.x + 13, r.y + 15); };
   window.__ltTeacher = () => css(furn.teacher.x, furn.teacher.y - 30);
   window.__ltMenu = () => (menu ? menu.items.map(m => css(m.x + 24, m.y + 24)) : []);
 

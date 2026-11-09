@@ -24,6 +24,7 @@ export const DECOR = {
   clock: { layer: 'wall', w: 19, h: 19, variants: ['#ef6f6c', '#64a8e8', '#7dd370'] },
   // learning areas (always in the room, can be moved)
   abc: { layer: 'wall', w: 48, h: 34, variants: [0] },
+  calendar: { layer: 'wall', w: 26, h: 28, variants: [0] },
   shapetable: { layer: 'floor', w: 34, h: 26, variants: [0] },
 };
 export const FLOOR_ITEMS = ['beanbag', 'teddy', 'toybox', 'easel', 'fishtank', 'globe', 'flowers', 'balloons', 'lamp'];
@@ -161,6 +162,12 @@ const DRAW = {
     ['1', '2', '3'].forEach((ch, i) => p.map(10 + i * 11, 20, F[ch], { '#': ['#a6e69a', '#ffb3d1', '#d5b8ff'][i] }, 2));
     p.rect(30, 30, 8, 2, '#ffffff'); p.rect(12, 32, 24, 2, '#8a5730');
   },
+  calendar(p) {
+    p.rect(0, 2, 26, 26, '#fffaf0'); p.rect(0, 27, 26, 1, '#d8c7a8');
+    p.rect(0, 2, 26, 6, '#ef6f6c'); p.rect(0, 2, 26, 1, '#ff9a9a');
+    for (const x of [6, 19]) { p.rect(x, 0, 2, 5, '#9aa7b8'); p.px(x, 0, '#d6dee8'); }
+    p.hline(2, 23, 25, '#efe6d8');
+  },
   shapetable(p) {
     p.rect(4, 14, 2, 12, '#a8703f'); p.rect(28, 14, 2, 12, '#a8703f');
     p.ell(17, 13, 16.5, 5.5, '#8fd0c8'); p.ell(17, 12, 16, 4.6, '#b8e6e0');
@@ -292,6 +299,16 @@ export function trayIcon(name) {
     if (name === 'desk') { p.ball(9, 10, 6, 5.4, '#ef4b4b'); p.px(9, 3, '#7a4a2a'); p.ell(12, 3.5, 2, 1, '#6cc44f'); }
     if (name === 'decorate') { p.rect(2, 3, 11, 6, '#ffd23f'); p.rect(2, 3, 11, 2, '#fff2a0'); p.rect(12, 5, 3, 1, '#9aa7b8'); p.rect(14, 5, 1, 5, '#9aa7b8'); p.rect(7, 10, 8, 1, '#9aa7b8'); p.rect(7, 11, 3, 6, '#ef6f6c'); p.px(3, 10, '#ff8fb8'); p.px(4, 12, '#7ec8ff'); p.px(2, 14, '#7dd370'); }
     if (name === 'bell') { p.ball(9, 9, 6, 6.5, '#ffd23f', { clip: { y1: 12 } }); p.rect(2, 12, 14, 2, '#e0a820'); p.ball(9, 15, 1.6, 1.6, '#a8703f'); p.rect(8, 1, 2, 2, '#a8703f'); }
+  });
+}
+export function trash(open) {
+  return mk('trash' + open, 26, 30, p => {
+    const body = '#7fb7e0', dark = '#4f86b8';
+    for (let y = 9; y < 30; y++) { const inset = Math.floor((y - 9) / 7); p.hline(3 + inset, 22 - inset, y, y % 5 === 0 ? dark : body); }
+    for (const x of [8, 13, 18]) p.vline(x, 12, 26, dark);
+    if (open) { p.line(2, 7, 16, 0, '#5f96c8'); p.line(2, 8, 17, 1, '#5f96c8'); p.line(3, 8, 17, 2, '#5f96c8'); p.rect(14, 0, 3, 2, '#3f6f9a'); }
+    else { p.rect(1, 6, 24, 3, '#5f96c8'); p.rect(10, 4, 6, 2, '#3f6f9a'); }
+    p.px(6, 13, '#bfe0f5'); p.px(6, 14, '#bfe0f5'); p.px(6, 15, '#bfe0f5');
   });
 }
 export function swatch(kind, i) {
