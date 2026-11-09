@@ -6,7 +6,7 @@ import { sfx, strokeStart, strokeSpeed, strokeEnd } from './audio.js';
 import { sayHint, sayUI, drawHand } from './hints.js';
 import { numberWord, letterName, wordSprite } from './i18n.js';
 import { STAR_COUNT_LINE } from './learndata.js';
-import { act, acting, hop, talk, speak, animalSound, coax, physics, pose, traits, startle, randomCheer } from './students.js';
+import { act, acting, hop, talk, speak, animalSound, coax, physics, pose, traits, startle, randomCheer, tapEscalate, crowned } from './students.js';
 
 export const BW = 192, BH = 108;
 const BG = '#f8fbff';
@@ -224,6 +224,7 @@ export function createBoard(students, hooks) {
     const r = studentRect(s.idx);
     const hx = r.x + S.SW / 2, hy = r.y + 10;
     if (coax(s)) return;
+    if (!acting(s, 'raise') && tapEscalate(s, { burst: (k, n, cols, o) => burst(k, hx, hy - s.z, n, cols, o), neighbours: awake })) return;
     if (acting(s, 'raise')) {
       act(s, 'cheer', 1.2); hop(s, 80); sfx.cheer(1.2); speak(s, randomCheer(), 'yay');
       burst('star', hx, hy, 6, ['#ffd23f', '#ff9ec4', '#7ec8ff'], { up: true });
@@ -339,6 +340,7 @@ export function createBoard(students, hooks) {
       const r = studentRect(s.idx);
       const { st, dx } = pose(s);
       D(c, S.student(s.kind, st), r.x + dx, r.y - s.z);
+      if (crowned(s)) { const o = S.CROWN_AT[s.kind]; D(c, S.crown(), r.x + dx + o[0] - 1, r.y - s.z + (s.hide > 0 ? 19 : o[1]) - 1); }
       if (s.bubble) D(c, S.bubbleImg(s.bubble.kind), r.x + 20, r.y - 6 - s.z);
     }
     R(c, 0, L.ledge, W, H - L.ledge, '#dca46a'); R(c, 0, L.ledge, W, 1, '#f0c792'); R(c, 0, L.ledge + 3, W, 1, '#b77942');

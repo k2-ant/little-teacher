@@ -244,15 +244,20 @@ await tapAt(...toys); await p.waitForTimeout(200);
 await shot('11-menu');
 const items = await p.evaluate(() => window.__ltMenu());
 await tapAt(...items[2]);
-await p.waitForTimeout(4000);
-await tapAt(W / 2, H - 60); await p.waitForTimeout(500); await tapAt(W / 2, H - 60); await p.waitForTimeout(500);
+await p.waitForFunction(() => window.__ltStory() && window.__ltStory().stage === 'choose', null, { timeout: 20000 });
+await shot('12a-story-choose');
+await tapAt(...(await p.evaluate(() => window.__ltStory().covers[0]))); await p.waitForTimeout(1200);
+await tapAt(...(await p.evaluate(() => window.__ltStory().book_pt))); await p.waitForTimeout(900);
 await shot('12-story');
-for (let i = 0; i < 5; i++) { await tapAt(W / 2, H - 60); await p.waitForTimeout(400); }
+for (let i = 0; i < 6 && await p.evaluate(() => !!window.__ltStory()); i++) { const bp = await p.evaluate(() => window.__ltStory() && window.__ltStory().book_pt); if (bp) await tapAt(...bp); await p.waitForTimeout(900); }
 await p.waitForFunction(() => window.__lt.room.phase === 'class', null, { timeout: 30000 });
 // snack
 await tapAt(...toys); await p.waitForTimeout(200);
-await tapAt(...items[1]); await p.waitForTimeout(2600);
-await shot('13-snack');
+await tapAt(...items[1]);
+await p.waitForFunction(() => !!window.__ltSnack(), null, { timeout: 20000 }); await p.waitForTimeout(1500);
+{ const pts = await p.evaluate(() => window.__ltDeskPts());
+  for (let j = 0; j < 5; j++) { const sn = await p.evaluate(() => window.__ltSnack()); const sl = sn && sn.slots.find(s => s); if (!sl) break; await tapAt(...sl); await p.waitForTimeout(150); await tapAt(...pts[j]); await p.waitForTimeout(500); if (j === 1) await shot('13-snack'); } }
+await p.waitForFunction(() => !window.__ltSnack() || window.__ltSnack().done, null, { timeout: 30000 });
 await p.waitForFunction(() => window.__lt.room.phase === 'class', null, { timeout: 30000 });
 await tapAt(...toys); await p.waitForTimeout(200);
 await tapAt(...items[0]); await p.waitForTimeout(2500);
