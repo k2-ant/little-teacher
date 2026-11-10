@@ -1,6 +1,6 @@
-// Shape corner: a wooden shape sorter. Drag each shape into its hole.
+// Shape corner: a wooden shape sorter. Drag each shape into its hole, or tap a shape and then tap its hole.
 import { G, makeView, rand, pick, wait } from './state.js';
-import { Pix, cached, darken, lighten } from './raster.js';
+import { Pix, cached, darken, lighten, glow } from './raster.js';
 import * as S from './sprites.js';
 import * as DC from './decor.js';
 import { sfx } from './audio.js';
@@ -62,6 +62,8 @@ function btnFrame(w, h, col = '#fff3dc') {
 export function createShapes(students, hooks) {
   let V = null, L = {};
   let holes = [], pieces = [], drag = null, press = null, roundDone = false, idleSince = 0;
+  let sel = null; // tap-then-tap: the piece she tapped (it glows and bobs) until she taps a hole
+  const SNAP = 45; // a dropped piece finds a hole this close (logical px)
   const row = makeRow(students);
   const teach = { act: null, t0: 0, dur: 0 };
   const tAct = (name, dur = 1.2) => { teach.act = name; teach.t0 = G.time; teach.dur = dur; };
@@ -100,7 +102,7 @@ export function createShapes(students, hooks) {
     holes = shapes.map(s => ({ shape: s, x: 0, y: 0 }));
     const slots = shapes.map((_, k) => k).sort(() => Math.random() - 0.5);
     pieces = shapes.map((s, k) => ({ shape: s, col: cols[k], slot: slots[k], placed: false, hole: k, x: 0, y: 0, pop: 0 }));
-    roundDone = false;
+    roundDone = false; sel = null;
     if (V) placeAll();
     if (!silent) sfx.chime();
   }
@@ -108,7 +110,11 @@ export function createShapes(students, hooks) {
 
   function update(dt) {
     row.update(dt);
-    for (const p of pieces) if (!p.placed && !(drag && drag.p === p)) { p.x += (p.home.x - p.x) * Math.min(1, dt * 10); p.y += (p.home.y - p.y) * Math.min(1, dt * 10); }
+    for (const p of pieces) {
+      if (p.placed) { if (p.fly) { const h = holes[p.hole], k = Math.min(1, dt * 16); p.x += (h.x - p.x) * k; p.y += (h.y - p.y) * k; if (Math.hypot(h.x - p.x, h.y - p.y) < 0.6) { p.x = h.x; p.y = h.y; p.fly = false; } } continue; }
+      if (drag && drag.p === p) continue;
+      p.x += (p.home.x - p.x) * Math.min(1, dt * 10); p.y += (p.home.y - p.y) * Math.min(1, dt * 10);
+    }
   }
   function render() {
     const c = V.ctx, { W, H } = V;
@@ -126,10 +132,13 @@ export function createShapes(students, hooks) {
     const list = [...pieces].sort((p, q) => (p.placed ? 0 : 1) - (q.placed ? 0 : 1) || (drag && drag.p === p ? 1 : 0) - (drag && drag.p === q ? 1 : 0));
     for (const p of list) {
       const im = shapeSprite(p.shape, p.col);
-      const lifted = drag && drag.p === p;
-      const bob = p.pop > G.time ? -2 : roundDone ? Math.round(Math.sin(G.time * 6 + p.slot)) : 0;
-      if (lifted) { c.globalAlpha = 0.25; D(c, shapeSprite(p.shape, '#2b1d2e', 'shadow'), p.x - im.width / 2 + 3, p.y - im.height / 2 + 5); c.globalAlpha = 1; }
-      D(c, im, p.x - im.width / 2, p.y - im.height / 2 - (lifted ? 3 : 0) + bob);
+      const lifted = drag && drag.p === p, chosen = sel === p && !lifted;
+      let bob = p.pop > G.time ? -2 : roundDone ? Math.round(Math.sin(G.time * 6 + p.slot)) : 0;
+      if (chosen) bob = -3 - Math.round(Math.abs(Math.sin(G.time * 5)) * 3); // the chosen piece bobs above its spot
+      const wig = p.wig > G.time ? Math.round(Math.sin((p.wig - G.time) * 40) * 2) : 0; // not that hole: a gentle wiggle
+      if (lifted || chosen) { c.globalAlpha = 0.25; D(c, shapeSprite(p.shape, '#2b1d2e', 'shadow'), p.x - im.width / 2 + 3, p.y - im.height / 2 + 5); c.globalAlpha = 1; }
+      if (chosen) { c.globalAlpha = 0.8 + 0.2 * Math.sin(G.time * 6); D(c, glow(im, '#ffd23f', 'shpsel' + p.shape + p.col), p.x - im.width / 2 - 2 + wig, p.y - im.height / 2 - 2 + bob); c.globalAlpha = 1; }
+      D(c, im, p.x - im.width / 2 + wig, p.y - im.height / 2 - (lifted ? 3 : 0) + bob);
     }
     // Louise
     const tk = teach.act && G.time - teach.t0 < teach.dur ? teach.act : null;
@@ -140,7 +149,7 @@ export function createShapes(students, hooks) {
     D(c, btnFrame(26, 26), L.back.x, L.back.y); D(c, S.ICONS.back(), L.back.x + 4, L.back.y + 3);
     row.renderParts(c);
     // hint: a hand carries a shape to its hole
-    const free = pieces.find(p => !p.placed);
+    const free = sel || pieces.find(p => !p.placed);
     if (free && !drag && !roundDone && G.time - idleSince > 8) {
       const h = holes[free.hole], k = Math.min(1, ((G.time - idleSince - 8) % 2.4) / 1.6);
       drawHand(c, free.x + (h.x - free.x) * k, free.y + (h.y - free.y) * k);
@@ -166,44 +175,84 @@ export function createShapes(students, hooks) {
     if (Math.hypot(x - press.x0, y - press.y0) > 5) press.moved = true;
     if (drag) { drag.p.x = x + drag.ox; drag.p.y = y + drag.oy; row.look(x); }
   }
+  const holeFree = (k) => !pieces.some(q => q.placed && q.hole === k);
+  function holeAt(x, y) { // a tap on a hole: generous, but never past half way to the next hole
+    const half = holes.length > 1 ? Math.abs(holes[1].x - holes[0].x) / 2 : 22;
+    let best = -1, bd = 1e9;
+    holes.forEach((h, k) => {
+      const [w, hh] = SIZE[h.shape];
+      if (Math.abs(x - h.x) > Math.min(half, w / 2 + 8) || Math.abs(y - h.y) > hh / 2 + 8) return;
+      const d = Math.hypot(x - h.x, y - h.y); if (d < bd) { bd = d; best = k; }
+    });
+    return best;
+  }
+  function placeIn(p, k, flying) { // the right hole: it drops in and everyone claps
+    sel = null;
+    p.placed = true; p.hole = k; p.pop = G.time + 0.3; p.fly = !!flying;
+    if (!flying) { p.x = holes[k].x; p.y = holes[k].y; }
+    sfx.thump(); sfx.pop(1.3); sayShape(p.shape);
+    row.burst('star', holes[k].x, holes[k].y, 6, [p.col, '#ffd23f', '#ffffff'], { up: true });
+    row.react('clap', 1); sfx.clap(4, 0.6); tAct('clap', 1);
+    if (pieces.every(q => q.placed)) {
+      roundDone = true;
+      wait(0.8).then(() => {
+        sfx.fanfare(); row.cheer('cheer'); tAct('cheer', 1.6);
+        row.burst('confetti', L.box.x + L.box.w / 2, L.box.y, 36, COLORS, { sp: 90, g: 80, life: 1.4 });
+        speak(row.talker() || owl, 'Great job!', 'yay');
+      });
+      wait(3.4).then(() => newRound());
+    }
+  }
+  function notThatOne(p) { // a wrong hole: a gentle wiggle, no fail
+    p.wig = G.time + 0.45;
+    sfx.boing(); const t = row.talker(); if (t) { speak(t, 'Hmm?', 'giggle'); } row.react('giggle', 0.8);
+  }
+  function choose(p) { // tap a free piece: she picks it up (it glows and bobs) and hears its name
+    sel = p; p.pop = G.time + 0.25; sfx.lift(); sfx.pop(1.2); sayShape(p.shape);
+    row.burst('spark', p.x, p.y, 4, [p.col, '#ffffff']);
+  }
   function up() {
     const pr = press; press = null;
     if (!pr) return;
     for (const s of students) s.look = 0;
     if (drag) {
       const p = drag.p; drag = null;
-      if (!pr.moved) { p.pop = G.time + 0.25; sfx.pop(1.2); sayShape(p.shape); row.burst('spark', p.x, p.y, 4, [p.col, '#ffffff']); return; }
-      let best = null, bd = 20;
-      for (let k = 0; k < holes.length; k++) { if (pieces.some(q => q.placed && q.hole === k)) continue; const d = Math.hypot(holes[k].x - p.x, holes[k].y - p.y); if (d < bd) { bd = d; best = k; } }
-      if (best === null) { sfx.softPop(); return; }
-      if (holes[best].shape === p.shape) {
-        p.placed = true; p.hole = best; p.x = holes[best].x; p.y = holes[best].y; p.pop = G.time + 0.3;
-        sfx.thump(); sfx.pop(1.3); sayShape(p.shape);
-        row.burst('star', p.x, p.y, 6, [p.col, '#ffd23f', '#ffffff'], { up: true });
-        row.react('clap', 1); sfx.clap(4, 0.6); tAct('clap', 1);
-        if (pieces.every(q => q.placed)) {
-          roundDone = true;
-          wait(0.8).then(() => {
-            sfx.fanfare(); row.cheer('cheer'); tAct('cheer', 1.6);
-            row.burst('confetti', L.box.x + L.box.w / 2, L.box.y, 36, COLORS, { sp: 90, g: 80, life: 1.4 });
-            speak(row.talker() || owl, 'Great job!', 'yay');
-          });
-          wait(3.4).then(() => newRound());
-        }
-      } else { // not that one - wiggle back home, no fail
-        sfx.boing(); const t = row.talker(); if (t) { speak(t, 'Hmm?', 'giggle'); } row.react('giggle', 0.8);
+      if (!pr.moved) { choose(p); return; }
+      sel = null;
+      // the nearest free hole of the same shape within reach wins over a closer wrong hole
+      let same = -1, ds = SNAP, any = -1, da = SNAP;
+      for (let k = 0; k < holes.length; k++) {
+        if (!holeFree(k)) continue;
+        const d = Math.hypot(holes[k].x - p.x, holes[k].y - p.y);
+        if (holes[k].shape === p.shape && d < ds) { ds = d; same = k; }
+        if (d < da) { da = d; any = k; }
       }
+      if (same >= 0) { placeIn(p, same); return; }
+      if (any < 0) { sfx.softPop(); return; }
+      notThatOne(p); // not that one: it slides back home
       return;
     }
     const { x, y } = pr;
+    if (inR(x, y, L.back)) { sel = null; sfx.whoosh(); sayUI(owl, 'back'); hooks.close(); return; }
+    const hk = holeAt(x, y);
+    if (sel && hk >= 0 && !roundDone) { // tap-then-tap: try the chosen piece in this hole
+      const p = sel;
+      if (holes[hk].shape === p.shape && holeFree(hk)) placeIn(p, hk, true);
+      else notThatOne(p); // it stays chosen: she can try another hole
+      return;
+    }
     if (pr.placed) { pr.placed.pop = G.time + 0.25; sfx.pop(1.2); sayShape(pr.placed.shape); return; }
-    if (inR(x, y, L.back)) { sfx.whoosh(); sayUI(owl, 'back'); hooks.close(); return; }
-    for (const h of holes) if (Math.hypot(h.x - x, h.y - y) < 14) { sfx.tap(); sayShape(h.shape); return; }
+    if (hk >= 0) { sfx.tap(); sayShape(holes[hk].shape); return; }
+    if (sel) { sel = null; sfx.softPop(); } // a tap anywhere else puts it back
     const s = row.hit(x, y); if (s) row.tap(s);
   }
   window.__ltShapes = () => {
     const k = V.s / G.dpr;
-    return { pieces: pieces.map(p => ({ shape: p.shape, at: [p.x * k, p.y * k] })), holes: holes.map(h => ({ shape: h.shape, at: [h.x * k, h.y * k] })), back: [(L.back.x + 13) * k, (L.back.y + 13) * k] };
+    return {
+      pieces: pieces.map(p => ({ shape: p.shape, at: [p.x * k, p.y * k], placed: p.placed })),
+      holes: holes.map((h, i) => ({ shape: h.shape, at: [h.x * k, h.y * k], free: holeFree(i) })),
+      back: [(L.back.x + 13) * k, (L.back.y + 13) * k], sel: sel ? pieces.indexOf(sel) : -1, done: roundDone, snap: SNAP * k,
+    };
   };
-  return { resize, update, render, down, move, up, open() { idleSince = G.time; }, get view() { return V; } };
+  return { resize, update, render, down, move, up, open() { idleSince = G.time; sel = null; }, get view() { return V; } };
 }

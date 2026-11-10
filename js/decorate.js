@@ -31,6 +31,9 @@ export function createDecorate(api) {
   let P = null, tabR = [], undoR = null, strip = null; // layout (room coords)
   let sel = null; // { f } a placed thing, or { desk } a desk supply
   let themeRun = 0, tabT = 0, flash = null;
+  // tucked: while she drags a thing into the room, and right after she places one, the tray slides down to a slim
+  // strip with just the tabs (and a ▲ handle) so the friends and her things stay in view; a tap on it brings it back
+  let tuck = false, tk = 0, tkT = 0, handleR = null;
 
   // ------------------------------------------------------------------ layout
   function layout() {
@@ -40,8 +43,14 @@ export function createDecorate(api) {
     tabR = TABS.map((t, k) => ({ id: t, x: x + 3 + k * 26, y: y - 19, w: 25, h: 21 }));
     undoR = { x: x + w - 29, y: y - 19, w: 27, h: 21 };
     strip = { x: x + 4, y: y + 3, w: w - 8, h: h - 7 };
+    const lt = tabR[tabR.length - 1];
+    handleR = { x: lt.x + lt.w + 6, y: y - 19, w: 27, h: 21 };
   }
-  const top = () => (P ? P.y - 19 : api.V().H);
+  const top = () => (P ? P.y - 19 : api.V().H); // the open tray's top (things on the floor stay above it)
+  const dy = () => (P ? Math.round(tk * (P.h - 6)) : 0); // how far the tray has slid down
+  const visTop = () => top() + dy(); // what the tray covers right now
+  const pad = (r, n = 3) => r && { x: r.x - 1, y: r.y - n, w: r.w + 2, h: r.h + n }; // tabs: a bigger hit area (up into the room)
+  function setTuck(v) { if (!on || tuck === v) return; tuck = v; tkT = G.time; if (!v) sfx.whoosh(); }
   const floorMax = () => top() + 2;
 
   // ------------------------------------------------------------------ tiles
@@ -91,10 +100,29 @@ export function createDecorate(api) {
   const visible = (t) => t.x + t.w > strip.x && t.x < strip.x + strip.w;
 
   // ------------------------------------------------------------------ drawing
-  function draw(c, hideTray) {
+  function draw(c) {
     if (!on) return;
     drawDeskMarks(c);
-    if (hideTray) return;
+    { const now = G.time, dt = Math.min(0.1, Math.max(0, now - (draw.t || now))); draw.t = now; tk += ((tuck ? 1 : 0) - tk) * Math.min(1, dt * 14); if (Math.abs((tuck ? 1 : 0) - tk) < 0.01) tk = tuck ? 1 : 0; }
+    const oy = dy();
+    c.save(); c.translate(0, oy);
+    drawTray(c);
+    if (tk > 0.02) { // the ▲ handle: tap to bring the tray back up
+      const r = handleR, bob = tuck ? Math.round(Math.abs(Math.sin(G.time * 4)) * 2) : 0;
+      c.globalAlpha = Math.min(1, tk * 1.5);
+      D(c, api.btnFrame(r.w, r.h + 2, '#fff6c8', 'dzhandle'), r.x, r.y);
+      D(c, upArrow(), r.x + Math.round((r.w - 13) / 2), r.y + 4 - bob);
+      c.globalAlpha = 1;
+    }
+    c.restore();
+  }
+  const upArrow = () => cached('dzuparrow', () => {
+    const cv = document.createElement('canvas'); cv.width = 13; cv.height = 11; const c = cv.getContext('2d');
+    for (let y = 0; y < 7; y++) { R(c, 6 - y - 1, y + 1, 2 * y + 3, 1, '#7a5b6a'); if (y > 0) R(c, 6 - y, y + 1, 2 * y + 1, 1, '#ffb020'); }
+    R(c, 4, 8, 5, 3, '#7a5b6a'); R(c, 5, 8, 3, 2, '#ffb020');
+    return cv;
+  });
+  function drawTray(c) {
     // tabs: folder tabs sitting on the tray
     tabR.forEach(r => {
       const act = r.id === tab, lift = act ? 0 : 2;
@@ -108,6 +136,7 @@ export function createDecorate(api) {
     D(c, api.btnFrame(undoR.w, undoR.h, can ? '#dff0ff' : '#ece6dc', 'dzundo' + can), undoR.x, undoR.y + dn);
     c.globalAlpha = can ? 1 : 0.35; D(c, DC.decoIcon('undo'), undoR.x + 5, undoR.y + 1 + dn); c.globalAlpha = 1;
     // tiles (clipped to the strip; tall things may poke out of the top)
+    if (tk > 0.6) return; // tucked: just the tabs (the tiles stay hidden below)
     const { list } = tiles();
     c.save(); c.beginPath(); c.rect(strip.x, strip.y - 12, strip.w, strip.h + 14); c.clip();
     for (const t of list) {
@@ -159,7 +188,7 @@ export function createDecorate(api) {
     let x = b.x + b.w + 4;
     if (x + B > V.W - V.inset.r - 2) x = b.x - B - 4;
     x = clamp(x, 2, V.W - B - 2);
-    const y0 = clamp(Math.round(b.y + b.h / 2 - hh / 2), V.inset.t + 2, top() - hh - 4);
+    const y0 = clamp(Math.round(b.y + b.h / 2 - hh / 2), V.inset.t + 2, visTop() - hh - 4);
     return list.map((id, k) => ({ id, x, y: y0 + k * (B + gap), w: B, h: B }));
   }
   function selBox() {
@@ -372,6 +401,7 @@ export function createDecorate(api) {
       const when = t; t += 0.3;
       wait(when).then(() => { if (run !== themeRun || !api.furn[f.id]) return; sfx.pop(1 + Math.random() * 0.4); api.puff(f); });
     }
+    setTuck(true); // tuck the tray so the whole room (and the class) shows
     wait(t + 0.2).then(() => { if (run === themeRun) { sfx.chime(); api.cheer(V.W / 2, L.wallH / 2); } });
   }
 
@@ -409,12 +439,14 @@ export function createDecorate(api) {
   const sayUI = (k) => api.sayUI(k), sayItem = (k) => api.sayItem(k);
 
   // ------------------------------------------------------------------ input (room coords); the room calls these first
-  function down(x, y) {
+  function down(x, y0) {
     if (!on) return null;
-    const bb = bubbles().find(q => inRect(x, y, { x: q.x - 2, y: q.y - 2, w: q.w + 4, h: q.h + 4 }));
+    const bb = bubbles().find(q => inRect(x, y0, { x: q.x - 2, y: q.y - 2, w: q.w + 4, h: q.h + 4 }));
     if (bb) return { bubble: bb.id };
-    const t = tabR.find(r => inRect(x, y, r)); if (t) return { tab: t.id };
-    if (inRect(x, y, undoR)) return { undo: true };
+    const y = y0 - dy();
+    const t = tabR.find(r => inRect(x, y, pad(r))); if (t) return { tab: t.id, untuck: tuck };
+    if (inRect(x, y, pad(undoR))) return { undo: true };
+    if (tuck) return inRect(x, y, pad(handleR)) || inRect(x, y, P) ? { untuck: true } : null;
     if (!inRect(x, y, P)) return null;
     const ar = arrows();
     if (inRect(x, y, ar.left)) return { arrow: -1 };
@@ -436,6 +468,7 @@ export function createDecorate(api) {
   }
   function tap(pr) {
     if (pr.bubble) { bubbleTap(pr.bubble); return; }
+    if (pr.untuck) { setTuck(false); if (!pr.tab) { sfx.pop(1.1); return; } }
     if (pr.tab) { if (tab !== pr.tab) { tab = pr.tab; tabT = G.time; flash = null; } sfx.pop(1.1); sayUI(pr.tab); return; }
     if (pr.undo) { tabT = G.time; flash = 'undo'; undo(); return; }
     if (pr.arrow) { sfx.tap(); const s0 = scroll[tab] || 0, s1 = s0 + pr.arrow * Math.round(strip.w * 0.7); glide(s0, s1); return; }
@@ -449,10 +482,10 @@ export function createDecorate(api) {
       return;
     }
     if (it.kind === 'rug') { G.save.rugV = it.id; G.save.decorStamp++; persist(); const r = api.furn.rug; api.burst('puff', r.x, r.y - 16, 8, ['#ffffff', '#fff6e0'], { sp: 40, g: -10 }); sfx.pop(1.2); sayUI('rug'); return; }
-    if (it.kind === 'desk') { const d = api.desks().find(q => !G.save.deskItems[q.i]) || api.desks()[Math.floor(Math.random() * api.desks().length)]; api.setDeskItem(d, it.id); return; }
-    // a tap on a thing: it goes to a nice free spot
+    if (it.kind === 'desk') { const d = api.desks().find(q => !G.save.deskItems[q.i]) || api.desks()[Math.floor(Math.random() * api.desks().length)]; api.setDeskItem(d, it.id); setTuck(true); return; }
+    // a tap on a thing: it goes to a nice free spot (and the tray tucks away so she sees it)
     const spot = findSpot(it.id, 0, { x: rand(0.1, 0.9), y: DC.DECOR[it.id].layer === 'wall' ? rand(0.2, 0.8) : rand(0.2, 0.7) }, false);
-    if (spot) api.addDecor(it.id, spot.x, spot.y, {});
+    if (spot) { api.addDecor(it.id, spot.x, spot.y, {}); setTuck(true); }
   }
   function glide(s0, s1) {
     const max = tiles().max; s1 = clamp(s1, 0, max);
@@ -470,22 +503,25 @@ export function createDecorate(api) {
   }
 
   return {
-    get on() { return on; }, get tab() { return tab; }, get sel() { return sel; },
-    open(t = 'themes') { on = true; tab = t; sel = null; layout(); api.reflow(); }, // (floor things step out from under the tray)
-    close() { if (!on) return; on = false; sel = null; themeRun++; api.reflow(); },
-    layout, top, floorMax, settle, draw, drawSel, drawDeco, sprite, down, move, tap, tapRoom, snap, undo, findSpot, snapArt, applyTheme,
-    inTray: (x, y) => on && (inRect(x, y, P) || tabR.some(r => inRect(x, y, r)) || inRect(x, y, undoR)),
+    get on() { return on; }, get tab() { return tab; }, get sel() { return sel; }, get tucked() { return tuck; },
+    open(t = 'themes') { on = true; tab = t; sel = null; tuck = false; tk = 0; layout(); api.reflow(); }, // (floor things step out from under the tray)
+    close() { if (!on) return; on = false; sel = null; tuck = false; tk = 0; themeRun++; api.reflow(); },
+    tuck() { setTuck(true); }, untuck() { setTuck(false); },
+    layout, top, visTop, floorMax, settle, draw, drawSel, drawDeco, sprite, down, move, tap, tapRoom, snap, undo, findSpot, snapArt, applyTheme,
+    inTray: (x, y) => { if (!on) return false; y -= dy(); return inRect(x, y, P) || tabR.some(r => inRect(x, y, pad(r))) || inRect(x, y, pad(undoR)) || (tuck && inRect(x, y, pad(handleR))); },
     deselect() { sel = null; },
+    sizes() { const o = dy(), m = (q) => ({ ...q, y: q.y + o }); return [...tabR, undoR, ...(tuck ? [handleR] : [])].map(t => ({ id: t.id || (t === undoR ? 'undo' : 'handle'), art: m(t), hit: m(pad(t)) })); },
     forget(f) { if (sel && sel.f === f) sel = null; },
     // where the hand points: the first theme picture (or the Temas tab)
-    hintPt() { if (tab !== 'themes') { const r = tabR[0]; return { x: r.x + 12, y: r.y + 8 }; } const t = tiles().list.find(visible); return { x: t.x + t.w / 2, y: t.y + 10 }; },
+    hintPt() { if (tuck) return { x: handleR.x + 13, y: handleR.y + dy() + 8 }; if (tab !== 'themes') { const r = tabR[0]; return { x: r.x + 12, y: r.y + 8 }; } const t = tiles().list.find(visible); return { x: t.x + t.w / 2, y: t.y + 10 }; },
     // automated tests
     test(css) {
       if (!on) return null;
-      const tl = tiles().list;
+      const tl = tiles().list, oy = tuck ? Math.round(P.h - 6) : 0; // (where things will be once the slide has settled)
       return {
-        tab, undo: css(undoR.x + 13, undoR.y + 10), tabs: Object.fromEntries(tabR.map(r => [r.id, css(r.x + 12, r.y + 10)])),
-        items: tl.map(t => { const cx = t.x + t.w / 2; return cx > strip.x + 16 && cx < strip.x + strip.w - 16 ? css(cx, t.y + t.h / 2) : null; }),
+        tab, undo: css(undoR.x + 13, undoR.y + 10 + oy), tabs: Object.fromEntries(tabR.map(r => [r.id, css(r.x + 12, r.y + 10 + oy)])),
+        tucked: tuck, handle: tuck ? css(handleR.x + 13, handleR.y + 10 + oy) : null, top: css(0, visTop())[1],
+        items: tl.map(t => { const cx = t.x + t.w / 2; return !tuck && cx > strip.x + 16 && cx < strip.x + strip.w - 16 ? css(cx, t.y + t.h / 2) : null; }),
         ids: tl.map(t => t.id), bubbles: Object.fromEntries(bubbles().map(b => [b.id, css(b.x + 11, b.y + 11)])),
         sel: sel ? (sel.desk ? 'desk' + sel.desk.i : sel.f.id) : null, undoN: undoStack.length,
         right: arrows().right ? css(strip.x + strip.w - 6, strip.y + strip.h / 2) : null,

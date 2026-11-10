@@ -124,7 +124,8 @@ export function createClassroom(students, hooks) {
   const helper = () => students[3];
   function sayUI(key) { if (LD.UI_WORDS[key]) speak(helper(), LD.UI_WORDS[key], 'tap'); }
   function sayItem(key) { if (LD.ITEM_WORDS[key]) speak(helper(), LD.ITEM_WORDS[key], 'tap'); }
-  const btnPt = (id) => { const b = btns.find(q => q.id === id); return { x: b.x + 13, y: b.y + 12 }; };
+  const btnPt = (id) => { const b = btns.find(q => q.id === id); return { x: b.x + Math.round(b.w / 2), y: b.y + Math.round(b.h / 2) - 1 }; };
+  const RED_HOLD = 600; // ms: the red card needs a short, deliberate press before it comes off its button
   const ARM_IDS = ['star', 'cardGreen', 'cardRed'];
   function computeHint() {
     const rh = RT.hint(); if (rh) return rh; // the jobs chart is open
@@ -163,7 +164,7 @@ export function createClassroom(students, hooks) {
     // star / cards: the hand carries the icon from the button onto a student's head
     const carry = (key, btn, s) => { const [hx, hy] = headPos(s); const b = btnPt(btn); return { key, x: b.x, y: b.y, from: b, to: { x: hx, y: hy + 6 }, icon: btn }; };
     const naughty = students.find(s => s.naughty && s.mode !== 'away'); if (naughty && SC.cur.cards) return carry('naughty', 'cardRed', naughty);
-    const raised = students.find(s => acting(s, 'raise') && s.mode === 'seated'); if (raised) return at(raised, 'question');
+    const raised = students.find(s => acting(s, 'raise') && s.mode === 'seated' && !pointing(s)); if (raised) return at(raised, 'question');
     const jobsPt = choicePt('ayudantes');
     const rt = RT.classHint(G.time - (classStart || 0), (id) => (id === 'jobs' ? jobsPt : btnPt(id)), !jobsPt); if (rt) return rt; // thirsty plant / helpers chart
     if (!SC.purposeDone()) { const r = choiceRects()[0]; if (r) return { key: 'choice', x: r.x + r.w / 2, y: r.y + 12 }; }
@@ -179,14 +180,56 @@ export function createClassroom(students, hooks) {
     if (!roomShown()) { hint = null; return; }
     const t = computeHint(); if (!t) return;
     hint = { ...t, t0: G.time, until: G.time + 6 };
+    friendHint(hint);
     if (force || !saidHint[t.key] || G.time - saidHint[t.key] > 45) { saidHint[t.key] = G.time; speak(helper(), LD.HINTS[t.key], 'tap'); }
   }
+  // now and then a friend shows the way instead of the hand: the nearest awake friend turns toward it, points (a paw up on that side) and hops
+  let friendHintN = 0;
+  const pointing = (s) => s.hintPoint && G.time < s.hintPoint;
+  function friendHint(h) {
+    if (h.x == null || h.to || phase !== 'class' || busy || DZ.on || centros || story || quiz.active || serve) return;
+    if (++friendHintN % 3) return;
+    let best = null, bd = 1e9;
+    for (const s of awake()) {
+      if (s.naughty || s.mood || !(s.mode === 'seated' || s.mode === 'stand')) continue;
+      const [hx, hy] = headPos(s), d = Math.hypot(hx - h.x, hy - h.y);
+      if (d > 8 && d < bd) { bd = d; best = s; }
+    }
+    if (!best) return;
+    h.by = best; h.hopAt = G.time;
+    best.hintPoint = h.until;
+  }
+  function friendHintTick() {
+    const s = hint.by;
+    if (s.mode === 'away' || s.sleep || s.hide > 0) { hint.by = null; return; }
+    s.look = h0(hint.x - headPos(s)[0]);
+    if (!acting(s, 'point')) act(s, 'point', 1.2);
+    if (G.time >= hint.hopAt) { hop(s, 60); hint.hopAt = G.time + 1.1; }
+  }
+  const h0 = (dx) => (Math.abs(dx) < 6 ? 0 : dx > 0 ? 1 : -1);
   function drawHint(c) {
     if (!hint) return;
-    if (G.time > hint.until) { hint = null; return; }
+    if (G.time > hint.until) { if (hint.by) { hint.by.look = 0; hint.by.hintPoint = 0; } hint = null; return; }
     if (hint.x == null) return; // spoken only
+    if (hint.by) { // a friend points: a little twinkle marks the spot instead of the hand
+      friendHintTick();
+      if (hint.by) {
+        for (let k = 0; k < 3; k++) { // three big stars circle the spot
+          const a = G.time * 2.5 + k * 2.094, im = S.particle('star', (Math.floor(G.time * 6) + k) % 3 ? '#ffd23f' : '#ffffff');
+          const w = im.width * 2, h = im.height * 2;
+          c.drawImage(im, Math.round(hint.x + Math.cos(a) * 14 - w / 2), Math.round(hint.y - 14 + Math.sin(a) * 5 - h / 2), w, h);
+        }
+        return;
+      }
+    }
     if (hint.to) { // carry the star / card from its button to a student
-      const k = Math.min(1, ((G.time - hint.t0) % 2.2) / 1.5), e = k * k * (3 - 2 * k);
+      let tt = (G.time - hint.t0) % 2.2;
+      if (hint.icon === 'cardRed') { // the red card: the hand holds it first (its ring fills), then carries it
+        tt = (G.time - hint.t0) % 2.9;
+        if (tt < 0.7) { ringAt(c, hint.from.x, hint.from.y + 1, Math.min(1, tt / 0.6)); drawHand(c, hint.from.x, hint.from.y); return; }
+        tt -= 0.7;
+      }
+      const k = Math.min(1, tt / 1.5), e = k * k * (3 - 2 * k);
       const x = hint.from.x + (hint.to.x - hint.from.x) * e, y = hint.from.y + (hint.to.y - hint.from.y) * e;
       const ic = hint.img || (hint.icon === 'star' ? S.ICONS.star() : DC.trayIcon(hint.icon));
       D(c, ic, x - 9, y - 16);
@@ -284,7 +327,7 @@ export function createClassroom(students, hooks) {
   function openCentrosChart() {
     const assign = {};
     students.forEach((s, i) => { assign[s.kind] = i % 4; });
-    centros = { stage: 'chart', assign, drag: null };
+    centros = { stage: 'chart', assign, drag: null, sel: null }; // sel: tap-then-tap, the face she tapped (tap a column next)
     sfx.chime();
   }
   function centrosLayout() {
@@ -315,11 +358,23 @@ export function createClassroom(students, hooks) {
       for (let yy = col.y + 56; yy < col.y + col.h; yy += 30) R(c, col.x + 3, yy, col.w - 6, 2, '#c9dff2'); // pockets
       D(c, scaled(C_ICONS[col.ci](), 1), col.x + col.w / 2 - 9, col.y + 4);
     }
-    for (const f of faceRects()) {
-      if (centros.drag && centros.drag.s === f.s) continue;
-      D(c, scaled(miniFace(f.s.kind, true), 2), f.x, f.y);
+    const sel = centros.sel;
+    if (sel) { // a face is picked up: the columns it can go to glow softly
+      const a = 0.25 + 0.2 * Math.sin(G.time * 5);
+      for (const col of cols) if (col.ci !== centros.assign[sel.kind]) { c.globalAlpha = a; R(c, col.x, col.y + 26, col.w, col.h - 26, '#ffd23f'); c.globalAlpha = 1; }
     }
-    if (centros.drag) D(c, scaled(miniFace(centros.drag.s.kind, true), 2), centros.drag.x - 13, centros.drag.y - 13);
+    for (const f of faceRects()) {
+      if (centros.drag && centros.drag.moved && centros.drag.s === f.s) continue;
+      const fi = scaled(miniFace(f.s.kind, true), 2);
+      if (sel === f.s) { // picked: it glows and bobs
+        const bob = -2 - Math.round(Math.abs(Math.sin(G.time * 5)) * 3);
+        c.globalAlpha = 0.8 + 0.2 * Math.sin(G.time * 6); D(c, glow(fi, '#ffd23f', 'cfsel' + f.s.kind), f.x - 2, f.y - 2 + bob); c.globalAlpha = 1;
+        D(c, fi, f.x, f.y + bob);
+        continue;
+      }
+      D(c, fi, f.x, f.y);
+    }
+    if (centros.drag && centros.drag.moved) D(c, scaled(miniFace(centros.drag.s.kind, true), 2), centros.drag.x - 13, centros.drag.y - 13);
     const k = Math.sin(G.time * 5) > 0.3 ? 1 : 0;
     D(c, btnFrame(start.w, start.h, k ? '#fff6c8' : '#fff3dc', 'cstart'), start.x, start.y - k);
     D(c, cached('bellicon', bellIcon), start.x + 9, start.y + 7 - k);
@@ -641,15 +696,16 @@ export function createClassroom(students, hooks) {
     L.clock = { x: Math.round((L.door.x + L.door.w + L.board.x) / 2), y: 50 };
     L.doorPt = { x: L.door.x + 14, y: L.floorTop + 5 };
     for (const f of Object.values(furn)) place(f);
-    const i = V.inset, B = 26;
+    const i = V.inset, B = 26, RED_GAP = 22;
     btns = [
       { id: 'help', x: V.W - i.r - B - 4, y: i.t + 4, w: B, h: B, icon: () => S.bubble('q') },
       { id: 'next', x: 4, y: V.H - i.b - 31, w: 46, h: 28, icon: S.ICONS.play }, // ▶ siguiente (+ the next card's picture)
-      { id: 'toys', x: 48, y: V.H - i.b - B - 4, w: B, h: B, icon: () => cached('bellicon', bellIcon) }, // centros: ring to rotate
-      { id: 'cdone', x: 48 + B + 4, y: V.H - i.b - B - 4, w: B, h: B, icon: S.ICONS.check },
+      { id: 'toys', x: 54, y: V.H - i.b - B - 4, w: B, h: B, icon: () => cached('bellicon', bellIcon) }, // centros: ring to rotate
+      { id: 'cdone', x: 54 + B + 4, y: V.H - i.b - B - 4, w: B, h: B, icon: S.ICONS.check },
       { id: 'star', x: V.W - i.r - B - 4, y: V.H - i.b - B - 4, w: B, h: B, icon: S.ICONS.star },
       { id: 'cardGreen', x: V.W - i.r - 2 * B - 8, y: V.H - i.b - B - 4, w: B, h: B, icon: () => DC.trayIcon('cardGreen') },
-      { id: 'cardRed', x: V.W - i.r - 3 * B - 12, y: V.H - i.b - B - 4, w: B, h: B, icon: () => DC.trayIcon('cardRed') },
+      // the red card sits apart (a gap away from the green card and the star), a bit smaller and quieter; a short hold picks it up
+      { id: 'cardRed', x: V.W - i.r - 3 * B - 8 - RED_GAP, y: V.H - i.b - B - 4, w: B, h: B, icon: () => DC.trayIcon('cardRed'), art: 22 },
     ];
     DZ.layout(); // the decorate tray sits right of ▶
     layoutAbc();
@@ -884,6 +940,9 @@ export function createClassroom(students, hooks) {
     return null;
   }
   const inRect = (x, y, r) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
+  const BTN_PAD = 2; // HUD buttons: a slightly bigger hit area than the art (neighbours sit 4 px apart, so they never overlap)
+  const btnHit = (b) => ({ x: b.x - BTN_PAD, y: b.y - BTN_PAD, w: b.w + 2 * BTN_PAD, h: b.h + 2 * BTN_PAD });
+  const onBtn = (x, y, b) => inRect(x, y, btnHit(b));
   const awake = () => students.filter(s => s.mode !== 'away' && !s.sleep && !(s.hide > 0));
 
   // ---------------------------------------------------------------- tapping students
@@ -905,6 +964,7 @@ export function createClassroom(students, hooks) {
       wait(0.5).then(() => sendToSeat(s));
       return;
     }
+    if (pointing(s)) { s.hintPoint = 0; if (hint && hint.by === s) hint.by = null; act(s, 'happy', 0.9); hop(s, 70); animalSound(s); return; } // she was showing the way
     if (acting(s, 'raise') && (s.kind !== 'owl' || (G.time - lastQ > 10 && Math.random() < 0.75))) { askQuestion(s); return; } // a rare raised paw is always a question
     if (acting(s, 'raise')) {
       act(s, 'cheer', 1.2); hop(s, 85); sfx.cheer(1.2); speak(s, randomCheer(), 'yay');
@@ -1311,7 +1371,7 @@ export function createClassroom(students, hooks) {
     const i = serve.slots.findIndex((sl, k) => !sl.taken && inRect(x, y, slot(k)));
     if (i >= 0) { press.snack = i; return true; }
     if (serve.armed) {
-      if (shownBtns().some(q => inRect(x, y, q))) { serve.armed = null; return false; }
+      if (shownBtns().some(q => onBtn(x, y, q))) { serve.armed = null; return false; }
       const s = hitStudent(x, y) || seatedAt(x, y);
       if (s) { press.snackS = s; return true; }
       serve.armed = null; sfx.softPop(); press.swallow = true; return true;
@@ -1724,6 +1784,15 @@ export function createClassroom(students, hooks) {
     teach.blinkT -= dt; if (teach.blinkT < 0) { teach.blink = 0.14; teach.blinkT = rand(2, 5); } if (teach.blink > 0) teach.blink -= dt;
     if (teach.z > 0 || teach.vz > 0) { teach.vz -= 380 * dt; teach.z += teach.vz * dt; if (teach.z <= 0) { teach.z = 0; teach.vz = 0; } }
     doorOpen += (doorTarget - doorOpen) * Math.min(1, dt * 10);
+    if (press && press.redT0 && !press.redFired) { // the red card: a short hold picks it up; then drag it, or let go and tap a student
+      const b = press.btn;
+      if (!b || busy || !shownBtns().includes(b) || !inRect(press.x, press.y, { x: b.x - 8, y: b.y - 8, w: b.w + 16, h: b.h + 16 })) press.redT0 = null;
+      else if (performance.now() - press.redT0 >= RED_HOLD) {
+        press.redFired = true; press.moved = false; press.x0 = press.x; press.y0 = press.y;
+        drag = { kind: 'star', x: press.x, y: press.y, card: 'red' }; sfx.lift();
+        burst('spark', b.x + 13, b.y + 4, 6, ['#ef4b4b', '#ffffff']);
+      }
+    }
     if (press && press.upd && !press.updFired) { // grown-up refresh needs a 1.5 s hold on the button
       const r = L.updBtn;
       if (!inRect(press.x, press.y, { x: r.x - 8, y: r.y - 8, w: r.w + 16, h: r.h + 16 })) press.upd = false;
@@ -2017,7 +2086,7 @@ export function createClassroom(students, hooks) {
   }
   function drawHud(c) {
     if (!hudVisible()) return;
-    DZ.draw(c, !!(drag && drag.kind === 'new' && drag.left));
+    DZ.draw(c); // (it tucks down to its tabs while she drags a thing into the room and after she places one)
     if (SC.curId === 'calendario' && phase === 'class' && !dayCard && !busy) drawBigFaces(c);
     if (choicesShown()) SC.drawChoices(c, choiceRects(), btnFrame, press && press.choice);
     for (const b of shownBtns()) {
@@ -2031,11 +2100,22 @@ export function createClassroom(students, hooks) {
         D(c, blockIcon(SC.nextId), b.x + b.w - ICON_W - 3, b.y + (b.h - ICON_H) / 2 - 1 - k + dn); // ▶ + the next card's picture
         continue;
       }
+      if (b.id === 'cardRed') { drawRedCard(c, b, dn); continue; }
       if (b.id === 'toys' && bellWants()) { c.globalAlpha = 0.6 + 0.4 * Math.sin(G.time * 5); D(c, glow(btnFrame(b.w, b.h, '#fff6c8', 'on'), '#ffd23f', 'homeglow'), b.x - 2, b.y - 2); c.globalAlpha = 1; } // v2.1: ring for a new round
       D(c, btnFrame(b.w, b.h), b.x, b.y + dn);
       const ic = b.icon();
       D(c, ic, b.x + (b.w - ic.width) / 2, b.y + (b.h - ic.height) / 2 - 1 + dn);
     }
+  }
+  function drawRedCard(c, b, dn) { // smaller, on a quiet frame; while it's held a ring fills up (like the ⟳ button)
+    const a = b.art, x = b.x + (b.w - a) / 2, y = b.y + (b.h - a) / 2 + 1, ic = b.icon();
+    D(c, btnFrame(a, a, '#efe4d8', 'redcard'), x, y + dn);
+    D(c, ic, x + (a - ic.width) / 2, y + (a - ic.height) / 2 - 1 + dn);
+    const hold = press && press.btn === b && press.redT0 && !press.redFired ? Math.min(1, (performance.now() - press.redT0) / RED_HOLD) : 0;
+    if (hold > 0) ringAt(c, x + a / 2, y + a / 2, hold);
+  }
+  function ringAt(c, cx, cy, k, r = 13) {
+    for (let t = 0; t < k * Math.PI * 2; t += 0.05) for (const rr of [r, r + 1]) R(c, cx + Math.sin(t) * rr - 0.5, cy - Math.cos(t) * rr - 0.5, 1, 1, '#c94f4f');
   }
   // ---- v2.0 Calendario: the attendance faces, big, across the top
   function faceRow() { // eight faces fit between the left edge and the ? button
@@ -2158,7 +2238,7 @@ export function createClassroom(students, hooks) {
   }
 
   // ---------------------------------------------------------------- trash can
-  function trashRect() { return { x: Math.round(V.W / 2 - 13), y: (DZ.on ? DZ.top() : V.H - V.inset.b) - 34, w: 26, h: 30 }; }
+  function trashRect() { return { x: Math.round(V.W / 2 - 13), y: (DZ.on ? DZ.visTop() : V.H - V.inset.b) - 34, w: 26, h: 30 }; }
   // only things already in the room can be thrown away; a fresh drag from the tray never is
   function trashing() { return drag && ((drag.kind === 'furn' && drag.f.deco) || (drag.kind === 'new' && drag.from !== undefined)); }
   function overTrash(x, y) { if (!trashing()) return false; return nearTrash(x, y); }
@@ -2373,11 +2453,11 @@ export function createClassroom(students, hooks) {
     if (RT.down(x, y)) { press.rt = true; return; } // weather picker / jobs chart
     if (centros && centros.stage === 'chart') {
       press.cchart = true;
-      const f = faceRects().find(r => inRect(x, y, r));
-      if (f) { centros.drag = { s: f.s, x, y }; sfx.lift(); }
+      const f = faceRects().find(r => inRect(x, y, { x: r.x - 2, y: r.y - 2, w: r.w + 4, h: r.h + 4 }));
+      if (f) { centros.drag = { s: f.s, x, y, moved: false }; sfx.lift(); }
       return;
     }
-    if (centros && centros.stage === 'run' && !shownBtns().some(b => inRect(x, y, b))) { // v2.1: a centro's sign, or a friend at a centro that wants the teacher
+    if (centros && centros.stage === 'run' && !shownBtns().some(b => onBtn(x, y, b))) { // v2.1: a centro's sign, or a friend at a centro that wants the teacher
       const sg = centerSigns().find(r => inRect(x, y, { x: r.x - 5, y: r.y - 6, w: r.w + 10, h: r.h + 14 }));
       if (sg) { press.sign = sg; return; }
       const s = hitStudent(x, y);
@@ -2394,14 +2474,14 @@ export function createClassroom(students, hooks) {
     if (bookOpen) { press.book = true; return; }
     if (menu) { press.menu = true; return; }
     if (['prep', 'morning', 'class', 'activity', 'goodbye'].includes(phase) && !story && !dayCard && !armed && !(DZ.on && (DZ.sel || DZ.inTray(x, y)))
-      && teacherHit(x, y) && !shownBtns().some(b => inRect(x, y, b)) && !(choicesShown() && choiceRects().some(r => inRect(x, y, r)))) {
+      && teacherHit(x, y) && !shownBtns().some(b => onBtn(x, y, b)) && !(choicesShown() && choiceRects().some(r => inRect(x, y, r)))) {
       const s = hitStudent(x, y); // a friend standing in front of her gets the tap
       if (!s || sortY(s) < furn.teacher.y) { press.f = furn.teacher; press.teach = true; return; }
     }
     if (phase === 'morning' && !hurry) hurryUp(x, y);
     if (snackDown(x, y)) return;
     if (armed) { // holding a star / card: the next student tap gets it, a tap anywhere else puts it back
-      const b = shownBtns().find(q => inRect(x, y, q));
+      const b = shownBtns().find(q => onBtn(x, y, q));
       if (!b) {
         const s = hitStudent(x, y);
         if (s) { press.armedS = s; return; }
@@ -2409,12 +2489,13 @@ export function createClassroom(students, hooks) {
       }
       if (!ARM_IDS.includes(b.id)) armed = null;
     }
-    if (story && !shownBtns().some(q => inRect(x, y, q) && ['help', 'next'].includes(q.id))) { press.story = true; return; }
-    for (const b of shownBtns()) if (inRect(x, y, b)) {
+    if (story && !shownBtns().some(q => onBtn(x, y, q) && ['help', 'next'].includes(q.id))) { press.story = true; return; }
+    for (const b of shownBtns()) if (onBtn(x, y, b)) {
       press.btn = b;
       if (b.id === 'star' && !busy) { drag = { kind: 'star', x, y }; sfx.lift(); }
       if (['star', 'cardGreen', 'cardRed'].includes(b.id)) sayUI(b.id);
-      if ((b.id === 'cardGreen' || b.id === 'cardRed') && !busy) { drag = { kind: 'star', x, y, card: b.id === 'cardGreen' ? 'green' : 'red' }; sfx.lift(); }
+      if (b.id === 'cardGreen' && !busy) { drag = { kind: 'star', x, y, card: 'green' }; sfx.lift(); }
+      if (b.id === 'cardRed' && !busy) press.redT0 = performance.now(); // held for 0.6 s it comes off (see update())
       return;
     }
     if (choicesShown()) { const r = choiceRects().find(q => inRect(x, y, q)); if (r) { press.choice = r.id; return; } }
@@ -2443,7 +2524,7 @@ export function createClassroom(students, hooks) {
     press.x = x; press.y = y;
     if (press.rt) { RT.move(x, y); return; }
     if (snackMove(x, y)) return;
-    if (press.cchart) { if (centros && centros.drag) { centros.drag.x = x; centros.drag.y = y; } return; }
+    if (press.cchart) { if (centros && centros.drag) { centros.drag.x = x; centros.drag.y = y; if (Math.hypot(x - press.x0, y - press.y0) > 6) centros.drag.moved = true; } return; }
     if (press.dz) { // the decorate tray: swipe to scroll, or pull a thing out into the room
       const r = DZ.move(press.dz, x, y);
       if (Math.hypot(x - press.x0, y - press.y0) > 6) press.moved = true;
@@ -2472,7 +2553,8 @@ export function createClassroom(students, hooks) {
     }
     if (!drag) return;
     if (drag.kind === 'star') { drag.x = x; drag.y = y; }
-    if (drag.kind === 'new') { drag.px = x; drag.py = y; if (y < DZ.top() - 4 || drag.desk) drag.left = true; }
+    if (drag.kind === 'new') { drag.px = x; drag.py = y; if (y < DZ.top() - 4 || drag.desk) drag.left = true; if (drag.left) DZ.tuck(); }
+    if (drag.kind === 'furn' && drag.f.deco && DZ.on) DZ.tuck(); // moving one of her things: the tray gets out of the way
     if (drag.kind === 'furn') {
       const f = drag.f;
       drag.px = x; drag.py = y;
@@ -2547,13 +2629,27 @@ export function createClassroom(students, hooks) {
     }
     if (p.cchart) {
       const { cols, start, P } = centrosLayout();
+      const moveTo = (s, ci) => { centros.assign[s.kind] = ci; sfx.pop(1.2); speak(s, LD.CENTERS[ci].id, 'here'); };
       if (centros.drag) {
+        const d = centros.drag; centros.drag = null;
+        if (!d.moved) { // a tap on a face picks it up (tap it again to hear it again); then tap a column
+          centros.sel = d.s; sfx.pop(1.25);
+          speak(d.s, Math.random() < 0.5 ? 'Hi teacher!' : LD.CENTERS[centros.assign[d.s.kind]].id, 'here');
+          return;
+        }
+        centros.sel = null;
         const col = cols.find(cl => x >= cl.x && x <= cl.x + cl.w);
-        if (col) { centros.assign[centros.drag.s.kind] = col.ci; sfx.pop(1.2); speak(centros.drag.s, LD.CENTERS[col.ci].id, 'here'); }
-        centros.drag = null; return;
+        if (col) moveTo(d.s, col.ci);
+        return;
       }
       if (inRect(x, y, chartBack())) { centros = null; sfx.whoosh(); sayUI('back'); return; }
-      if (inRect(x, y, start)) { runCentros(); return; }
+      if (inRect(x, y, start)) { centros.sel = null; runCentros(); return; }
+      if (centros.sel) { // tap-then-tap: a column (its picture or anywhere in it) takes the picked face
+        const s = centros.sel, col = cols.find(cl => inRect(x, y, { x: cl.x - 1, y: cl.y, w: cl.w + 3, h: cl.h }));
+        centros.sel = null;
+        if (col) { moveTo(s, col.ci); burst('spark', x, y, 1, ['#ffd23f']); return; }
+        sfx.softPop(); return; // a tap anywhere else puts it back
+      }
       const col = cols.find(cl => inRect(x, y, { x: cl.x, y: cl.y, w: cl.w, h: 26 }));
       if (col) { sfx.pop(); speak(students[3], LD.CENTERS[col.ci].id, 'here'); return; }
       if (!inRect(x, y, P)) { centros = null; sfx.softPop(); }
@@ -2590,6 +2686,7 @@ export function createClassroom(students, hooks) {
       sfx.pop();
       const id = p.btn.id;
       if (id === 'help') { hint = null; showHint(true); return; }
+      if (id === 'cardRed' && armed && armed.id === 'cardRed') { armed = null; sfx.softPop(); return; } // a quick tap puts it back
       if (id === 'next') { SC.next(); return; } // ▶ siguiente: the bell + the next card on the Horario
       if (id === 'cdone') { sayUI('cdone'); endCentros(); return; }
       if (id === 'toys' && centros && !busy) { rotateCentros(); return; }
@@ -2663,7 +2760,7 @@ export function createClassroom(students, hooks) {
     burst, headPos, seat, sendToSeat, teacherAct, awake, shadow, miniFace, btnFrame, scaled, sayUI,
     setDusk: (v) => { duskTarget = v; }, redrawBg: () => { if (V) bg = drawBg(); },
     pointAt: (x) => { teach.pointRight = x > furn.teacher.x; teacherAct('point', 1.4); },
-    css: (x, y) => [(x + ox) * V.s / G.dpr, y * V.s / G.dpr], overBtn: (x, y) => shownBtns().some(b => inRect(x, y, b)),
+    css: (x, y) => [(x + ox) * V.s / G.dpr, y * V.s / G.dpr], overBtn: (x, y) => shownBtns().some(b => onBtn(x, y, b)),
   });
 
   // hooks for automated screenshot tests
@@ -2687,15 +2784,21 @@ export function createClassroom(students, hooks) {
   window.__ltCentros = () => {
     if (!centros) return null; const k = V.s / G.dpr; const lay = centrosLayout();
     const run = centros.stage === 'run';
-    return { stage: centros.stage, start: [(lay.start.x + 18 + ox) * k, (lay.start.y + 16) * k], signs: centerSigns().map(r => [(r.x + r.w / 2 + ox) * k, (r.y + r.h / 2) * k]),
+    const chart = centros.stage === 'chart';
+    return { stage: centros.stage, sel: chart && centros.sel ? centros.sel.kind : null, assign: { ...centros.assign },
+      faces: chart ? faceRects().map(f => ({ kind: f.s.kind, ci: centros.assign[f.s.kind], at: [(f.x + 13 + ox) * k, (f.y + 13) * k] })) : null,
+      cols: chart ? lay.cols.map(cl => [(cl.x + cl.w / 2 + ox) * k, (cl.y + cl.h - 14) * k]) : null,
+      start: [(lay.start.x + 18 + ox) * k, (lay.start.y + 16) * k], signs: centerSigns().map(r => [(r.x + r.w / 2 + ox) * k, (r.y + r.h / 2) * k]),
       // v2.1: the teacher's visits
       visited: run ? [...centros.visited] : null, wants: run ? [0, 1, 2, 3].map(centroWants) : null, total: run ? [...centros.total] : null,
       going: run && centros.going ? { ...centros.going } : null, quiz: quiz.active, quizReady: quiz.active && !quiz._Q?.wait, allDone: run && centrosAllDone(), rounds: run ? centros.rounds : 0,
       bellGlow: bellWants(), arrived: run ? students.filter(s => s.center !== undefined).every(s => s.mode === 'stand') : false, teacher: css(furn.teacher.x, furn.teacher.y - 30), teacherWalking: !!teach.go,
       kids: run ? [0, 1, 2, 3].map(ci => { const s = centroKids(ci).find(t => t !== centros.askers[ci]) || centroKids(ci)[0]; if (!s) return null; const r = spriteRect(s); return css(r.x + S.SW / 2, r.y + S.SH - 10); }) : null };
   };
+  window.__ltArmed = () => (armed ? armed.id : null);
+  window.__ltCardOf = (i) => students[i].card || null;
   window.__ltNaughty = (i) => { students[i].naughty = { until: G.time + 22, next: 0 }; };
-  window.__ltHint = () => ({ hint, lastInput, nextHintAt, time: G.time, phase, busy, story: !!story, reward: !!reward, dayCard: !!dayCard, menu: !!menu, book: !!bookOpen, q: quiz.active });
+  window.__ltHint = () => ({ hint: hint && { ...hint, by: hint.by ? hint.by.kind : null }, lastInput, nextHintAt, time: G.time, phase, busy, story: !!story, reward: !!reward, dayCard: !!dayCard, menu: !!menu, book: !!bookOpen, q: quiz.active });
   window.__ltTeacher = () => css(furn.teacher.x, furn.teacher.y - 30);
   window.__ltTeach = () => ({ act: teach.act && G.time < teach.act.t0 + teach.act.dur ? teach.act.name : null, last: teach.last, pts: [8, 20, 32, 44, 52].map(d => css(furn.teacher.x, furn.teacher.y - d)) });
   window.__ltMenu = () => (menu ? menu.items.map(m => css(m.x + 24, m.y + 24)) : []);
@@ -2713,6 +2816,14 @@ export function createClassroom(students, hooks) {
   window.__ltChoice = (id) => { if (!choicesShown()) return null; const r = choiceRects().find(q => q.id === id); return r ? css(r.x + r.w / 2, r.y + r.h / 2) : null; };
   window.__ltRoom = () => ({ W: V.W, H: V.H, ox, s: V.s, floorTop: L.floorTop, wallH: L.wallH, furn: Object.fromEntries(Object.values(furn).map(f => [f.id, [f.x, f.y]])) });
   window.__ltFaces = () => faceRow().map(f => css(f.x + 14, f.y + 14));
+  // phone sizes: CSS-px rects of the small targets (art = what's drawn, hit = what a tap hits)
+  window.__ltSizes = () => {
+    const k = V.s / G.dpr, kf = Vfull.s / G.dpr, r = (q, o = ox, kk = k) => q && { x: Math.round((q.x + o) * kk), y: Math.round(q.y * kk), w: Math.round(q.w * kk), h: Math.round(q.h * kk) };
+    const hud = btns.map(b => ({ id: b.id, art: r(b.art ? { x: b.x + (b.w - b.art) / 2, y: b.y + (b.h - b.art) / 2, w: b.art, h: b.art } : b), hit: r(btnHit(b)) }));
+    const sched = SC.cardRects().map(c => ({ id: c.id, art: r(c.art, 0, kf), hit: r(c.hit, 0, kf) }));
+    const quizO = quiz.active && quiz._L.opts ? quiz._L.opts.map(o => ({ art: r(o), hit: r(o) })) : null;
+    return { css: [innerWidth, innerHeight], k, hud, sched, quiz: quizO, choices: choicesShown() ? choiceRects().map(c => ({ id: c.id, hit: r(c) })) : null, tray: DZ.on ? DZ.sizes().map(t => ({ id: t.id, art: r(t.art), hit: r(t.hit) })) : null };
+  };
   window.__ltGuest = () => (guest ? { stage: guest.stage } : null);
   window.__ltStory = () => (story ? { stage: story.stage, book: story.book, page: story.page, covers: story.stage === 'choose' ? coverRects().map(r => css(r.x + r.w / 2, r.y + r.h / 2)) : null, book_pt: L.storyBook ? css(L.storyBook.x + L.storyBook.w / 2, L.storyBook.y + L.storyBook.h / 2) : null } : null);
 

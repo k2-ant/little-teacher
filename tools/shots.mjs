@@ -108,23 +108,35 @@ await p.waitForTimeout(3000);
 await shot('02a2-decorar-hint');
 let tray = await ev(() => window.__ltTray());
 // pull a thing out of the tray: up first (a sideways swipe scrolls the tray)
-const pull = async (a, c) => { await p.mouse.move(a[0], a[1]); await p.mouse.down(); await p.mouse.move(a[0], a[1] - 30, { steps: 3 }); await p.mouse.move(c[0], c[1], { steps: 6 }); await p.mouse.up(); await p.waitForTimeout(250); };
+const pull = async (a, c, mid) => { await p.mouse.move(a[0], a[1]); await p.mouse.down(); await p.mouse.move(a[0], a[1] - 30, { steps: 3 }); await p.mouse.move(c[0], c[1], { steps: 6 }); if (mid) { await p.waitForTimeout(200); await shot(mid); } await p.mouse.up(); await p.waitForTimeout(250); };
+// the tray tucks down to its tabs after she places something: tap its handle to bring it back up
+const untuck = async () => { const t = await ev(() => window.__ltTray()); if (t && t.tucked) { await tapAt(...t.handle); await p.waitForTimeout(250); } const t2 = await ev(() => window.__ltTray()); if (t2.tucked) throw new Error('the tray did not come back up'); return t2; };
+const expectTucked = async (why) => { await p.waitForTimeout(150); const t = await ev(() => window.__ltTray()); if (!t.tucked) throw new Error('the tray should be tucked: ' + why); return t; };
 // Temas: one tap decorates the whole room (things pop in one by one)
 await tapAt(...tray.items[0]); await p.waitForTimeout(700);
 await shot('02a3-theme-popping');
 await p.waitForTimeout(3000);
-await shot('02a4-theme-oceano');
+await expectTucked('after a theme');
+await shot('02a4-theme-oceano'); // the tray tucked down to its tabs: the whole room and the class show
+await untuck();
 await ev(() => window.__ltTrayScroll(7)); tray = await ev(() => window.__ltTray());
 await tapAt(...tray.items[7]); await p.waitForTimeout(3600);
 await shot('02a5-theme-cuentos');
-// Piso + Pared: drag things in, tap one to drop it in a free spot
-await tapAt(...tray.tabs.floor); await p.waitForTimeout(150);
+// Piso + Pared: drag things in, tap one to drop it in a free spot (a tab on the tucked tray brings it back up on that tab)
 tray = await ev(() => window.__ltTray());
+await tapAt(...tray.tabs.floor); await p.waitForTimeout(250);
+tray = await ev(() => window.__ltTray());
+if (tray.tucked || tray.tab !== 'floor') throw new Error('a tab on the tucked tray should open it on that tab');
 await shot('02b0-floor-tab');
-await pull(tray.items[2], [W * 0.36, H * 0.6]);
+await pull(tray.items[2], [W * 0.36, H * 0.6], '02b0b-dragging-tucked'); // while dragging, the tray is down to its tabs
+tray = await expectTucked('after dropping a thing');
+await shot('02b0c-placed-tucked');
+tray = await untuck();
 await pull(tray.items[1], [W * 0.62, H * 0.52]);
+tray = await untuck();
 await tapAt(...tray.items[3]); await p.waitForTimeout(200);
-await tapAt(...tray.tabs.wall); await p.waitForTimeout(150);
+tray = await expectTucked('after a tap-to-place');
+await tapAt(...tray.tabs.wall); await p.waitForTimeout(250);
 await ev(() => window.__ltTrayScroll(3)); tray = await ev(() => window.__ltTray());
 await pull(tray.items[3], [W * 0.75, H * 0.62]); // dropped on the floor: a wall thing snaps up to the wall
 await shot('02b-decor');
@@ -141,27 +153,28 @@ tray = await ev(() => window.__ltTray());
 await shot('02b3-bigger');
 await tapAt(...tray.bubbles.del); await p.waitForTimeout(300);
 await tapAt(...tray.undo); await p.waitForTimeout(300); // ↶ brings it back
-await tapAt(...tray.tabs.colors); await p.waitForTimeout(100);
+tray = await ev(() => window.__ltTray());
+await tapAt(...tray.tabs.colors); await p.waitForTimeout(250);
 tray = await ev(() => window.__ltTray());
 await tapAt(...tray.items[2]); await tapAt(...tray.items[5]);
 await p.waitForTimeout(200);
 await shot('02c-paint');
-await tapAt(...tray.tabs.desks); await p.waitForTimeout(100);
+await tapAt(...tray.tabs.desks); await p.waitForTimeout(250);
 tray = await ev(() => window.__ltTray());
 const dsk = await ev(() => window.__ltDesks());
-for (let i = 0; i < dsk.length && i < tray.items.length; i++) if (tray.items[i]) await pull(tray.items[i], dsk[i]);
+for (let i = 0; i < dsk.length && i < tray.items.length; i++) { tray = await untuck(); if (tray.items[i]) await pull(tray.items[i], dsk[i]); }
 await p.waitForTimeout(400);
 await shot('02d-desks');
 // trash: drag a placed thing into the trash can (screenshot while hovering), and a desk supply too
 ids = await ev(() => window.__ltDecoIds());
 const bean = await ev((id) => window.__ltFurnPt(id), ids[ids.length - 1]);
-await p.mouse.move(...bean); await p.mouse.down(); await p.mouse.move(bean[0] + 20, bean[1] + 10, { steps: 3 });
+await p.mouse.move(...bean); await p.mouse.down(); await p.mouse.move(bean[0] + 20, bean[1] + 10, { steps: 3 }); await p.waitForTimeout(200);
 const tr2 = await ev(() => window.__ltTrash());
 await p.mouse.move(tr2[0], tr2[1], { steps: 8 });
 await shot('02e-trash');
 await p.mouse.up(); await p.waitForTimeout(200);
 const di = await ev(() => window.__ltDeskItem(4));
-await p.mouse.move(...di); await p.mouse.down(); await p.mouse.move(di[0], di[1] - 30, { steps: 3 });
+await p.mouse.move(...di); await p.mouse.down(); await p.mouse.move(di[0], di[1] - 30, { steps: 3 }); await p.waitForTimeout(200);
 const tr3 = await ev(() => window.__ltTrash());
 await p.mouse.move(tr3[0], tr3[1], { steps: 8 }); await p.mouse.up(); await p.waitForTimeout(200);
 // ▶ goes back to the block she was in
@@ -262,11 +275,34 @@ await shot('22a-sla');
 await choice('figuras'); await p.waitForTimeout(900);
 let sh = await ev(() => window.__ltShapes());
 await shot('22-shapes-start');
-for (let i = 0; i < 3; i++) {
+// tap-then-tap: tap a shape (it glows and bobs), a wrong hole wiggles it (it stays picked), then its own hole
+{
+  const pc = sh.pieces[0], right = sh.holes.findIndex(h => h.shape === pc.shape), wrong = sh.holes.findIndex(h => h.shape !== pc.shape);
+  await tapAt(...pc.at); await p.waitForTimeout(250);
+  sh = await ev(() => window.__ltShapes());
+  if (sh.sel !== 0) throw new Error('tapping a shape should pick it up');
+  await shot('22b-shapes-picked');
+  await tapAt(...sh.holes[wrong].at); await p.waitForTimeout(60);
+  await shot('22c-shapes-wrong-hole');
+  sh = await ev(() => window.__ltShapes());
+  if (sh.sel !== 0 || sh.pieces[0].placed) throw new Error('a wrong hole should keep the shape picked');
+  await tapAt(...sh.holes[right].at); await p.waitForTimeout(350);
+  sh = await ev(() => window.__ltShapes());
+  if (!sh.pieces[0].placed || sh.sel !== -1) throw new Error('tap-then-tap did not place the shape');
+  await shot('22d-shapes-tap-placed');
+  // tap a shape, then tap the table between the box and the shapes: it's put back
+  await tapAt(...sh.pieces[1].at); await p.waitForTimeout(150);
+  await tapAt(sh.back[0], (sh.pieces[1].at[1] + sh.holes[0].at[1]) / 2); await p.waitForTimeout(150);
+  if ((await ev(() => window.__ltShapes())).sel !== -1) throw new Error('a tap elsewhere should put the shape back');
+}
+for (let i = 1; i < 3; i++) {
   sh = await ev(() => window.__ltShapes());
   const pc = sh.pieces[i], hole = sh.holes.find(h => h.shape === pc.shape);
-  await p.mouse.move(...pc.at); await p.mouse.down(); await p.mouse.move(hole.at[0], hole.at[1], { steps: 6 }); await p.mouse.up();
+  // a sloppy drop (well below the hole, ~70% of the snap radius) still finds the right hole
+  const off = i === 2 ? sh.snap * 0.7 : 0;
+  await p.mouse.move(...pc.at); await p.mouse.down(); await p.mouse.move(hole.at[0], hole.at[1] + off, { steps: 6 }); await p.mouse.up();
   await p.waitForTimeout(300);
+  if (!(await ev((i) => window.__ltShapes().pieces[i].placed, i))) throw new Error('drag-and-drop did not place shape ' + i);
 }
 sh = await ev(() => window.__ltShapes());
 const pc3 = sh.pieces[3]; await p.mouse.move(...pc3.at); await p.mouse.down(); await p.mouse.move(pc3.at[0], pc3.at[1] - 60, { steps: 6 });
@@ -279,11 +315,23 @@ await p.waitForTimeout(700);
 await shot('04a-question');
 await pickOpt(false); await p.waitForTimeout(600);
 await shot('04b-question-wrong');
+await ev(() => { window.__ltSaid = []; });
+const qWord = await ev(() => { const Q = window.__ltQuizQ(); return Q.steps[Q.i].options.find(o => o.right).say; });
 await pickOpt(true); await p.waitForTimeout(120);
 await shot('04b2-question-right-pop');
 await p.waitForTimeout(250);
 await shot('04b3-question-right');
-await p.waitForTimeout(1300);
+await p.waitForTimeout(350);
+await shot('04b4-question-echo');
+await p.waitForFunction(() => !window.__ltHint().q, null, { timeout: 10000 });
+{ // the word, the praise, the word again
+  const said = (await ev(() => window.__ltSaid)).map(l => l.split(': ').slice(1).join(': '));
+  const i1 = said.indexOf(qWord), i2 = said.indexOf('¡Eso es!', i1), i3 = said.indexOf(qWord, i2);
+  console.log('   quiz said:', said.join(' | '));
+  if (i1 < 0 || i2 < 0 || i3 < 0) throw new Error('a right answer should say the word, the praise, then the word again');
+}
+await ev(() => { delete window.__ltSaid; });
+await p.waitForTimeout(300);
 let pts = await ev(() => window.__ltDeskPts());
 const star = await ev(() => window.__ltBtn('star'));
 await p.mouse.move(star[0], star[1]); await p.mouse.down();
@@ -295,9 +343,29 @@ await shot('06-starglow');
 await ev(() => window.__ltNaughty(4));
 await p.waitForTimeout(700);
 await shot('06a-naughty');
+// the hint for a naughty friend: the hand holds the red card (its ring fills), then carries it over
+await tapAt(...(await ev(() => window.__ltBtn('help')))); await p.waitForTimeout(90);
+{ const h = await ev(() => window.__ltHint()); console.log('   hint:', h.hint && h.hint.key); if (h.hint && h.hint.key === 'naughty') { await shot('06a2-redcard-hint-hold'); await p.waitForTimeout(250); await shot('06a3-redcard-hint-carry'); } }
+// the red card needs a short hold (0.6 s): a quick tap only says its name
+const red = await ev(() => window.__ltBtn('cardRed'));
+await tapAt(...red); await p.waitForTimeout(200);
+if (await ev(() => window.__ltArmed())) throw new Error('a quick tap should not pick up the red card');
+await p.mouse.move(...red); await p.mouse.down(); await p.waitForTimeout(330);
+await shot('06a4-redcard-holding');
+await p.waitForTimeout(400); await p.mouse.up(); await p.waitForTimeout(100);
+if (await ev(() => window.__ltArmed()) !== 'cardRed') throw new Error('holding the red card should pick it up');
+await shot('06a5-redcard-picked');
 pts = await ev(() => window.__ltDeskPts());
-await drag(await ev(() => window.__ltBtn('cardRed')), pts[4]); await p.waitForTimeout(500);
+await tapAt(...pts[4]); await p.waitForTimeout(500);
+if (await ev(() => window.__ltCardOf(4)) !== 'red') throw new Error('the picked-up red card did not reach the friend');
 await shot('06b-redcard');
+// hold, then drag it onto a friend
+await ev(() => window.__ltNaughty(5)); await p.waitForTimeout(300);
+await p.mouse.move(...red); await p.mouse.down(); await p.waitForTimeout(750);
+await p.mouse.move((red[0] + pts[5][0]) / 2, (red[1] + pts[5][1]) / 2, { steps: 4 }); await p.mouse.move(...pts[5], { steps: 4 });
+await shot('06b2-redcard-drag');
+await p.mouse.up(); await p.waitForTimeout(500);
+if (await ev(() => window.__ltCardOf(5)) !== 'red') throw new Error('dragging the red card after a hold did not give it');
 await drag(await ev(() => window.__ltBtn('cardGreen')), pts[3]); await p.waitForTimeout(500);
 await shot('06c-greencard');
 const plant = await ev(() => window.__ltFurn('plant'));
@@ -319,6 +387,23 @@ await next();
 await p.waitForFunction(() => window.__ltCentros()?.stage === 'chart', null, { timeout: 30000 });
 await expectBlock('centros');
 await shot('11a-centros-chart');
+{ // tap-then-tap: tap a face (it glows and bobs), then tap another column
+  let cs = await ev(() => window.__ltCentros());
+  const f = cs.faces[0], to = (f.ci + 1) % 4;
+  await tapAt(...f.at); await p.waitForTimeout(250);
+  cs = await ev(() => window.__ltCentros());
+  if (cs.sel !== f.kind) throw new Error('tapping a face should pick it up');
+  await shot('11a2-centros-face-picked');
+  await tapAt(...cs.cols[to]); await p.waitForTimeout(300);
+  cs = await ev(() => window.__ltCentros());
+  if (cs.assign[f.kind] !== to || cs.sel) throw new Error('tapping a column should move the picked face there');
+  await shot('11a3-centros-face-moved');
+  // and drag still works: another face goes to the first face's old column
+  const g = cs.faces.find(q => q.kind !== f.kind && q.ci !== f.ci) || cs.faces[1];
+  await drag(g.at, cs.cols[f.ci]);
+  cs = await ev(() => window.__ltCentros());
+  if (cs.assign[g.kind] !== f.ci) throw new Error('dragging a face did not move it');
+}
 await tapAt(...(await ev(() => window.__ltCentros().start)));
 await p.waitForFunction(() => window.__ltCentros()?.arrived, null, { timeout: 30000 }); await p.waitForTimeout(600);
 await shot('11b-centros-run');

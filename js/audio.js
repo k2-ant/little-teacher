@@ -124,6 +124,11 @@ export function playClip(kind, key, rate = 1) {
   });
   return true;
 }
+/** seconds a recorded line lasts for this voice (null when it isn't loaded yet) */
+export function clipLen(kind, key) {
+  const bv = BORROWED_VOICE[kind], url = clipUrl(bv ? bv[0] : kind, key), b = url && bufs.get(url);
+  return b ? b.duration / (bv ? bv[1] : 1) : null;
+}
 /** quietly download every clip once so the game works offline afterwards */
 export async function prefetchClips() {
   if (!clipMap) await loadClips();

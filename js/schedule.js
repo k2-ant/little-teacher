@@ -240,10 +240,11 @@ export function createSchedule(api) {
   let press = null;
 
   function layout(V, compact) {
-    const i = V.inset, top = i.t + 2, x = i.l + 2;
-    const w = compact ? ICON_W + 2 : 66, headH = compact ? 0 : 18;
+    // phones: every pixel of height goes to the cards (12 cards share ~390 CSS px), and a bit more width
+    const i = V.inset, top = i.t + (compact ? 1 : 2), x = i.l + 2;
+    const w = compact ? ICON_W + 4 : 66, headH = compact ? 0 : 18;
     const n = BLOCKS.length;
-    const avail = V.H - i.b - 2 - top - headH - 3;
+    const avail = V.H - i.b - top - headH - (compact ? 2 : 5);
     const pitch = clamp(Math.floor(avail / n), 14, 20), h = pitch - 1;
     const cards = BLOCKS.map((b, k) => ({ id: b.id, k, x, w, h, y: k === 0 ? top : top + headH + 3 + k * pitch }));
     LY = { compact, x, w, cards, head: { x, y: top + pitch + 1, w, h: headH }, right: x + w + (compact ? 4 : 6) };
@@ -345,7 +346,9 @@ export function createSchedule(api) {
     R(c, x - 3, y + h / 2 - 1, 3, 3, '#fffaf0');
     D(c, tx, x + 4, y + 3);
   }
-  function hitCard(x, y) { return LY && x < LY.right ? LY.cards.find(cd => inRect(x, y, { x: cd.x - 1, y: cd.y - 1, w: cd.w + 4, h: cd.h + 1 })) : null; }
+  // a card's hit area: on phones the whole width of the column and the whole pitch (no gaps), from the screen's edge
+  const hitRect = (cd) => (LY.compact ? { x: 0, y: cd.y - 1, w: LY.right - 2, h: cd.h + 1 } : { x: cd.x - 1, y: cd.y - 1, w: cd.w + 4, h: cd.h + 1 });
+  function hitCard(x, y) { return LY && x < LY.right ? LY.cards.find(cd => inRect(x, y, hitRect(cd))) : null; }
   /** a press in full-buffer coordinates; true when the chart takes it */
   function down(x, y) {
     if (!LY || x >= LY.right) return false;
@@ -396,6 +399,7 @@ export function createSchedule(api) {
     get casaAsking() { return G.time < st.casaArm; }, get layoutInfo() { return LY; },
     markUsed() { st.used = true; },
     get nextId() { return nextId(); }, get used() { return st.used; },
+    cardRects() { return LY ? LY.cards.map(cd => ({ id: cd.id, art: { x: cd.x, y: cd.y, w: cd.w, h: cd.h }, hit: hitRect(cd) })) : []; },
     cardPt(id) { const cd = LY && LY.cards.find(q => q.id === id); return cd ? { x: cd.x + cd.w / 2, y: cd.y + cd.h / 2 } : null; },
   };
 }

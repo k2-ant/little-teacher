@@ -4,7 +4,7 @@ import { G, wait, rand, pick } from './state.js';
 import { Pix, cached, darken, lighten } from './raster.js';
 import * as S from './sprites.js';
 import { sfx } from './audio.js';
-import { speak, act, hop, talk, pose } from './students.js';
+import { speak, speechLen, act, hop, talk, pose } from './students.js';
 import { picture } from './pictures.js';
 import { shapeSprite } from './shapes.js';
 import { wordSprite, numberWord, letterName, shapeName } from './i18n.js';
@@ -266,6 +266,27 @@ export function createQuiz(fx) {
         Q.done = true;
         const last = Q.i === Q.steps.length - 1;
         celebrate(k, last);
+        if (o.say && !st.after && last) { // a question: the word, the praise, then the word once more with the bounce (~2.9 s)
+          wait(0.85).then(() => {
+            if (Q !== q) return;
+            const r = L.opts[k]; confetti(r.x + r.w / 2, r.y + 4, 14, ['star'], ['#ffd23f', '#ffffff', '#7dd370'], 70);
+            act(q.asker, 'cheer', 1.2); hop(q.asker, 70); fx.teacher?.('clap');
+            const line = LD.Q_RIGHT.find(l => l.startsWith('¡Eso')) || LD.Q_RIGHT[0]; // "¡Eso es!": the short praise, so the echo still fits
+            speak(q.asker, line, 'yay');
+            return wait(Math.min(1.15, speechLen(q.asker, line, 1.0)));
+          }).then(() => {
+            if (Q !== q) return;
+            speak(q.asker, o.say, 'here'); q.cheer = { k, t0: G.time }; sfx.pop(1.3); // the answer again: the card bounces again
+            const r = L.opts[k]; confetti(r.x + r.w / 2, r.y + 4, 10, ['star', 'confetti'], ['#ffd23f', '#7dd370', '#ff9ec4'], 60);
+            return wait(0.95);
+          }).then(() => {
+            if (Q !== q) return;
+            q.i++; q.picked = null; q.hint = false; q.cheer = null;
+            if (q.i < q.steps.length) ask();
+            else { const done = q.onDone; Q = null; done?.(o); }
+          });
+          return true;
+        }
         wait(o.say ? 1.0 : 0.3).then(() => {
           if (Q !== q) return;
           const r = L.opts[k]; confetti(r.x + r.w / 2, r.y + 4, 14, ['star'], ['#ffd23f', '#ffffff', '#7dd370'], 70);

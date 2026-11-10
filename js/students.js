@@ -1,6 +1,6 @@
 import { G, rand, pick, wait } from './state.js';
 import { KINDS, PAL } from './sprites.js';
-import { say, sfx, playClip } from './audio.js';
+import { say, sfx, playClip, clipLen } from './audio.js';
 import { tr, lang } from './i18n.js';
 import { ALIVE_LINES, NAUGHTY_LINES, V20_LINES } from './learndata.js';
 
@@ -32,6 +32,8 @@ export function speak(s, text, fallback = 'here') {
   if (playClip(s.kind, line)) return;
   if (!say(line, VOICE[s.kind] ?? 1.5, RATE[s.kind] ?? 1.08, lang())) sfx[fallback](SQUEAK[s.kind] ?? 1);
 }
+/** about how long a spoken line takes (the recorded clip's length when it's loaded) */
+export function speechLen(s, text, dflt = 1) { return (s && clipLen(s.kind, tr(text))) || dflt; }
 export function squeakPitch(s) { return SQUEAK[s.kind] ?? 1; }
 const ANIMAL_SOUNDS = {
   bunny: () => sfx.squeak(), puppy: () => sfx.woof(), turtle: () => sfx.hum(), owl: () => sfx.hoot(), frog: () => sfx.ribbit(),
@@ -126,6 +128,7 @@ export function pose(s) {
     const alt = (hz) => Math.floor(k * hz) % 2 === 0;
     switch (a.name) {
       case 'raise': st.armL = 'up'; st.earUp = true; st.eyes = s.blink > 0 ? 'blink' : 'open'; st.mouth = alt(1.5) ? 'smile' : 'open'; if (s.kind === 'puppy') st.wag = alt(8); break;
+      case 'point': if (s.look > 0) st.armR = 'up'; else st.armL = 'up'; st.earUp = true; st.eyes = 'open'; st.mouth = 'open'; break; // a paw up on the side she's looking at (showing the way)
       case 'spin': st.look = [-1, 0, 1, 0][Math.floor(k * 12) % 4]; st.armL = st.armR = 'up'; st.eyes = 'happy'; st.mouth = 'open'; st.wag = alt(12); dx = [-1, 0, 1, 0][Math.floor(k * 12) % 4]; break;
       case 'swivel': st.look = alt(5) ? -1 : 1; st.eyes = 'wide'; st.mouth = 'o'; st.earUp = true; dx = Math.floor(k * 5) % 2 ? 1 : -1; break;
       case 'peek': st.eyes = 'wide'; st.mouth = 'grin'; st.armL = st.armR = 'up'; st.earUp = true; break;
