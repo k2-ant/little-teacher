@@ -2,6 +2,16 @@
 
 The version number shows in the bottom-right corner of the start screen (for example `v1.7`).
 
+## v2.1 (2026-11-10)
+From watching a pretend 4-year-old play:
+- **Centros you take part in:** each centro waits for the teacher (a raised paw and a glowing sign). Tap one and the teacher walks over for a question about that centro. Every answer leaves a reward there (a painting, an open book, letters, a block tower) and a gold star; all four done means a class cheer and a new round with the bell.
+- **Play starts with the class:** the students walk in and Trabajo de la mañana begins. Decorar is still on the Horario any time, and ▶ goes back to where you were.
+- **Hints match the screen:** no more "tap the arrow" while drawing on the whiteboard.
+- **Tap the teacher** any time: she twirls, waves, or waves to the class and they wave back.
+- **Right answers celebrate:** a big ✓, a bouncing card and confetti; the feelings check-in ends with a big heart.
+- **Picture-first Horario:** bigger, clearer icons (an ear for Heggerty, a mystery visitor at the door, the teacher with a book…); the current card bounces.
+- **Tracing:** a gentle nudge if she stops partway, and tapping the stars counts them.
+
 ## v2.0 (2026-11-09)
 A rethink so it's easy to understand, for kids and grown-ups.
 - **Horario:** the day follows a picture schedule down the left side, modelled on Louise's real classroom chart (Trabajo de la mañana, Calendario, Alfabeto, Recreo, Lectura con Maestra, Heggerty, S.L.A, Centros de Aprendizaje, Almuerzo, Lector Misterioso, Casa). A clothespin marks now; ▶ goes next; tap any card to jump. Each part shows only its own buttons; the free-time menu, 🏠 and the extra corner buttons are gone.
