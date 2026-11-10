@@ -141,13 +141,20 @@ export function createClassroom(students, hooks) {
     }
     if (centros && centros.stage === 'chart') { const { start } = centrosLayout(); return { key: 'chart', x: start.x + 18, y: start.y + 10 }; }
     if (recess) return { key: 'next', ...btnPt('next') };
-    if (centros && centros.stage === 'run') return { key: 'centrosEnd', ...btnPt('cdone') };
+    if (centros && centros.stage === 'run') return centrosHint();
     { const v = v19Hint(); if (v) return v; }
     if (guest && guest.stage === 'knock') return { key: 'door', x: L.door.x + L.door.w / 2, y: L.door.y + 28 };
     if (story && L.storyBook) return { key: 'storyPage', x: L.storyBook.x + L.storyBook.w - 14, y: L.storyBook.y + L.storyBook.h - 16 };
     if (snackOn) return { key: 'snackWait', x: null };
     if (phase !== 'class' || busy) return null;
     return classHint();
+  }
+  function centrosHint() { // v2.1: an unvisited centro's sign, then the bell, after two rounds ✔
+    if (centros.going || quiz.active) return null;
+    const sg = centerSigns().find(r => centroWants(r.ci));
+    if (sg && !centrosAllDone()) return { key: 'centrosVisit', x: sg.x + sg.w / 2, y: sg.y + sg.h / 2 + 4 };
+    if (centros.rounds >= 2 || !centrosAllDone()) return { key: 'centrosEnd', ...btnPt('cdone') };
+    return { key: 'centrosBell', ...btnPt('toys') };
   }
   function classHint() {
     const at = (s, key) => { const [x, y] = headPos(s); return { key, x, y: y + 12 }; };
@@ -319,13 +326,17 @@ export function createClassroom(students, hooks) {
   function chartBack() { const { P } = centrosLayout(); return { x: Math.max(V.inset.l + 2, P.x - 12), y: Math.max(V.inset.t + 2, P.y - 12), w: 26, h: 26 }; }
   function runCentros() {
     centros.stage = 'run'; phase = 'activity'; calmMoods();
+    // v2.1: every centro wants the teacher once a round; the rewards stay for the whole block
+    Object.assign(centros, { visited: [false, false, false, false], total: [0, 0, 0, 0], rewardT: [-9, -9, -9, -9], going: null, rounds: 0, allT: 0, stars: 0 });
     speak(students[3], LD.CENTRO_LINES.start, 'yay'); sfx.bell();
     for (const s of students) { s.sleep = false; s.hide = 0; s.snack = null; s.naughty = null; }
     sendToCenters();
   }
   function sendToCenters() {
+    centros.askers = [null, null, null, null];
     for (let ci = 0; ci < 4; ci++) {
       const ks = students.filter(s => centros.assign[s.kind] === ci && s.mode !== 'away');
+      centros.askers[ci] = ks.find(s => s.kind !== 'turtle' && s.kind !== 'mouse') || ks[0] || null; // the bold ones raise a paw
       ks.forEach((s, k) => {
         if (s.mode === 'seated') { Object.assign(s, seat(s)); s.mode = 'stand'; }
         const p = centerSpot(ci, k, ks.length);
@@ -335,21 +346,113 @@ export function createClassroom(students, hooks) {
     }
   }
   function rotateCentros() {
+    if (centros.going) return; // the teacher is on her way to a centro: finish that first
     for (const s of students) centros.assign[s.kind] = (centros.assign[s.kind] + 1) % 4;
+    centros.stars += centros.visited.filter(Boolean).length; // stars from earlier rounds stay as a little count
+    centros.visited = [false, false, false, false]; centros.allT = 0;
+    for (const s of students) if (s.bubble && s.bubble.kind === 'q') s.bubble = null;
     speak(students[4], LD.CENTRO_LINES.change, 'yay'); sfx.ding(988);
     sendToCenters();
   }
   async function endCentros() {
     centros = null; busy = true;
-    for (const s of students) s.center = undefined;
+    centrosClear();
     sfx.ding(784);
     await gatherSeats();
     busy = false; phase = 'class';
   }
-  function centrosTick(dt) {
+  function centrosClear() { // centros is over (✔ or leaving the block): the friends forget their centro, the teacher goes home
+    for (const s of students) { s.center = undefined; if (s.bubble && s.bubble.kind === 'q') s.bubble = null; }
+    teacherHome();
+  }
+  // ---- v2.1 centros: the teacher hops over to a centro and a friend there asks her a question
+  const CENTRO_Q = [['color'], ['animal', 'size'], ['letter'], ['shape', 'count']]; // arte, biblioteca, letras, bloques
+  const centroKids = (ci) => students.filter(s => s.center === ci && s.mode !== 'away');
+  const centroWants = (ci) => !!centros && centros.stage === 'run' && !!centros.visited && !centros.visited[ci] && centroKids(ci).length > 0;
+  const centrosAllDone = () => !!centros && centros.stage === 'run' && centros.visited.some(Boolean) && [0, 1, 2, 3].every(ci => centros.visited[ci] || !centroKids(ci).length);
+  function teacherGo(x, y, then) { teach.go = { x, y, then }; }
+  function teacherHome() { // back to her own spot (where she was put, or the default by the door)
+    const h = { ...furn.teacher }; place(h);
+    if (Math.hypot(h.x - furn.teacher.x, h.y - furn.teacher.y) < 2) { teach.go = null; return; }
+    teacherGo(h.x, h.y, () => { place(furn.teacher); teacherAct('wave', 1); });
+  }
+  function teacherWalkTick(dt) {
+    const g = teach.go, t = furn.teacher;
+    if (!g) return;
+    if (drag && drag.f === t) { teach.go = null; return; } // she's being carried
+    const dx = g.x - t.x, dy = g.y - t.y, d = Math.hypot(dx, dy), sp = 105 * dt;
+    if (d <= sp) { t.x = g.x; t.y = g.y; teach.go = null; g.then?.(); return; }
+    t.x += dx / d * sp; t.y += dy / d * sp;
+    if (Math.abs(dx) > 2) teach.walkRight = dx > 0;
+    if (teach.z <= 0 && teach.vz <= 0) { teach.vz = 42; sfx.step(Math.floor(G.time * 4)); } // little hops
+    teacherAct('walk', 0.3);
+  }
+  const centroSide = (ci) => (centerSpot(ci, 0, 1).x < V.W / 2 ? 1 : -1); // the teacher stands on the room's side
+  const centroHalf = (ci) => (Math.min(Math.max(1, centroKids(ci).length), 4) - 1) / 2 * 18;
+  function teacherSpot(ci) {
+    const p = centerSpot(ci, 0, 1);
+    return { x: clamp(p.x + centroSide(ci) * (centroHalf(ci) + (ci === 0 ? 50 : 40)), 18, V.W - 18), y: clamp(p.y + 3, L.floorTop + 14, V.H - 3) };
+  }
+  function tapCentro(ci) {
+    if (!centroWants(ci)) { // already visited: someone there cheers again
+      const ks = centroKids(ci); if (!ks.length) return;
+      const t = pick(ks); act(t, 'cheer', 1.2); hop(t, 70); sfx.pop(1.2); speak(t, LD.CENTERS[ci].line, 'yay');
+      return;
+    }
+    if (centros.going || quiz.active || busy) return;
+    const q = teacherSpot(ci);
+    centros.going = { ci, stage: 'walk' }; hint = null;
+    sfx.whoosh(); teach.vz = 60;
+    teacherGo(q.x, q.y, () => {
+      if (!centros || !centros.going || centros.going.ci !== ci) return;
+      const a0 = centros.askers[ci], asker = a0 && a0.center === ci ? a0 : centroKids(ci)[0];
+      if (!asker) { centros.going = null; return; }
+      centros.going.stage = 'ask';
+      teach.pointRight = asker.x > furn.teacher.x; teacherAct('wave', 0.8);
+      asker.look = asker.x > furn.teacher.x ? -1 : 1; hop(asker, 70);
+      wait(0.5).then(() => {
+        if (!centros || !centros.going || centros.going.ci !== ci) return;
+        centros.going.stage = 'quiz';
+        quiz.open(asker, [makeQuestion(asker, students, CENTRO_Q[ci])], () => centroDone(ci, asker), LD.Q_INTRO);
+      });
+    });
+  }
+  function centroDone(ci, asker) {
     if (!centros || centros.stage !== 'run') return;
+    centros.going = null; centros.visited[ci] = true; centros.total[ci]++; centros.rewardT[ci] = G.time;
+    if (asker.bubble && asker.bubble.kind === 'q') asker.bubble = null;
+    const ks = centroKids(ci);
+    for (const s of ks) { act(s, 'cheer', 1.6); hop(s, 75); }
+    const sayer = ks.find(s => s !== asker) || asker;
+    wait(0.3).then(() => speak(sayer, LD.CENTERS[ci].line, 'yay'));
+    teacherAct('clap', 1.2); sfx.sparkle(); sfx.chime();
+    const sg = centerSigns()[ci];
+    burst('star', sg.x + sg.w / 2, sg.y + sg.h / 2, 10, ['#ffd23f', '#fff6b8', '#ffb020'], { sp: 70 });
+    if (centrosAllDone()) wait(2.2).then(() => { if (centros && centrosAllDone() && !centros.allT) allCentrosCheer(); });
+  }
+  function allCentrosCheer() { // all four centros visited: the whole class cheers, the bell starts to glow
+    centros.allT = G.time; centros.rounds++;
+    for (const s of awake()) { act(s, 'cheer', 1.8); hop(s, 80); }
+    teacherAct('cheer', 1.8); teach.vz = 70;
+    sfx.fanfare(); sfx.cheer(1.1);
+    burst('confetti', V.W / 2, 20, 50, ['#ef6f6c', '#ffd23f', '#7dd370', '#64a8e8', '#b48be6'], { sp: 110, g: 80, life: 1.8 });
+    const t = awake()[0]; if (t) speak(t, pick(LD.Q_RIGHT), 'yay');
+  }
+  const bellWants = () => !!centros && centros.stage === 'run' && !!centros.allT && !centros.going;
+  function centrosTick(dt) {
+    teacherWalkTick(dt);
+    if (!centros || centros.stage !== 'run') return;
+    const g = centros.going;
+    if (g && ((g.stage === 'quiz' && !quiz.active) || (g.stage === 'walk' && !teach.go))) centros.going = null; // she closed the question (or picked the teacher up): the centro still waits
+    for (let ci = 0; ci < 4; ci++) { // a raised paw + "?" at every centro that wants the teacher
+      const a = centros.askers[ci];
+      if (!a || a.center !== ci || a.mode !== 'stand' || !centroWants(ci) || (g && g.ci === ci && g.stage !== 'walk')) continue;
+      if (!acting(a, 'raise') && !acting(a, 'cheer')) act(a, 'raise', 1.6);
+      if (!a.bubble) talk(a, 'q', 1.5);
+    }
     for (const s of students) {
       if (s.center === undefined || s.mode !== 'stand') continue;
+      if (centroWants(s.center) && centros.askers[s.center] === s) continue;
       s.centerT -= dt;
       if (s.centerT > 0) continue;
       s.centerT = rand(2.5, 4.5);
@@ -358,21 +461,99 @@ export function createClassroom(students, hooks) {
       if (s.center === 1) { act(s, 'look', 1.6); if (Math.random() < 0.4) sfx.page(); }
       if (s.center === 2) { act(s, 'raise', 1.4); burst('spark', hx + 10, hy - 4, 2, ['#ef5b5b', '#2f7de1']); }
       if (s.center === 3) { act(s, 'clap', 1.2); burst('crumb', hx, hy + 18, 5, ['#ef6f6c', '#64a8e8', '#ffd23f', '#7dd370'], { up: true, sp: 35, g: 120 }); }
-      if (Math.random() < 0.12) speak(s, LD.CENTERS[s.center].line, 'yay');
+      if (Math.random() < 0.12 && !quiz.active) speak(s, LD.CENTERS[s.center].line, 'yay');
     }
   }
   function centerSigns() {
     if (!centros || centros.stage !== 'run') return [];
-    return [0, 1, 2, 3].map(ci => { const p = centerSpot(ci, 0, 1); return { ci, x: p.x - 11 + (ci === 3 ? 26 : ci === 1 ? -34 : 22), y: p.y - 58, w: 22, h: 22 }; });
+    return [0, 1, 2, 3].map(ci => { const p = centerSpot(ci, 0, 1); return { ci, x: clamp(p.x - 13 + (ci === 3 ? 26 : ci === 1 ? -34 : 22), 4, V.W - V.inset.r - 32), y: Math.max(V.inset.t + 12, p.y - 62), w: 26, h: 26 }; });
+  }
+  // what she gets for a visit, drawn at each centro: a painting, an open book, letters, a block tower
+  const REW_COLS = ['#ef6f6c', '#64a8e8', '#ffd23f', '#7dd370', '#b48be6', '#ff9a2e'];
+  function rewardSpot(ci) {
+    const p = centerSpot(ci, 0, 1);
+    return { x: clamp(p.x + centroSide(ci) * (centroHalf(ci) + (ci === 0 ? 22 : 17)), 14, V.W - 14), y: p.y }; // between the friends and the teacher
+  }
+  function drawCentroReward(c, ci) {
+    const n = centros.total[ci], k = clamp((G.time - centros.rewardT[ci]) / 0.9, 0, 1); // k: the newest reward growing in
+    if (ci === 0) { // a painting on the easel, painted top to bottom
+      const p0 = rewardSpot(0), ex = Math.round(p0.x - 12), ey = Math.round(p0.y + 4 - 40);
+      D(c, DC.decor('easel', Math.max(0, n - 1) % 3), ex, ey);
+      const cover = n ? Math.round(21 * (1 - k)) : 21;
+      if (cover > 0) R(c, ex + 3, ey + 27 - cover, 18, cover, '#fffaf0');
+      if (n && k < 1) R(c, ex + 3, ey + 26 - cover, 18, 1, REW_COLS[n % REW_COLS.length]); // the wet brush line
+      return;
+    }
+    const q = rewardSpot(ci), x = Math.round(q.x), y = Math.round(q.y);
+    if (ci === 1) { // a book on the rug: closed, then open with a picture
+      if (!n) { D(c, S.ICONS.book(), x - 9, y - 16); return; }
+      const h = Math.max(2, Math.round(12 * k)), t = y - h - 2;
+      shadow(c, x, y, 26);
+      R(c, x - 13, t - 1, 26, h + 3, '#c25b4e'); R(c, x - 12, t, 11, h, '#fffaf0'); R(c, x + 1, t, 11, h, '#fffaf0'); R(c, x - 1, t, 2, h + 1, '#8a3b33');
+      if (h >= 10) {
+        for (let r = 0; r < 4; r++) R(c, x - 10, t + 2 + r * 2, 8, 1, '#c9b8d8');
+        const pic = S.particle(['heart', 'star', 'note'][(n - 1) % 3], ['#ff6f91', '#ffd23f', '#7a5bc0'][(n - 1) % 3]);
+        D(c, pic, x + 7 - pic.width / 2, t + 6 - pic.height / 2);
+        if (Math.random() < 0.01) burst('heart', x, t - 2, 1, ['#ff6f91', '#ff9ec4'], { up: true, sp: 20 });
+      }
+      return;
+    }
+    if (ci === 2) { // letters pop up over the writers, more every visit
+      const ls = ['A', 'E', 'I', 'O', 'U', 'M'], m = n ? Math.min(ls.length, 2 + n) : 0, fresh = n === 1 ? m : 1;
+      for (let i = 0; i < m; i++) {
+        const j = i - (m - fresh); // the new ones pop in one by one
+        const born = j < 0 ? 1 : clamp((G.time - centros.rewardT[2]) / 0.3 - j * 0.7, 0, 1);
+        if (born <= 0) continue;
+        const img = wordSprite(ls[i], REW_COLS[i % REW_COLS.length], 2), ang = -Math.PI / 2 + (i - (m - 1) / 2) * 0.45;
+        const p2 = centerSpot(2, 0, 1), lx = p2.x - 18 + Math.cos(ang) * 34, ly = p2.y - 40 + Math.sin(ang) * 12 + Math.round(Math.sin(G.time * 3 + i) * 2) + Math.round((1 - born) * 8);
+        D(c, glow(img, '#ffffff', 'rletter' + i), lx - img.width / 2 - 2, ly - img.height / 2 - 2); // a white rim: readable on the chalkboard
+        D(c, img, lx - img.width / 2, ly - img.height / 2);
+      }
+      return;
+    }
+    // bloques: a tower that grows two blocks a visit
+    const tot = Math.min(13, 2 + n * 2), grow = n ? Math.min(2, Math.floor(k * 3)) : 2, show = tot - 2 + grow;
+    shadow(c, x, y, 14);
+    for (let i = 0; i < show; i++) {
+      const col = REW_COLS[i % REW_COLS.length], bx = x - 5 + (i % 3 === 1 ? 1 : i % 3 === 2 ? -1 : 0), by = y - 6 - i * 6;
+      R(c, bx - 1, by - 1, 12, 7, '#2a1630'); R(c, bx, by, 10, 5, col); R(c, bx, by, 10, 1, lighten(col, 0.4));
+    }
   }
   function drawCenterProps(c) {
     if (!centros || centros.stage !== 'run') return;
-    const p0 = centerSpot(0, 0, 1);
-    const easel = DC.decor('easel', 1); D(c, easel, p0.x + 24 - easel.width / 2, p0.y + 4 - easel.height);
+    for (let ci = 0; ci < 4; ci++) {
+      if (!centroWants(ci)) continue;
+      // a glowing ring on the floor around the friends: "come here, maestra!"
+      const p = centerSpot(ci, 0, 1), n = centroKids(ci).length, pulse = Math.sin(G.time * 4 + ci);
+      const rx = centroHalf(ci) + 16 + pulse * 2, ry = (n > 4 ? 14 : 8) + pulse, cy = p.y + (n > 4 ? 5 : 0);
+      c.fillStyle = `rgba(255,230,110,${0.22 + 0.1 * pulse})`; c.beginPath(); c.ellipse(Math.round(p.x), Math.round(cy), rx, ry, 0, 0, Math.PI * 2); c.fill();
+      for (let a = 0; a < Math.PI * 2; a += 0.04) {
+        R(c, p.x + Math.cos(a) * rx - 1, cy + Math.sin(a) * ry - 1, 2, 2, (Math.floor(a * 6 - G.time * 8) & 3) ? '#ffd23f' : '#ffffff');
+      }
+    }
+  }
+  function centrosObjs(objs) { // v2.1: the rewards stand on the floor, y-sorted with the friends and the furniture
+    if (!centros || centros.stage !== 'run') return;
+    for (const ci of [0, 1, 3]) objs.push({ y: (ci === 0 ? rewardSpot(0).y + 4 : rewardSpot(ci).y) - 0.5, draw: (c) => drawCentroReward(c, ci) });
+  }
+  function drawCenterSigns(c) { // on top of the room, so a beanbag or a shelf never hides a sign
+    if (!centros || centros.stage !== 'run') return;
+    drawCentroReward(c, 2); // the letters float over the writers' heads
     for (const sg of centerSigns()) {
-      R(c, sg.x + 10, sg.y + 20, 2, 10, '#a8703f');
-      D(c, btnFrame(sg.w, sg.h, ['#ffd8d6', '#d6eaff', '#fff2b8', '#dff5d6'][sg.ci], 'sign' + sg.ci), sg.x, sg.y + Math.round(Math.sin(G.time * 3 + sg.ci)));
-      const ic = C_ICONS[sg.ci](); D(c, ic, sg.x + 2, sg.y + 2 + Math.round(Math.sin(G.time * 3 + sg.ci)));
+      const want = centroWants(sg.ci), done = centros.visited[sg.ci];
+      const bob = want ? -Math.round(Math.abs(Math.sin(G.time * 5 + sg.ci)) * 4) : Math.round(Math.sin(G.time * 3 + sg.ci));
+      R(c, sg.x + 12, sg.y + 24, 2, 10, '#a8703f');
+      const fr = btnFrame(sg.w, sg.h, ['#ffd8d6', '#d6eaff', '#fff2b8', '#dff5d6'][sg.ci], 'sign' + sg.ci);
+      if (want) { c.globalAlpha = 0.55 + 0.45 * Math.sin(G.time * 6 + sg.ci); D(c, glow(fr, '#ffd23f', 'signglow' + sg.ci), sg.x - 2, sg.y - 2 + bob); c.globalAlpha = 1; }
+      D(c, fr, sg.x, sg.y + bob);
+      const ic = C_ICONS[sg.ci](); D(c, ic, sg.x + (sg.w - ic.width) / 2, sg.y + (sg.h - ic.height) / 2 - 1 + bob);
+      if (done) { // a big gold star for a visited centro
+        const st = S.ICONS.star(), tw = Math.floor(G.time * 3 + sg.ci) % 6 === 0 ? -1 : 0;
+        D(c, glow(st, '#fff6b8', 'cstar'), sg.x + sg.w - 13, sg.y - 11 + tw);
+        D(c, st, sg.x + sg.w - 11, sg.y - 9 + tw);
+      }
+      const old = centros.total[sg.ci] - (done ? 1 : 0); // stars from earlier rounds: little pips under the sign
+      for (let i = 0; i < Math.min(old, 4); i++) D(c, S.particle('star', '#ffd23f'), sg.x + 2 + i * 6, sg.y + sg.h + 2);
     }
   }
 
@@ -400,6 +581,7 @@ export function createClassroom(students, hooks) {
       if (a.name === 'point') { st.armL = 'point'; st.eyes = 'open'; st.mouth = alt(3) ? 'open' : 'grin'; flip = teach.pointRight; }
       if (a.name === 'twirl') { flip = alt(8); st.armL = st.armR = 'up'; st.mouth = 'open'; }
       if (a.name === 'cheer') { st.armL = st.armR = 'up'; st.mouth = 'open'; }
+      if (a.name === 'walk') { st.feet = alt(7) ? 1 : 2; st.armL = alt(7) ? 'front' : 'down'; st.mouth = 'open'; flip = !!teach.walkRight; } // v2.1: hopping over to a centro
     }
     return { st, flip };
   }
@@ -1715,6 +1897,7 @@ export function createClassroom(students, hooks) {
     for (const s of students) if (s.mode !== 'seated' && s.mode !== 'away' && s.mode !== 'held') objs.push({ y: s.y, s });
     if (recess) objs.push({ y: recess.ball.y, ball: recess.ball });
     v19Objs(objs);
+    centrosObjs(objs);
     if (guest && guest.stage !== 'knock') objs.push({ y: guest.y, draw: drawGuest });
     objs.sort((a, b) => a.y - b.y);
     for (const o of objs) {
@@ -1730,6 +1913,7 @@ export function createClassroom(students, hooks) {
         D(c, cached('rball', () => { const p = new Pix(10, 10); p.ball(5, 5, 4.6, 4.6, '#ef6f6c'); p.ell(5, 5, 4.6, 4.6, '#ffd23f', { y0: 4, y1: 5 }, true); p.outline(); return p.canvas(); }), b.x - 5, b.y - 10 - b.z);
       } else if (o.draw) o.draw(c);
     }
+    drawCenterSigns(c);
     // particles + bubbles
     for (const p of parts) {
       if (p.life - p.t < 0.25 && Math.floor(p.t * 20) % 2) continue;
@@ -1808,6 +1992,7 @@ export function createClassroom(students, hooks) {
         D(c, blockIcon(SC.nextId), b.x + b.w - 17, b.y + (b.h - 14) / 2 - 1 - k + dn); // ▶ + the next card's picture
         continue;
       }
+      if (b.id === 'toys' && bellWants()) { c.globalAlpha = 0.6 + 0.4 * Math.sin(G.time * 5); D(c, glow(btnFrame(b.w, b.h, '#fff6c8', 'on'), '#ffd23f', 'homeglow'), b.x - 2, b.y - 2); c.globalAlpha = 1; } // v2.1: ring for a new round
       D(c, btnFrame(b.w, b.h), b.x, b.y + dn);
       const ic = b.icon();
       D(c, ic, b.x + (b.w - ic.width) / 2, b.y + (b.h - ic.height) / 2 - 1 + dn);
@@ -2150,9 +2335,11 @@ export function createClassroom(students, hooks) {
       if (f) { centros.drag = { s: f.s, x, y }; sfx.lift(); }
       return;
     }
-    if (centros && centros.stage === 'run') {
-      const sg = centerSigns().find(r => inRect(x, y, { x: r.x - 3, y: r.y - 3, w: r.w + 6, h: r.h + 6 }));
+    if (centros && centros.stage === 'run' && !shownBtns().some(b => inRect(x, y, b))) { // v2.1: a centro's sign, or a friend at a centro that wants the teacher
+      const sg = centerSigns().find(r => inRect(x, y, { x: r.x - 5, y: r.y - 6, w: r.w + 10, h: r.h + 14 }));
       if (sg) { press.sign = sg; return; }
+      const s = hitStudent(x, y);
+      if (s && s.center !== undefined && centroWants(s.center)) { press.sign = { ci: s.center }; return; }
     }
     if (phase === 'title' || phase === 'night') {
       if (bookOpen) { press.book = true; return; }
@@ -2324,14 +2511,7 @@ export function createClassroom(students, hooks) {
       if (!inRect(x, y, P)) { centros = null; sfx.softPop(); }
       return;
     }
-    if (p.sign) {
-      const ci = p.sign.ci; sfx.whoosh();
-      if (ci === 0) hooks.openBoard(L.board, V.s);
-      else if (ci === 2) hooks.openLetters();
-      else if (ci === 3) hooks.openShapes();
-      else { const r = students.filter(s => s.center === 1); const t = r.length ? pick(r) : students[3]; act(t, 'happy', 1.2); sfx.page(); speak(t, LD.CENTERS[1].line, 'yay'); }
-      return;
-    }
+    if (p.sign) { if (!p.moved) tapCentro(p.sign.ci); return; }
     if (p.v19) { if (!p.moved) v19Tap(p.v19); return; }
     if (p.dz) { if (!p.moved) DZ.tap(p.dz); return; }
     if (p.moved) return;
@@ -2459,7 +2639,16 @@ export function createClassroom(students, hooks) {
   window.__ltFeel = (i, m) => { const s = students[i]; s.mood = m; talk(s, MOOD_BUBBLE[m], 9999); helpFeelings(s); };
   window.__ltQuiz = () => { const k = V.s / G.dpr; return quiz.active ? { opts: [0, 1, 2].map(i => { const r = quiz._L?.opts?.[i]; return r ? [(r.x + r.w / 2 + ox) * k, (r.y + r.h / 2) * k] : null; }) } : null; };
   window.__ltQuizQ = () => quiz._Q;
-  window.__ltCentros = () => { if (!centros) return null; const k = V.s / G.dpr; const lay = centrosLayout(); return { stage: centros.stage, start: [(lay.start.x + 18 + ox) * k, (lay.start.y + 16) * k], signs: centerSigns().map(r => [(r.x + 11 + ox) * k, (r.y + 11) * k]) }; };
+  window.__ltCentros = () => {
+    if (!centros) return null; const k = V.s / G.dpr; const lay = centrosLayout();
+    const run = centros.stage === 'run';
+    return { stage: centros.stage, start: [(lay.start.x + 18 + ox) * k, (lay.start.y + 16) * k], signs: centerSigns().map(r => [(r.x + r.w / 2 + ox) * k, (r.y + r.h / 2) * k]),
+      // v2.1: the teacher's visits
+      visited: run ? [...centros.visited] : null, wants: run ? [0, 1, 2, 3].map(centroWants) : null, total: run ? [...centros.total] : null,
+      going: run && centros.going ? { ...centros.going } : null, quiz: quiz.active, quizReady: quiz.active && !quiz._Q?.wait, allDone: run && centrosAllDone(), rounds: run ? centros.rounds : 0,
+      bellGlow: bellWants(), arrived: run ? students.filter(s => s.center !== undefined).every(s => s.mode === 'stand') : false, teacher: css(furn.teacher.x, furn.teacher.y - 30), teacherWalking: !!teach.go,
+      kids: run ? [0, 1, 2, 3].map(ci => { const s = centroKids(ci).find(t => t !== centros.askers[ci]) || centroKids(ci)[0]; if (!s) return null; const r = spriteRect(s); return css(r.x + S.SW / 2, r.y + S.SH - 10); }) : null };
+  };
   window.__ltNaughty = (i) => { students[i].naughty = { until: G.time + 22, next: 0 }; };
   window.__ltHint = () => ({ hint, lastInput, nextHintAt, time: G.time, phase, busy, story: !!story, reward: !!reward, dayCard: !!dayCard, menu: !!menu, book: !!bookOpen, q: quiz.active });
   window.__ltTeacher = () => css(furn.teacher.x, furn.teacher.y - 30);
@@ -2494,7 +2683,7 @@ export function createClassroom(students, hooks) {
     if (recess) await endRecess();
     if (story) story = null;
     if (guest) { guest = null; doorTarget = 0; }
-    if (centros) { centros = null; for (const s of students) s.center = undefined; }
+    if (centros) { centros = null; centrosClear(); }
     if (serve) { serve = null; snackOn = false; for (const s of students) s.snack = null; }
     if (phase === 'activity' || students.some(s => s.mode === 'stand' || s.mode === 'walk')) {
       busy = true; await gatherSeats(); busy = false;
