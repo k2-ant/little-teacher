@@ -4,7 +4,7 @@ import { Pix, cached, darken, lighten } from './raster.js';
 import * as S from './sprites.js';
 import * as DC from './decor.js';
 import { sfx, strokeStart, strokeSpeed, strokeEnd } from './audio.js';
-import { speak } from './students.js';
+import { speak, act, hop } from './students.js';
 import { makeRow } from './row.js';
 import { picture } from './pictures.js';
 import { strokesFor } from './strokes.js';
@@ -58,6 +58,10 @@ export function createLetters(students, hooks) {
   let page = 0; // letter picker page (phones only: bigger cells don't all fit)
   let tracing = false, last = null, press = null, idleSince = 0, lastNoteStep = 0, flashT = 0;
   let ink = null, guide = null, tip = null;
+  // v2.1: she lifted her finger partway and waits: the place to carry on pulses and a friend cheers her on
+  let nudgedFor = -1, nudgeSaid = -99;
+  // v2.1: tapping the ★ row on a number: a sparkle runs along the stars and a friend counts them
+  let starTaps = [], starRun = 0;
   const row = makeRow(students);
   G.save.traced ||= {};
   const teach = { act: null, t0: 0, dur: 0 };
@@ -142,7 +146,7 @@ export function createLetters(students, hooks) {
     }
   }
   function select(ch, silent) {
-    cur = ch; si = 0; prog = 0; done = false; counting = []; idleSince = G.time;
+    cur = ch; si = 0; prog = 0; done = false; counting = []; idleSince = G.time; starTaps = []; starRun++;
     if (set !== 'ma' && items().includes(ch)) page = Math.max(0, pageOf(ch));
     layoutGlyph();
     if (!silent) {
@@ -225,6 +229,7 @@ export function createLetters(students, hooks) {
         const num = mini(String(si + 1), '#ffffff');
         D(c, num, st[0][0] - 2, st[0][1] - 3);
       } else if (tip && !tracing) { dot(c, tip[0], tip[1], g.r, '#ffffff'); dot(c, tip[0], tip[1], g.r - 2, inkCol(si, prog)); }
+      nudge(c, st);
       // demo: a star shows how to draw this stroke
       const idle = G.time - idleSince;
       if (!tracing && idle > 1.2) {
@@ -251,7 +256,8 @@ export function createLetters(students, hooks) {
       for (let k = 0; k < n; k++) {
         const shown = done ? counting.length > k : true;
         const x = P.x + 2 + (k % per) * 20, y = P.y + Math.floor(k / per) * 19;
-        if (shown) D(c, star, x, y - (done && counting[k] && G.time - counting[k] < 0.3 ? 3 : 0));
+        const tb = starTaps[k] && G.time - starTaps[k] < 0.35;
+        if (shown) D(c, star, x, y - (done && counting[k] && G.time - counting[k] < 0.3 ? 3 : 0) - (tb ? 3 : 0));
         else R(c, x + 7, y + 7, 4, 4, '#e3d6c4');
       }
     }
@@ -307,6 +313,37 @@ export function createLetters(students, hooks) {
       sayHint(owl, 'trace');
     }
   }
+  function nudge(c, st) { // after a lift partway (not before she starts a letter), ~4 s of nothing
+    if (tracing || (si === 0 && prog === 0) || G.time - idleSince < 4) return;
+    const p = prog > 0 ? st[prog] : st[0], g = L.g;
+    for (let k = 0; k < 2; k++) {
+      const t = ((G.time - idleSince) * 1.4 + k * 0.5) % 1, rr = g.r + 2 + t * 7;
+      c.globalAlpha = 1 - t;
+      for (let a = 0; a < Math.PI * 2; a += 0.6 / rr) R(c, p[0] + Math.cos(a) * rr - 0.5, p[1] + Math.sin(a) * rr - 0.5, 1, 1, '#ffb020');
+    }
+    c.globalAlpha = 1;
+    if (nudgedFor !== idleSince && G.time - nudgeSaid > 15) {
+      nudgedFor = idleSince; nudgeSaid = G.time;
+      const s = row.talker();
+      if (s) { act(s, 'cheer', 1); hop(s, 60); speak(s, 'Great job!', 'yay'); } // "¡Muy bien!": keep going
+      row.burst('spark', p[0], p[1], 4, ['#ffd23f', '#ffffff'], { sp: 20, life: 0.6 });
+    }
+  }
+  async function countStars() {
+    const n = +cur, ch = cur, run = ++starRun, talker = row.talker() || owl;
+    const P = L.pic, per = P.w >= 62 ? 3 : 2;
+    sfx.sparkle();
+    if (!n) { speak(talker, numberWord(0), 'here'); return; }
+    if (talker !== owl) act(talker, 'raise', n * 0.8 + 0.4);
+    for (let k = 0; k < n; k++) {
+      if (run !== starRun || cur !== ch || set !== '123') return;
+      starTaps[k] = G.time;
+      const x = P.x + 2 + (k % per) * 20 + 9, y = P.y + Math.floor(k / per) * 19 + 6;
+      row.burst('spark', x, y, 4, ['#ffd23f', '#ffffff', '#ffb020'], { sp: 30, life: 0.6 });
+      speak(talker, numberWord(k + 1), 'here'); sfx.pop(1 + k * 0.08);
+      await wait(0.8);
+    }
+  }
   function againIcon() {
     return cached('again', () => {
       const p = new Pix(18, 18);
@@ -357,14 +394,17 @@ export function createLetters(students, hooks) {
     if (set === 'ma') { if (sil.tap(x, y)) return; const s = row.hit(x, y); if (s) row.tap(s); return; }
     if (inR(x, y, L.next)) { sayUI(owl, 'next'); const it = items(); select(it[(it.indexOf(cur) + 1) % it.length]); return; }
     if ((done || si > 0) && inR(x, y, L.again)) { select(cur, true); sfx.whoosh(); sayUI(owl, 'again'); return; }
-    if (inR(x, y, L.pic)) { sfx.pop(1.3); speak(row.talker() || owl, isNum() ? numberWord(+cur) : letterSentence(cur), 'here'); return; }
+    if (inR(x, y, L.pic)) {
+      if (isNum() && !(done && counting.length < +cur)) { countStars(); return; } // (not over the counting after she finishes)
+      sfx.pop(1.3); speak(row.talker() || owl, isNum() ? numberWord(+cur) : letterSentence(cur), 'here'); return;
+    }
     if (p.onGlyph) return;
     const s = row.hit(x, y); if (s) row.tap(s);
   }
   window.__ltLetterCss = (x, y) => { const k = V.s / G.dpr; return [x * k, y * k]; };
   window.__ltLetters = () => {
     const k = V.s / G.dpr;
-    return { strokes: strokes.map(st => st.map(([x, y]) => [x * k, y * k])), grid: gridRects().map(r => [(r.x + r.w / 2) * k, (r.y + r.h / 2) * k]), tabs: L.tabs.map(t => [(t.x + t.w / 2) * k, (t.y + t.h / 2) * k]), back: [(L.back.x + 13) * k, (L.back.y + 13) * k] };
+    return { si, prog, starTaps: starTaps.filter(Boolean).length, pic: [(L.pic.x + 11) * k, (L.pic.y + 8) * k], strokes: strokes.map(st => st.map(([x, y]) => [x * k, y * k])), grid: gridRects().map(r => [(r.x + r.w / 2) * k, (r.y + r.h / 2) * k]), tabs: L.tabs.map(t => [(t.x + t.w / 2) * k, (t.y + t.h / 2) * k]), back: [(L.back.x + 13) * k, (L.back.y + 13) * k] };
   };
   return {
     resize, update, render, down, move, up,

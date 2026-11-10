@@ -52,6 +52,7 @@ const room = createClassroom(students, {
     return true;
   },
   setMusic(onOff) { G.save.music = onOff; music.setOn(onOff); },
+  showing: () => mode === 'class' && !trans, // v2.1: the room's hints only talk while the room is on screen
 });
 const scenes = { class: room, board, letters, shapes, yard };
 
