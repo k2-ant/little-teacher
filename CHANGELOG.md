@@ -2,6 +2,9 @@
 
 The version number shows in the bottom-right corner of the start screen (for example `v1.7`).
 
+## v2.3.1 (2026-11-10)
+- The ABC / 123 chalkboard on the classroom wall uses the new round school letters too.
+
 ## v2.3 (2026-11-10)
 Clearer letters and art for a pre-reader:
 - **School letters:** every letter, number and syllable is now a smooth, round ball-and-stick letter like the ones on her classroom wall (single-storey a and g, a plain l, no slashed zero, every accent and ñ ¡ ¿), drawn sharp at full screen resolution. Tiles show school-paper lines so p, q and g hang and b and d rise. Tracing guides are the same letters.

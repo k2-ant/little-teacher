@@ -1,6 +1,13 @@
 // Decorations, desk supplies, paint swatches and the teacher (Louise) sprite.
 import { Pix, cached, darken, lighten } from './raster.js';
 import { INK, heartPix, starPix } from './sprites.js';
+import { pixelText } from './schoolfont.js';
+/** chalk a word onto a Pix in the round school letters (crisp pixels), its left/top at x, y */
+function chalkText(p, text, col, h, x, y) {
+  const cv = pixelText(text, col, h), d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data;
+  for (let j = 0; j < cv.height; j++) for (let i = 0; i < cv.width; i++) if (d[(j * cv.width + i) * 4 + 3]) p.px(x + i, y + j, col);
+  return cv.width;
+}
 
 // ------------------------------------------------------------------ catalog
 // layer: floor items stand on the floor (anchor = bottom centre), wall items hang on the wall.
@@ -193,9 +200,9 @@ const DRAW = {
   },
   abc(p) {
     p.rect(0, 0, 48, 34, '#a8703f'); p.hline(0, 47, 0, '#c98c55'); p.rect(2, 2, 44, 30, '#2f6a4f'); p.rect(2, 2, 44, 1, '#3f8a66');
-    const F = { A: ['.#.', '#.#', '###', '#.#', '#.#'], B: ['##.', '#.#', '##.', '#.#', '##.'], C: ['.##', '#..', '#..', '#..', '.##'], 1: ['.#.', '##.', '.#.', '.#.', '###'], 2: ['##.', '..#', '.#.', '#..', '###'], 3: ['##.', '..#', '.#.', '..#', '##.'] };
-    ['A', 'B', 'C'].forEach((ch, i) => p.map(8 + i * 12, 5, F[ch], { '#': ['#ff8f8f', '#ffe066', '#8fd0ff'][i] }, 2));
-    ['1', '2', '3'].forEach((ch, i) => p.map(10 + i * 11, 20, F[ch], { '#': ['#a6e69a', '#ffb3d1', '#d5b8ff'][i] }, 2));
+    // v2.3: the chalk letters are the same round school letters as everywhere else
+    let x = 5; ['A', 'B', 'C'].forEach((ch, i) => { x += chalkText(p, ch, ['#ff8f8f', '#ffe066', '#8fd0ff'][i], 12, x, 1) - 1; });
+    x = 9; ['1', '2', '3'].forEach((ch, i) => { x += chalkText(p, ch, ['#a6e69a', '#ffb3d1', '#d5b8ff'][i], 11, x, 15) + 1; });
     p.rect(30, 30, 8, 2, '#ffffff'); p.rect(12, 32, 24, 2, '#8a5730');
   },
   calendar(p) {
