@@ -2,6 +2,15 @@
 
 The version number shows in the bottom-right corner of the start screen (for example `v1.7`).
 
+## v2.3 (2026-11-10)
+Clearer letters and art for a pre-reader:
+- **School letters:** every letter, number and syllable is now a smooth, round ball-and-stick letter like the ones on her classroom wall (single-storey a and g, a plain l, no slashed zero, every accent and ñ ¡ ¿), drawn sharp at full screen resolution. Tiles show school-paper lines so p, q and g hang and b and d rise. Tracing guides are the same letters.
+- **Chunky buttons** that look pressable: outlined, with a lip that presses down. Yellow for activities, green for go, blue for tools.
+- **Picture-only activity cards** that bob when it's their turn, and one clear word per Horario card.
+- **Big feelings faces:** tears, red cheeks and frowns, wide scared eyes, yawns, on cards tinted with the mood colour.
+- **Question cards:** bigger answer pictures, a small grey ✕, and the ✓ no longer covers the friend.
+- **A calmer wall** during lessons, a hidden turtle and mouse you can spot, a grey-plum owl and a golden puppy so the browns don't blur, bold hopscotch, and the teacher waves goodbye in front.
+
 ## v2.2 (2026-11-10)
 Small hands, based on research about how young children use touch screens:
 - **Tap, then tap:** in the shape sorter and the centros chart, tap a piece or a face, then tap where it goes. Dragging still works, and shapes now drop in from much further away (and find the matching hole).
