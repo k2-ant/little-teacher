@@ -77,63 +77,83 @@ export function tinyText(lines, col = INK) {
   });
 }
 
-// ------------------------------------------------------------------ 14x14 card pictures
+// ------------------------------------------------------------------ 20x16 card pictures
+// v2.1: picture-first cards: bigger, wider pictures (the words are secondary); every block has its own clear scene
+export const ICON_W = 20, ICON_H = 16;
+const T_SKIN = '#f6d2b8', T_HAIR = '#8f6142', T_TOP = '#86b2ea';
 export function blockIcon(id) {
-  return cached('bicon' + id, () => {
-    const p = new Pix(14, 14);
-    if (id === 'decorar') { // rainbow paintbrush stroke
-      ['#ef6f6c', '#ffa65c', '#ffd23f', '#7dd370', '#64a8e8'].forEach((c, i) => { for (let x = 0; x < 9; x++) p.px(x, 11 - i + Math.round(Math.sin(x / 2)), c); });
-      p.line(8, 7, 13, 1, '#a8703f'); p.line(9, 7, 13, 2, '#c98c55'); p.rect(6, 7, 3, 3, '#9aa7b8'); p.rect(4, 9, 3, 3, '#ff8fb8');
+  return cached('bicon2' + id, () => {
+    const p = new Pix(ICON_W, ICON_H);
+    if (id === 'decorar') { // a rainbow paint stroke and the brush that made it
+      ['#ef6f6c', '#ffa65c', '#ffd23f', '#7dd370', '#64a8e8'].forEach((c, i) => { for (let x = 0; x < 13; x++) p.px(x, 13 - i + Math.round(Math.sin(x / 2.2) * 1.5), c); });
+      p.line(13, 9, 19, 1, '#a8703f'); p.line(14, 9, 19, 2, '#c98c55'); p.rect(11, 8, 3, 3, '#9aa7b8'); p.px(12, 8, '#d8dee8');
+      p.rect(9, 10, 3, 3, '#ff8fb8'); p.px(8, 12, '#ff8fb8');
     }
-    if (id === 'manana') { // morning sun + a pencil on a worksheet
-      for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; p.px(4 + Math.cos(a) * 4, 4 + Math.sin(a) * 4, '#ffb020'); }
-      p.ball(4, 4, 2.4, 2.4, '#ffd23f', { hi: false });
-      p.rect(5, 7, 8, 7, '#fffaf0'); p.hline(6, 11, 9, '#9fc4ea'); p.hline(6, 11, 11, '#9fc4ea');
-      p.line(13, 3, 8, 12, '#ef6f6c'); p.line(12, 3, 7, 12, '#ff9a8a'); p.px(7, 13, INK); p.px(13, 2, '#ffb7c9');
+    if (id === 'manana') { // the morning sun over a worksheet and a pencil
+      for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; p.px(4 + Math.cos(a) * 4.2, 4 + Math.sin(a) * 4.2, '#ffb020'); }
+      p.ball(4, 4, 2.6, 2.6, '#ffd23f', { hi: false });
+      p.rect(6, 5, 10, 11, '#fffaf0'); p.hline(7, 14, 8, '#ef9a96'); p.hline(7, 14, 10, '#9fc4ea'); p.hline(7, 12, 12, '#9fc4ea'); p.hline(7, 13, 14, '#9fc4ea');
+      p.line(19, 3, 13, 14, '#ef6f6c'); p.line(18, 2, 12, 13, '#ff9a8a'); p.px(12, 14, INK); p.px(19, 2, '#ffb7c9'); p.px(18, 1, '#ffb7c9');
     }
-    if (id === 'calendario') {
-      p.rect(1, 2, 12, 11, '#fffaf0'); p.rect(1, 2, 12, 3, '#ef6f6c'); p.px(4, 1, '#7d899c'); p.px(9, 1, '#7d899c');
-      for (let r = 0; r < 3; r++) for (let q = 0; q < 4; q++) p.px(2 + q * 3, 6 + r * 2, r === 1 && q === 2 ? '#2f7de1' : '#d8c7a8');
-      p.rect(7, 7, 3, 3, '#ffd23f'); p.px(8, 8, '#ef6f6c');
+    if (id === 'calendario') { // a wall calendar with today circled
+      p.rect(2, 2, 16, 14, '#fffaf0'); p.rect(2, 2, 16, 4, '#ef6f6c'); p.px(6, 1, '#7d899c'); p.px(13, 1, '#7d899c'); p.px(6, 2, '#7d899c'); p.px(13, 2, '#7d899c');
+      for (let r = 0; r < 3; r++) for (let q = 0; q < 5; q++) p.rect(3 + q * 3, 7 + r * 3, 2, 2, '#e3d6c4');
+      p.rect(11, 9, 4, 4, '#ffd23f'); p.rect(12, 10, 2, 2, '#ef6f6c');
     }
-    if (id === 'alfabeto') { // A (red) b (blue) on little blocks
-      p.rect(0, 3, 7, 8, '#ffd8d6'); p.map(1, 4, ['.#.', '#.#', '###', '#.#', '#.#'], { '#': '#ef4b4b' }, 1);
-      p.rect(7, 4, 7, 8, '#d6eaff'); p.map(9, 5, ['#..', '#..', '##.', '#.#', '##.'], { '#': '#2f7de1' }, 1);
-      p.rect(0, 10, 7, 1, '#ef9a96'); p.rect(7, 11, 7, 1, '#8fb9e8');
+    if (id === 'alfabeto') { // big A (red) and b (blue) on two letter blocks
+      p.rect(0, 2, 10, 13, '#ffd8d6'); p.map(2, 4, ['.#.', '#.#', '###', '#.#', '#.#'], { '#': '#ef4b4b' }, 2);
+      p.rect(10, 3, 10, 13, '#d6eaff'); p.map(12, 5, ['#..', '#..', '##.', '#.#', '##.'], { '#': '#2f7de1' }, 2);
+      p.hline(0, 9, 14, '#ef9a96'); p.hline(10, 19, 15, '#8fb9e8');
     }
-    if (id === 'recreo') { // the slide
-      p.vline(2, 2, 13, '#64a8e8'); p.vline(5, 2, 13, '#64a8e8'); for (let y = 4; y < 13; y += 3) p.hline(2, 5, y, '#bfe0ff');
-      for (let i = 0; i < 9; i++) { p.px(5 + i, 2 + i, '#ffd23f'); p.px(5 + i, 3 + i, '#ffd23f'); p.px(5 + i, 4 + i, '#f5b000'); }
-      p.rect(1, 1, 6, 2, '#ef6f6c'); p.hline(0, 13, 13, '#7dd370');
+    if (id === 'recreo') { // the slide and a ball on the grass
+      p.vline(2, 2, 14, '#64a8e8'); p.vline(5, 2, 14, '#64a8e8'); for (let y = 4; y < 14; y += 3) p.hline(2, 5, y, '#bfe0ff');
+      for (let i = 0; i < 10; i++) { p.px(5 + i, 3 + i, '#ffd23f'); p.px(5 + i, 4 + i, '#ffd23f'); p.px(5 + i, 5 + i, '#f5b000'); }
+      p.rect(1, 1, 6, 2, '#ef6f6c'); p.hline(0, 19, 15, '#7dd370');
+      p.ball(17, 12, 2.4, 2.4, '#ef6f6c'); p.px(16, 11, '#ffd23f');
     }
-    if (id === 'lectura') { // the teacher reads a big book to the class
-      p.ell(7, 3, 2.4, 2.4, '#f6d2b8'); p.rect(4, 1, 7, 2, '#8a5730'); p.px(6, 3, INK); p.px(8, 3, INK);
-      p.rect(1, 6, 6, 7, '#fffaf0'); p.rect(7, 6, 6, 7, '#fffaf0'); p.vline(7, 6, 12, '#b48be6'); p.hline(1, 12, 13, '#b48be6');
-      heart(p, 2, 8, '#ff6f91'); p.hline(8, 11, 8, '#c9b8e8'); p.hline(8, 11, 10, '#c9b8e8');
+    if (id === 'lectura') { // Louise holding an open picture book
+      p.ell(5, 5, 4.2, 4.6, T_HAIR); p.rect(1, 5, 2, 6, T_HAIR); p.rect(7, 5, 2, 6, T_HAIR);
+      p.ell(5, 5.6, 2.8, 3, T_SKIN); p.rect(2, 2, 6, 2, T_HAIR); p.px(4, 5, INK); p.px(6, 5, INK); p.px(5, 7, '#e8505b');
+      p.rect(2, 10, 7, 6, T_TOP); p.vline(5, 10, 15, '#6c97d2');
+      p.rect(8, 6, 6, 9, '#fffaf0'); p.rect(14, 6, 6, 9, '#fffaf0'); p.vline(14, 6, 14, '#b48be6'); p.hline(8, 19, 15, '#b48be6');
+      heart(p, 9, 8, '#ff6f91'); p.hline(15, 18, 9, '#c9b8e8'); p.hline(15, 18, 11, '#c9b8e8'); p.hline(15, 17, 13, '#c9b8e8');
+      p.rect(7, 11, 2, 2, T_SKIN);
     }
-    if (id === 'heggerty') { // an ear listening to sounds
-      p.ell(5, 7, 3.6, 5.4, '#f6c08a'); p.ell(5.5, 7, 1.6, 3, '#e09a6a'); p.px(6, 9, '#f6c08a');
-      for (const r of [3, 5]) for (let a = -0.9; a <= 0.9; a += 0.15) p.px(9 + Math.cos(a) * r, 7 + Math.sin(a) * r, r === 3 ? '#ff9a2e' : '#ffc21f');
+    if (id === 'heggerty') { // an ear listening, sound waves and a little note: sounds and rhymes
+      const sk = '#f6c08a', sh = '#d98a5a';
+      p.ell(5.5, 6, 4.6, 5.6, sk); p.ell(4.6, 11.4, 2.9, 3.6, sk); // the ear and its lobe
+      p.ell(6.6, 6.4, 2.5, 3.6, sh); p.ell(6, 6.2, 1.2, 2.5, sk); p.rect(7, 9, 2, 2, '#a85a3a'); p.vline(1, 5, 9, '#e8a870');
+      for (const [r, c] of [[6, '#ff9a2e'], [8.2, '#ffc21f']]) for (let a = -0.75; a <= 0.75; a += 0.08) p.px(7 + Math.cos(a) * r, 7 + Math.sin(a) * r, c);
+      p.ball(17.4, 13.4, 1.8, 1.4, '#7a5bc0', { hi: false }); p.vline(19, 5, 13, '#7a5bc0'); p.px(18, 5, '#7a5bc0'); p.px(17, 6, '#7a5bc0');
     }
-    if (id === 'sla') { // a paper with lines + a pencil
-      p.rect(1, 1, 9, 12, '#fffaf0'); for (let y = 3; y < 12; y += 2) p.hline(2, 8, y, y === 3 ? '#ef6f6c' : '#9fc4ea');
-      p.line(13, 2, 7, 12, '#2f9e9e'); p.line(12, 2, 6, 12, '#7ad0c8'); p.px(6, 13, INK); p.px(13, 1, '#ffb7c9');
+    if (id === 'sla') { // a paper with a little drawing and a line of writing, and the pencil
+      p.rect(1, 1, 13, 15, '#fffaf0');
+      for (let i = 0; i < 4; i++) p.hline(7 - i, 7 + i, 2 + i, '#ef6f6c'); // a little house: roof
+      p.rect(4, 6, 7, 4, '#ffd23f'); p.rect(6, 7, 2, 3, '#a8703f'); p.px(9, 7, '#8fd0ff');
+      p.hline(3, 11, 12, '#9fc4ea'); p.hline(3, 8, 14, '#9fc4ea');
+      p.line(19, 1, 12, 14, '#2f9e9e'); p.line(18, 1, 11, 14, '#7ad0c8'); p.px(11, 15, INK); p.px(19, 0, '#ffb7c9'); p.px(18, 0, '#ffb7c9');
     }
-    if (id === 'centros') {
-      p.rect(0, 1, 14, 12, '#5f86b8'); p.rect(1, 2, 12, 10, '#dfeefc');
-      ['#ef6f6c', '#64a8e8', '#ffd23f', '#7dd370'].forEach((c, i) => { const x = 1 + (i % 2) * 6, y = 2 + Math.floor(i / 2) * 5; p.rect(x + 1, y + 1, 4, 3, c); });
+    if (id === 'centros') { // four stations: paint, books, letters, blocks
+      p.rect(0, 0, 20, 16, '#5f86b8'); p.rect(1, 1, 18, 14, '#dfeefc');
+      p.rect(2, 2, 7, 5, '#ffd8d6'); p.ball(4, 4, 1.4, 1.4, '#ef6f6c', { hi: false }); p.px(6, 3, '#64a8e8'); p.px(7, 5, '#7dd370');
+      p.rect(11, 2, 7, 5, '#e6dcf8'); p.rect(12, 3, 2, 3, '#ef6f6c'); p.rect(14, 3, 2, 3, '#64a8e8'); p.rect(16, 3, 1, 3, '#7dd370');
+      p.rect(2, 9, 7, 5, '#fff3c4'); p.map(4, 9, ['.#.', '#.#', '###', '#.#', '#.#'], { '#': '#2f7de1' });
+      p.rect(11, 9, 7, 5, '#dff5d8'); p.rect(12, 11, 3, 3, '#ffd23f'); p.rect(15, 11, 2, 3, '#ef6f6c'); p.rect(13, 9, 3, 2, '#64a8e8');
     }
-    if (id === 'almuerzo') { // a lunchbox and an apple
-      p.rect(0, 6, 9, 7, '#ef4b4b'); p.rect(0, 6, 9, 2, '#ff8080'); p.rect(3, 3, 3, 1, '#7d899c'); p.vline(3, 3, 5, '#7d899c'); p.vline(5, 3, 5, '#7d899c'); p.rect(4, 9, 1, 2, '#ffd23f');
-      p.ball(11, 9, 2.6, 2.8, '#7dd370', { hi: false }); p.px(11, 5, '#8a5730'); p.px(12, 6, '#3cb44b');
+    if (id === 'almuerzo') { // a lunchbox and a red apple
+      p.rect(0, 6, 11, 9, '#ef4b4b'); p.rect(0, 6, 11, 2, '#ff8080'); p.hline(3, 7, 3, '#7d899c'); p.vline(3, 3, 5, '#7d899c'); p.vline(7, 3, 5, '#7d899c'); p.rect(4, 10, 3, 2, '#ffd23f');
+      p.ball(15.5, 10.5, 3.6, 3.8, '#ef6f6c'); p.px(15, 6, '#8a5730'); p.px(15, 5, '#8a5730'); p.rect(16, 4, 2, 2, '#3cb44b');
     }
-    if (id === 'lector') { // a book with a big ?
-      p.rect(1, 2, 12, 11, '#e0559a'); p.rect(2, 3, 10, 9, '#ff9ec4'); p.vline(1, 2, 12, '#a8306a');
-      p.map(5, 3, ['.##.', '#..#', '...#', '..#.', '.#..', '....', '.#..'], { '#': '#fffaf0' }, 1);
+    if (id === 'lector') { // someone mysterious behind the door, and a big ?
+      p.rect(0, 0, 12, 16, '#a8703f'); p.rect(1, 1, 10, 15, '#ffe9a8');
+      p.ball(5, 5, 2.6, 2.6, '#5a4a78', { hi: false }); p.ell(5, 13, 4, 4.5, '#5a4a78', { y1: 15 });
+      p.rect(9, 1, 2, 15, '#c98c55'); p.px(9, 9, '#ffd23f');
+      p.map(12, 1, ['.##.', '#..#', '...#', '..#.', '.#..', '....', '.#..'], { '#': '#e0559a' }, 2);
     }
-    if (id === 'casa') {
-      for (let i = 0; i < 6; i++) p.hline(6 - i, 7 + i, 1 + i, '#ef6f6c');
-      p.rect(2, 7, 10, 6, '#ffe7b8'); p.rect(6, 9, 3, 4, '#a8703f'); p.rect(3, 8, 2, 2, '#8fd0ff'); p.px(10, 1, '#8a5730'); p.px(10, 2, '#8a5730');
+    if (id === 'casa') { // home, with a tree by the door
+      for (let i = 0; i < 7; i++) p.hline(7 - i, 8 + i, 1 + i, '#ef6f6c');
+      p.rect(2, 8, 12, 8, '#ffe7b8'); p.rect(7, 10, 3, 6, '#a8703f'); p.rect(3, 9, 3, 3, '#8fd0ff'); p.rect(11, 9, 2, 2, '#8fd0ff'); p.px(11, 2, '#8a5730'); p.px(11, 3, '#8a5730');
+      p.vline(17, 11, 15, '#8a5730'); p.ball(17, 9, 2.6, 3, '#7dd370');
     }
     p.outline();
     return p.canvas();
@@ -166,7 +186,7 @@ export function choiceIcon(id) {
       p.ball(9, 9, 7.5, 7.5, '#ffd23f', { hi: false }); p.rect(6, 6, 2, 3, INK); p.rect(11, 6, 2, 3, INK);
       p.px(5, 12, INK); p.hline(6, 12, 13, INK); p.px(13, 12, INK); p.px(4, 10, '#ff9a9a'); p.px(14, 10, '#ff9a9a');
     }
-    if (id === 'lector') { const cv = p.canvas(); cv.getContext('2d').drawImage(blockIcon('lector'), 2, 2); return cv; }
+    if (id === 'lector') { const cv = p.canvas(); cv.getContext('2d').drawImage(blockIcon('lector'), -1, 1); return cv; }
     p.outline();
     return p.canvas();
   });
@@ -213,13 +233,15 @@ function cardFrame(w, h, fill, edge, key) {
  * say(text), sayUI(key), askHome()
  */
 export function createSchedule(api) {
-  const st = { cur: 0, done: new Set(), t0: 0, pending: null, going: false, casaArm: 0, pinY: null, labelUntil: 0, used: false, wig: 0 };
+  const st = { cur: byId('manana'), done: new Set(), t0: 0, pending: null, going: false, casaArm: 0, pinY: null, labelUntil: 0, used: false, wig: 0, bounce: null, ret: null };
+  // v2.1: the day starts at Trabajo de la mañana (the class walks in); Decorar is optional: its card opens the tray any time
+  // and ▶ then goes back to the block she was in (st.ret)
   let LY = null; // chart layout (full-buffer coordinates)
   let press = null;
 
   function layout(V, compact) {
     const i = V.inset, top = i.t + 2, x = i.l + 2;
-    const w = compact ? 18 : 66, headH = compact ? 0 : 18;
+    const w = compact ? ICON_W + 2 : 66, headH = compact ? 0 : 18;
     const n = BLOCKS.length;
     const avail = V.H - i.b - 2 - top - headH - 3;
     const pitch = clamp(Math.floor(avail / n), 14, 20), h = pitch - 1;
@@ -241,9 +263,10 @@ export function createSchedule(api) {
     st.going = true;
     try {
       if (k !== st.cur) st.done.add(cur().id);
+      if (id === 'decorar' && cur().id !== 'decorar') st.ret = cur().id; // ▶ comes back here when the room is ready
       st.cur = k; st.t0 = G.time; st.used = false; st.labelUntil = G.time + 6;
       if (via === 'next') sfx.bell(); else { sfx.chime(); }
-      api.say(LD.SCHED_SAY[id]);
+      api.say(LD.SCHED_SAY[id]); st.bounce = { id, t0: G.time }; // the owl announces it: its card bounces
       await api.leave();
       if (id !== 'decorar' && !api.kidsIn()) await api.arrive(id !== 'manana');
       st.t0 = G.time;
@@ -253,10 +276,14 @@ export function createSchedule(api) {
   }
   function next() {
     if (api.locked()) return;
-    const k = Math.min(BLOCKS.length - 1, st.cur + 1);
-    go(BLOCKS[k].id, 'next');
+    go(nextId(), 'next');
   }
-  function reset() { st.cur = 0; st.done.clear(); st.t0 = G.time; st.pending = null; st.casaArm = 0; st.used = false; st.going = false; }
+  /** ▶: the next card; from Decorar, back to the block she came from */
+  function nextId() {
+    if (cur().id === 'decorar') return st.ret || 'manana';
+    return BLOCKS[Math.min(BLOCKS.length - 1, st.cur + 1)].id;
+  }
+  function reset() { st.cur = byId('manana'); st.done.clear(); st.t0 = G.time; st.pending = null; st.casaArm = 0; st.used = false; st.going = false; st.ret = null; st.bounce = null; }
   function tick() {
     if (st.pending && !st.going && !api.busy() && !api.locked()) { const p = st.pending; st.pending = null; go(p.id, p.via); }
   }
@@ -285,7 +312,8 @@ export function createSchedule(api) {
       const pressed = press && press.card === cd;
       const cw = on ? cd.w + (compact ? 2 : 4) : cd.w;
       const fill = on ? '#fff6c8' : cd.k === 0 ? '#ffeef4' : '#ffffff';
-      const bob = asking ? Math.round(Math.abs(Math.sin(G.time * 7)) * 2) : 0;
+      const bt = st.bounce && st.bounce.id === b.id ? G.time - st.bounce.t0 : 9;
+      const bob = asking ? Math.round(Math.abs(Math.sin(G.time * 7)) * 2) : bt < 1.2 ? Math.round(Math.abs(Math.sin(bt * 8)) * 4 * (1 - bt / 1.2)) : 0;
       const yy = cd.y + (pressed ? 1 : 0) - bob;
       if (on || asking) {
         const fr = cardFrame(cw, cd.h, fill, b.col, 'on');
@@ -295,10 +323,10 @@ export function createSchedule(api) {
       }
       D(c, cardFrame(cw, cd.h, fill, b.col, ''), cd.x, yy);
       const ic = blockIcon(b.id);
-      D(c, ic, cd.x + (compact ? Math.round((cw - 14) / 2) + 1 : 3), yy + Math.round((cd.h - 14) / 2));
-      if (!compact) {
-        const tx = tinyText(b.words);
-        D(c, tx, cd.x + 19, yy + Math.round((cd.h - (b.words.length > 1 ? 12 : 5)) / 2));
+      D(c, ic, cd.x + (compact ? Math.round((cw - ICON_W) / 2) : 2), yy + Math.round((cd.h - ICON_H) / 2));
+      if (!compact) { // picture first: the words are small and soft, darker only on the card that's on now
+        const tx = tinyText(b.words, on ? INK : '#8a7768');
+        D(c, tx, cd.x + ICON_W + 4, yy + Math.round((cd.h - (b.words.length > 1 ? 12 : 5)) / 2));
       }
       if (st.done.has(b.id) && !on) D(c, tickImg(), cd.x + (compact ? cw - 8 : 1), yy - 1);
     }
@@ -330,7 +358,7 @@ export function createSchedule(api) {
     const cd = hitCard(x, y);
     if (!cd || cd !== p.card) { if (!cd) sfx.softPop(); return true; }
     if (api.locked()) { sfx.tap(); return true; }
-    if (cd.k === st.cur && cd.id !== 'casa') { sfx.pop(1.2); st.wig = G.time + 0.4; st.labelUntil = G.time + 3; api.sayUI('b_' + cd.id); return true; }
+    if (cd.k === st.cur && cd.id !== 'casa') { sfx.pop(1.2); st.wig = G.time + 0.4; st.labelUntil = G.time + 3; st.bounce = { id: cd.id, t0: G.time }; api.sayUI('b_' + cd.id); return true; }
     sfx.pop(); go(cd.id, 'tap');
     return true;
   }
@@ -360,14 +388,14 @@ export function createSchedule(api) {
   }
 
   // test hooks
-  window.__ltSched = () => ({ cur: cur().id, done: [...st.done], pending: st.pending && st.pending.id, going: st.going, calm: calmNow(), purpose: purposeDone() });
+  window.__ltSched = () => ({ cur: cur().id, done: [...st.done], pending: st.pending && st.pending.id, going: st.going, calm: calmNow(), purpose: purposeDone(), bounce: st.bounce && G.time - st.bounce.t0 < 1.2 ? st.bounce.id : null, ret: st.ret });
 
   return {
     BLOCKS, layout, go, next, reset, tick, calmNow, purposeDone, drawChart, drawLabel, down, up, taking, choiceRects, drawChoices,
     get cur() { return cur(); }, get curId() { return cur().id; }, get t0() { return st.t0; }, get going() { return st.going; },
     get casaAsking() { return G.time < st.casaArm; }, get layoutInfo() { return LY; },
     markUsed() { st.used = true; },
-    get nextId() { return BLOCKS[Math.min(BLOCKS.length - 1, st.cur + 1)].id; }, get used() { return st.used; },
+    get nextId() { return nextId(); }, get used() { return st.used; },
     cardPt(id) { const cd = LY && LY.cards.find(q => q.id === id); return cd ? { x: cd.x + cd.w / 2, y: cd.y + cd.h / 2 } : null; },
   };
 }

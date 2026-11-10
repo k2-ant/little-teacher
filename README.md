@@ -15,7 +15,7 @@ Eight original pixel-art students come to class:
 
 The day follows a picture **Horario** down the left side, just like the schedule on her real classroom wall. A clothespin marks what's happening now; the big ▶ button goes to the next part of the day, and tapping any card jumps there.
 
-Louise is the teacher. She stands at the front, waves, claps and points at the board, and she twirls when you tap her. You can drag her anywhere in the room.
+Louise is the teacher. She stands at the front, waves, claps and points at the board. Tap her and she twirls, waves, or waves to the whole class (and they wave back). You can drag her anywhere in the room.
 
 ## Which version is on the iPad?
 The version number (for example **v1.7**) is in the bottom-right corner of the start screen. See [CHANGELOG.md](CHANGELOG.md) for what's in each version. To release a new version, bump `VERSION` in `js/version.js`.
@@ -70,7 +70,7 @@ Drag the **red card** (bottom right) onto a student and they stop, look sorry an
 The **Centros de Aprendizaje** card opens the **centros chart**. Drag the students' faces between **arte** 🎨, **biblioteca** 📚, **letras** 🔤 and **bloques** 🧱, then ring the 🔔. The students walk to their stations and paint at the easel, read on the rug, write at the ABC board, or build at the shape table. The bell rotates everyone to the next centro ("¡Cambio de centro!"), and ✔ ends centros. Tap a station's sign to join that activity.
 
 ## Learning corners
-- **Alphabet board** (chalkboard on the wall): pick A–Z (including Ñ) or 0–10 and trace it the way it's taught in school, stroke by stroke:
+- **Alphabet board** (chalkboard on the wall): pick A–Z (including Ñ) or 0–10 and trace it the way it's taught in school, stroke by stroke (if she lifts her finger halfway and waits, the spot to carry on pulses and a friend says "¡Muy bien!"; tap a number's stars and a friend counts them):
   - a green **start dot** shows the stroke number, and arrows show which way to go
   - a little ⭐ **demonstrates** each stroke when she pauses
   - her finger lays down a **rainbow crayon** that follows the letter's path, with crayon sounds and rising notes
@@ -84,14 +84,16 @@ The **Centros de Aprendizaje** card opens the **centros chart**. Drag the studen
 - **Shape corner** (the little table): drag shapes into the matching holes of the wooden sorter: circle, square, triangle, rectangle, star, heart, oval and diamond. Each shape's name is said in Spanish. A wrong hole just wiggles back; there's no failing. Every round you finish brings new shapes.
 
 ## A day in class
-1. **Decorar (get the room ready):** the first card of the day opens the decorate tray. It has five picture tabs (the owl says each name):
+▶ Play starts the day at **Trabajo de la mañana**: the bell rings and the class walks in.
+
+1. **Decorar (optional, any time):** the pink card above the Horario opens the decorate tray while the class watches; ▶ then goes back to the part of the day she was in. It has five picture tabs (the owl says each name):
    - 🪄 **Temas:** one tap decorates the whole room: walls, floor, rug and a matching set of things that pop in one by one. Océano, Espacio, Jardín, Arcoíris, Otoño, Fiesta, Invierno and Cuentos. Everything stays editable afterwards.
    - 🖼 **Pared (wall things):** an art wall with her whiteboard drawings, string lights that glow, paper lanterns, rainbow, garlands, butterflies, poster, frame, word wall, cork board, sun, moon, planet, paper fish, window plants, snowflakes, autumn leaves, clock
    - 🛋 **Piso (floor things):** reading tent, class hamster (it runs on its wheel), beanbag, teddy, toy box, easel, fish tank, cubbies, globe, flowers, balloons, lamp, pumpkin, snowman, plus any surprise that arrived in a parcel
    - 🍎 **Escritorios:** desk supplies; the empty desks twinkle (apple, pencils, books, crayons, cactus, snow globe)
    - 🎨 **Colores:** wall colours, floor colours and rugs
 
-   Drag things into the room, or tap one and it finds a nice free spot. Wall things snap to the wall and floor things to the floor, with a puff and their name. Swipe the tray sideways (or tap the yellow arrows) to see more. **Tap anything you've placed** to select it: three big bubbles appear: 🎨 another colour, ↔ size (small, medium, big, then it turns around) and 🗑 throw it away. Tap somewhere else to let go. Dragging something to the 🗑️ trash can still works, and desk supplies can be moved to another desk. The blue **↶** button undoes, step by step. Press ▶ when the room is ready; the next morning the friends gasp and clap at the new room.
+   Drag things into the room, or tap one and it finds a nice free spot. Wall things snap to the wall and floor things to the floor, with a puff and their name. Swipe the tray sideways (or tap the yellow arrows) to see more. **Tap anything you've placed** to select it: three big bubbles appear: 🎨 another colour, ↔ size (small, medium, big, then it turns around) and 🗑 throw it away. Tap somewhere else to let go. Dragging something to the 🗑️ trash can still works, and desk supplies can be moved to another desk. The blue **↶** button undoes, step by step. Press ▶ when the room is ready.
 2. **Trabajo de la mañana:** the bell rings and the friends walk in one by one and say good morning (tap anywhere to hurry them). If you changed the room, they gasp and clap. Letters she traced yesterday pop onto the alphabet line under the whiteboard. Choice cards: **Pizarra** (whiteboard: 6 markers, stamps, eraser; number stamps make the class count together) and **Números**.
 3. **Calendario:** the big day card ("¡Hoy es lunes!"), **¿Qué tiempo hace hoy?** (sun, clouds, rain or snow; the window, the calendar and recess follow it all day), then attendance: tap each friend's big face. Choice cards: **Ayudantes** (jobs: líder de la fila, luces, calendario, plantas; they rotate daily) and **Emociones** (a friend shares a feeling).
 4. **Alfabeto:** letter tracing.

@@ -31,10 +31,78 @@ const cur = async () => (await ev(() => window.__ltSched())).cur;
 const expectBlock = async (id) => { const c = await cur(); if (c !== id) throw new Error(`expected block ${id}, got ${c}`); };
 
 await shot('01-title');
-step('decorar');
+// v2.1: ▶ Play starts the day where the class comes in (Trabajo de la mañana); Decorar is an optional card
+step('trabajo de la mañana: the class walks in');
 await tapAt(...(await ev(() => window.__ltBig())));
-await p.waitForTimeout(500);
+await p.waitForTimeout(300);
+await expectBlock('manana');
+await p.waitForTimeout(1200);
+await shot('02-arrive');
+await ready();
+await p.waitForTimeout(400);
+await shot('03-manana');
+await p.waitForTimeout(3600);
+await shot('03b-hint');
+// the teacher answers every tap: a twirl, a wave, or a wave to the class (and they wave back)
+const teacherReacts = [];
+for (let i = 0; i < 4; i++) {
+  const tp = await ev(() => window.__ltTeach().pts[2]);
+  await tapAt(...tp); await p.waitForTimeout(140);
+  const t = await ev(() => window.__ltTeach());
+  if (!t.act) throw new Error('the teacher did not react to a tap');
+  teacherReacts.push(t.last);
+  await shot(`03t${i}-teacher-${t.last}`);
+  await p.waitForTimeout(700);
+}
+console.log('teacher reactions:', teacherReacts.join(' '));
+if (new Set(teacherReacts).size < 2) throw new Error('the teacher always reacts the same way');
+// morning work: the whiteboard (the room's hints stay quiet while it's open)
+await choice('pizarra');
+await p.waitForTimeout(900);
+await shot('08-board');
+await p.waitForTimeout(4500); // ~18 s of game time: the room would have pointed at ▶ by now
+{ const h = await ev(() => window.__ltHint()); if (h.hint) throw new Error('a classroom hint showed while the board was open: ' + h.hint.key); }
+const bb = await ev(() => { const lt = window.__lt; const r = lt.board.rect(); const v = lt.board.view; const k = v.s / lt.G.dpr; return { x: r.x * k, y: r.y * k, w: r.w * k, h: r.h * k }; });
+const draw = async (pts) => { await p.mouse.move(...pts[0]); await p.mouse.down(); for (const q of pts.slice(1)) await p.mouse.move(q[0], q[1], { steps: 4 }); await p.mouse.up(); };
+const bx = (u) => bb.x + u * bb.w, by = (v) => bb.y + v * bb.h;
+const circle = []; for (let a = 0; a <= 6.4; a += 0.3) circle.push([bx(0.25) + Math.cos(a) * bb.w * 0.09, by(0.35) + Math.sin(a) * bb.w * 0.09]);
+await draw(circle);
+await draw([[bx(0.5), by(0.75)], [bx(0.5), by(0.45)], [bx(0.62), by(0.3)], [bx(0.74), by(0.45)], [bx(0.74), by(0.75)], [bx(0.5), by(0.75)]]);
+await tapAt(...(await ev(() => window.__ltBoardBtn('marker', 4))));
+await draw([[bx(0.1), by(0.9)], [bx(0.3), by(0.85)], [bx(0.5), by(0.9)], [bx(0.7), by(0.85)], [bx(0.9), by(0.9)]]);
+await tapAt(...(await ev(() => window.__ltBoardBtn('stamp', 0))));
+await tapAt(bx(0.88), by(0.2)); await tapAt(bx(0.78), by(0.12));
+await tapAt(...(await ev(() => window.__ltBoardBtn('stamp', 6)))); await tapAt(bx(0.9), by(0.5));
+await p.waitForTimeout(700);
+await shot('09-drawing');
+await tapAt(...(await ev(() => window.__ltBoardBtn('back'))));
+await p.waitForTimeout(1500);
+await shot('10-back');
+// and the numbers: a stroke left halfway gets a nudge; the ★ row counts when tapped
+const traceAll = async () => { const L2 = await ev(() => window.__ltLetters()); for (const st of L2.strokes) { await p.mouse.move(...st[0]); await p.mouse.down(); for (let i = 0; i < st.length; i += 2) await p.mouse.move(st[i][0], st[i][1]); await p.mouse.move(...st[st.length - 1]); await p.mouse.up(); } };
+await choice('numeros'); await p.waitForTimeout(900);
+let lt = await ev(() => window.__ltLetters());
+await tapAt(...lt.grid[3]); await p.waitForTimeout(300);
+lt = await ev(() => window.__ltLetters());
+await tapAt(...lt.pic); await p.waitForTimeout(450);
+await shot('21s-numbers-star-tap');
+await p.waitForTimeout(800);
+{ const l3 = await ev(() => window.__ltLetters()); if (l3.starTaps < 2) throw new Error('tapping the stars did not count them'); }
+await p.mouse.move(...lt.strokes[0][0]); await p.mouse.down(); for (let i = 0; i < lt.strokes[0].length * 0.5; i += 2) await p.mouse.move(...lt.strokes[0][i]); await p.mouse.up();
+await p.waitForTimeout(1250); // ~5 s of game time with her finger up
+await shot('21n-numbers-nudge');
+await tapAt(...lt.grid[3]); await p.waitForTimeout(300);
+await traceAll();
+await p.waitForTimeout(2200);
+await shot('21-numbers-done');
+await tapAt(...lt.back); await p.waitForTimeout(1000);
+await shot('03c-manana-done');
+
+step('decorar (optional, with the class watching)');
+await card('decorar');
+await p.waitForFunction(() => window.__ltTray(), null, { timeout: 20000 });
 await expectBlock('decorar');
+await p.waitForTimeout(400);
 await shot('02a-decorar');
 await p.waitForTimeout(3000);
 await shot('02a2-decorar-hint');
@@ -96,47 +164,10 @@ const di = await ev(() => window.__ltDeskItem(4));
 await p.mouse.move(...di); await p.mouse.down(); await p.mouse.move(di[0], di[1] - 30, { steps: 3 });
 const tr3 = await ev(() => window.__ltTrash());
 await p.mouse.move(tr3[0], tr3[1], { steps: 8 }); await p.mouse.up(); await p.waitForTimeout(200);
-
-step('trabajo de la mañana');
-await next();
+// ▶ goes back to the block she was in
+await next(); await ready();
 await expectBlock('manana');
-await p.waitForTimeout(1500);
-await shot('02f-arrive');
-await ready();
-await p.waitForTimeout(400);
-await shot('03-manana');
-await p.waitForTimeout(3600);
-await shot('03b-hint');
-// morning work: the whiteboard
-await choice('pizarra');
-await p.waitForTimeout(900);
-await shot('08-board');
-const bb = await ev(() => { const lt = window.__lt; const r = lt.board.rect(); const v = lt.board.view; const k = v.s / lt.G.dpr; return { x: r.x * k, y: r.y * k, w: r.w * k, h: r.h * k }; });
-const draw = async (pts) => { await p.mouse.move(...pts[0]); await p.mouse.down(); for (const q of pts.slice(1)) await p.mouse.move(q[0], q[1], { steps: 4 }); await p.mouse.up(); };
-const bx = (u) => bb.x + u * bb.w, by = (v) => bb.y + v * bb.h;
-const circle = []; for (let a = 0; a <= 6.4; a += 0.3) circle.push([bx(0.25) + Math.cos(a) * bb.w * 0.09, by(0.35) + Math.sin(a) * bb.w * 0.09]);
-await draw(circle);
-await draw([[bx(0.5), by(0.75)], [bx(0.5), by(0.45)], [bx(0.62), by(0.3)], [bx(0.74), by(0.45)], [bx(0.74), by(0.75)], [bx(0.5), by(0.75)]]);
-await tapAt(...(await ev(() => window.__ltBoardBtn('marker', 4))));
-await draw([[bx(0.1), by(0.9)], [bx(0.3), by(0.85)], [bx(0.5), by(0.9)], [bx(0.7), by(0.85)], [bx(0.9), by(0.9)]]);
-await tapAt(...(await ev(() => window.__ltBoardBtn('stamp', 0))));
-await tapAt(bx(0.88), by(0.2)); await tapAt(bx(0.78), by(0.12));
-await tapAt(...(await ev(() => window.__ltBoardBtn('stamp', 6)))); await tapAt(bx(0.9), by(0.5));
-await p.waitForTimeout(700);
-await shot('09-drawing');
-await tapAt(...(await ev(() => window.__ltBoardBtn('back'))));
-await p.waitForTimeout(1500);
-await shot('10-back');
-// and the numbers
-const traceAll = async () => { const L2 = await ev(() => window.__ltLetters()); for (const st of L2.strokes) { await p.mouse.move(...st[0]); await p.mouse.down(); for (let i = 0; i < st.length; i += 2) await p.mouse.move(st[i][0], st[i][1]); await p.mouse.move(...st[st.length - 1]); await p.mouse.up(); } };
-await choice('numeros'); await p.waitForTimeout(900);
-let lt = await ev(() => window.__ltLetters());
-await tapAt(...lt.grid[3]); await p.waitForTimeout(300);
-await traceAll();
-await p.waitForTimeout(2200);
-await shot('21-numbers-done');
-await tapAt(...lt.back); await p.waitForTimeout(1000);
-await shot('03c-manana-done');
+await shot('02f-back-to-manana');
 
 step('calendario');
 await next();
@@ -163,10 +194,13 @@ const pickOpt = async (right) => {
   if (info) await tapAt(...info);
 };
 await shot('04c-feelings-1');
-await pickOpt(true); await p.waitForTimeout(1500);
+await pickOpt(true); await p.waitForTimeout(250);
+await shot('04c2-feelings-right');
+await p.waitForTimeout(1250);
 await shot('04d-feelings-2');
-await pickOpt(true); await p.waitForTimeout(1500);
+await pickOpt(true); await p.waitForTimeout(450);
 await shot('04e-feelings-done');
+await p.waitForTimeout(450);
 await p.waitForTimeout(4000);
 await shot('04j-calendario-done');
 
@@ -245,7 +279,11 @@ await p.waitForTimeout(700);
 await shot('04a-question');
 await pickOpt(false); await p.waitForTimeout(600);
 await shot('04b-question-wrong');
-await pickOpt(true); await p.waitForTimeout(1600);
+await pickOpt(true); await p.waitForTimeout(120);
+await shot('04b2-question-right-pop');
+await p.waitForTimeout(250);
+await shot('04b3-question-right');
+await p.waitForTimeout(1300);
 let pts = await ev(() => window.__ltDeskPts());
 const star = await ev(() => window.__ltBtn('star'));
 await p.mouse.move(star[0], star[1]); await p.mouse.down();
@@ -368,11 +406,11 @@ await shot('18-stickerbook');
 await tapAt(...(await ev(() => window.__ltBtn('help')))); // outside the book closes it
 await p.waitForTimeout(300);
 
-step('a new day: jump straight from Decorar to Recreo');
+step('a new day: tap Recreo while the class walks in');
 await tapAt(...(await ev(() => window.__ltBig())));
 await p.waitForTimeout(500);
-await expectBlock('decorar');
-await card('recreo');
+await expectBlock('manana');
+await card('recreo'); // waits until everyone has arrived, then goes
 await p.waitForTimeout(1200);
 await shot('25a-jump-arrive');
 await p.waitForFunction(() => window.__lt.yard.isOpen, null, { timeout: 60000 }); await p.waitForTimeout(1500);

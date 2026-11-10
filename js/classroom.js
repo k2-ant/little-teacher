@@ -14,7 +14,7 @@ import { wordSprite as wsprite } from './i18n.js';
 import { lang, setLang, flag, DAY_WORDS, DAY_SHORT, DAY_COLORS, dayIndex, daySentence, wordSprite } from './i18n.js';
 import { LETTERS, letterSentence } from './i18n.js';
 import { tapEscalate, crowned, naughtyAct } from './students.js';
-import { createSchedule, blockIcon } from './schedule.js';
+import { createSchedule, blockIcon, ICON_W, ICON_H } from './schedule.js';
 import { createDecorate } from './decorate.js';
 
 const R = (c, x, y, w, h, col) => { c.fillStyle = col; c.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); };
@@ -173,7 +173,10 @@ export function createClassroom(students, hooks) {
     return { key: 'next', ...btnPt('next') };
   }
   let classStart = 0;
+  // v2.1: the room keeps ticking while the board / letters / shapes / yard are open; its hints must not talk over them
+  const roomShown = () => !hooks.showing || hooks.showing();
   function showHint(force) {
+    if (!roomShown()) { hint = null; return; }
     const t = computeHint(); if (!t) return;
     hint = { ...t, t0: G.time, until: G.time + 6 };
     if (force || !saidHint[t.key] || G.time - saidHint[t.key] > 45) { saidHint[t.key] = G.time; speak(helper(), LD.HINTS[t.key], 'tap'); }
@@ -567,8 +570,44 @@ export function createClassroom(students, hooks) {
       teacherAct('cheer', 1.2);
     });
   }
-  const teach = { act: null, z: 0, vz: 0, blinkT: 2, blink: 0, pointRight: true };
-  function teacherAct(name, dur = 1.2) { teach.act = { name, t0: G.time, dur }; }
+  const teach = { act: null, z: 0, vz: 0, blinkT: 2, blink: 0, pointRight: true, bag: null, last: null };
+  function teacherAct(name, dur = 1.2, tap = false) {
+    if (!tap && teach.act && teach.act.tap && G.time < teach.act.t0 + teach.act.dur) return; // her reaction to a tap plays out first
+    teach.act = { name, t0: G.time, dur, tap };
+  }
+  // v2.1: tapping Louise always gets a reaction (it used to be the last thing checked, behind the morning hurry,
+  // `busy`, story time and the students; and her twirl was soon overwritten by other poses). She takes turns:
+  // a twirl, a wave, or a wave to the whole class, and the friends wave back.
+  const TEACH_TAPS = ['twirl', 'wave', 'class'];
+  function teacherHit(x, y) {
+    const f = furn.teacher, top = f.y - DC.TH - teach.z - (f.lift || 0);
+    return x >= f.x - DC.TW / 2 - 3 && x <= f.x + DC.TW / 2 + 3 && y >= top - 3 && y <= f.y + 4;
+  }
+  function tapTeacher() {
+    const f = furn.teacher, kids = awake().filter(s => s.mode === 'seated' || s.mode === 'stand');
+    if (!teach.bag || !teach.bag.length) { // all three in a shuffled turn, never the same one twice in a row
+      teach.bag = [...TEACH_TAPS].sort(() => Math.random() - 0.5);
+      if (teach.bag[teach.bag.length - 1] === teach.last) teach.bag.reverse();
+    }
+    let k = teach.bag.pop();
+    if (k === 'class' && !kids.length) k = 'wave';
+    teach.last = k;
+    const hx = f.x, hy = f.y - DC.TH + 6 - teach.z;
+    if (k === 'twirl') {
+      teacherAct('twirl', 0.9, true); teach.vz = 70; sfx.giggle(1.05, 4);
+      burst('heart', hx, hy, 4, ['#ff6f91', '#ff9ec4'], { up: true, sp: 30 });
+      return;
+    }
+    teacherAct('wave', k === 'class' ? 2 : 1.4, true); teach.vz = 40; sfx.hi(1.25);
+    burst('spark', hx - 10, hy, 5, ['#ffd23f', '#ffffff'], { sp: 30 });
+    if (k !== 'class') return;
+    kids.forEach((s, i) => wait(0.35 + i * 0.09).then(() => {
+      if (s.mode === 'away' || s.sleep || s.hide > 0 || quiz.active) return;
+      act(s, 'wave', 1.4); talk(s, 'heart', 1.2);
+      if (i % 3 === 0) sfx.hi(1.4 + (i % 4) * 0.08);
+      burst('heart', ...headPos(s), 1, ['#ff6f91', '#ff9ec4'], { up: true, sp: 25 });
+    }));
+  }
   function teacherPose() {
     const t = G.time;
     const a = teach.act && t < teach.act.t0 + teach.act.dur ? teach.act : null;
@@ -605,7 +644,7 @@ export function createClassroom(students, hooks) {
     const i = V.inset, B = 26;
     btns = [
       { id: 'help', x: V.W - i.r - B - 4, y: i.t + 4, w: B, h: B, icon: () => S.bubble('q') },
-      { id: 'next', x: 4, y: V.H - i.b - 31, w: 40, h: 28, icon: S.ICONS.play }, // ▶ siguiente (+ the next card's picture)
+      { id: 'next', x: 4, y: V.H - i.b - 31, w: 46, h: 28, icon: S.ICONS.play }, // ▶ siguiente (+ the next card's picture)
       { id: 'toys', x: 48, y: V.H - i.b - B - 4, w: B, h: B, icon: () => cached('bellicon', bellIcon) }, // centros: ring to rotate
       { id: 'cdone', x: 48 + B + 4, y: V.H - i.b - B - 4, w: B, h: B, icon: S.ICONS.check },
       { id: 'star', x: V.W - i.r - B - 4, y: V.H - i.b - B - 4, w: B, h: B, icon: S.ICONS.star },
@@ -1130,7 +1169,6 @@ export function createClassroom(students, hooks) {
     await RT.morningWeather(); // what's the weather today?
     busy = false; classStart = G.time; lastInput = G.time; nextHintAt = G.time + 4;
   }
-  function startDay() { SC.go('manana', 'next'); }
 
   async function goodbye() {
     busy = true; phase = 'goodbye'; menu = null;
@@ -1696,6 +1734,7 @@ export function createClassroom(students, hooks) {
     }
     dusk += (duskTarget - dusk) * Math.min(1, dt * 1.5);
     if (phase === 'class') hintT -= dt; if (hintT < 0) hintT = rand(10, 16);
+    if (!roomShown()) { hint = null; lastInput = G.time; } // another scene is open: a fresh wait when she comes back
     const hintable = phase === 'prep' || phase === 'class' || (centros && centros.stage === 'chart') || (phase === 'activity' && (story || recess || (guest && guest.stage === 'knock') || (centros && centros.stage === 'run')));
     if (hintable && !drag && !quiz.active && !menu && !bookOpen && !reward && !dayCard && !busy) {
       if (G.time - lastInput > 9 && G.time > nextHintAt && !hint) { showHint(false); nextHintAt = G.time + 16; }
@@ -1989,7 +2028,7 @@ export function createClassroom(students, hooks) {
         if (ready) { c.globalAlpha = 0.6 + 0.4 * Math.sin(G.time * 4); D(c, glow(btnFrame(b.w, b.h, '#e6ffd8', 'next'), '#ffd23f', 'nextglow'), b.x - 2, b.y - 2 - k); c.globalAlpha = 1; }
         D(c, btnFrame(b.w, b.h, '#e6ffd8', 'next'), b.x, b.y - k + dn);
         const ic = b.icon(); D(c, ic, b.x + 3, b.y + (b.h - ic.height) / 2 - 1 - k + dn);
-        D(c, blockIcon(SC.nextId), b.x + b.w - 17, b.y + (b.h - 14) / 2 - 1 - k + dn); // ▶ + the next card's picture
+        D(c, blockIcon(SC.nextId), b.x + b.w - ICON_W - 3, b.y + (b.h - ICON_H) / 2 - 1 - k + dn); // ▶ + the next card's picture
         continue;
       }
       if (b.id === 'toys' && bellWants()) { c.globalAlpha = 0.6 + 0.4 * Math.sin(G.time * 5); D(c, glow(btnFrame(b.w, b.h, '#fff6c8', 'on'), '#ffd23f', 'homeglow'), b.x - 2, b.y - 2); c.globalAlpha = 1; } // v2.1: ring for a new round
@@ -2107,12 +2146,15 @@ export function createClassroom(students, hooks) {
     f.pop = G.time + 0.2; sfx.pop(1.2);
     burst('spark', f.x, f.y - sizeOf(f)[1] / 2, 5, ['#ffd23f', '#ffffff']);
   }
-  function enterPrep() {
-    phase = 'prep'; sky = 'morning'; duskTarget = 0; busy = false;
+  // v2.1: ▶ Play starts the day where the class comes in: the bell rings and the friends walk in for Trabajo de la mañana.
+  // 'prep' is only the empty morning room for the moment before the first friend comes through the door.
+  // Decorar is optional now: its card on the Horario opens the tray any time (with the class watching).
+  function startDay() {
+    phase = 'prep'; sky = 'morning'; duskTarget = 0; busy = false; DZ.close(); dayCard = null;
     for (const s of students) Object.assign(s, { mode: 'away', act: null, bubble: null, snack: null });
-    DZ.open();
     teacherAct('wave', 1.6);
     prepStamp = G.save.decorStamp; lastInput = G.time; nextHintAt = G.time + 8;
+    SC.reset(); SC.go('manana', 'next');
   }
 
   // ---------------------------------------------------------------- trash can
@@ -2351,6 +2393,11 @@ export function createClassroom(students, hooks) {
     if (reward) { press.reward = true; return; }
     if (bookOpen) { press.book = true; return; }
     if (menu) { press.menu = true; return; }
+    if (['prep', 'morning', 'class', 'activity', 'goodbye'].includes(phase) && !story && !dayCard && !armed && !(DZ.on && (DZ.sel || DZ.inTray(x, y)))
+      && teacherHit(x, y) && !shownBtns().some(b => inRect(x, y, b)) && !(choicesShown() && choiceRects().some(r => inRect(x, y, r)))) {
+      const s = hitStudent(x, y); // a friend standing in front of her gets the tap
+      if (!s || sortY(s) < furn.teacher.y) { press.f = furn.teacher; press.teach = true; return; }
+    }
     if (phase === 'morning' && !hurry) hurryUp(x, y);
     if (snackDown(x, y)) return;
     if (armed) { // holding a star / card: the next student tap gets it, a tap anywhere else puts it back
@@ -2380,6 +2427,7 @@ export function createClassroom(students, hooks) {
     }
     if (press.deskItem) return;
     if (v19Down(x, y)) return;
+    if (DZ.on && !busy) { const f = hitFurn(x, y); if (f && f.deco) { press.f = f; return; } } // decorating with the class in: her things come first
     const s = hitStudent(x, y);
     if (s) { press.s = s; return; }
     if (busy) return;
@@ -2512,6 +2560,7 @@ export function createClassroom(students, hooks) {
       return;
     }
     if (p.sign) { if (!p.moved) tapCentro(p.sign.ci); return; }
+    if (p.teach) { if (!p.moved) tapTeacher(); return; }
     if (p.v19) { if (!p.moved) v19Tap(p.v19); return; }
     if (p.dz) { if (!p.moved) DZ.tap(p.dz); return; }
     if (p.moved) return;
@@ -2520,7 +2569,7 @@ export function createClassroom(students, hooks) {
     if (p.upd) { if (!p.updFired) sfx.tap(); return; } // a grown-up holds it for 1.5 s (see update())
     if (p.mus) { const on = G.save.music === false; hooks.setMusic?.(on); persist(); sfx.pop(on ? 1.3 : 0.8); return; }
     if (p.stick) { sfx.pop(); sayUI('stickers'); bookOpen = { page: 0, t: G.time }; return; }
-    if (p.big && inRect(x, y, L.bigBtn)) { sfx.pop(); hooks.unlock?.(); SC.reset(); enterPrep(); speak(helper(), LD.SCHED_SAY.decorar, 'tap'); return; }
+    if (p.big && inRect(x, y, L.bigBtn)) { sfx.pop(); hooks.unlock?.(); startDay(); return; }
     if (p.choice) { choose(p.choice); return; }
     if (p.face) { tapStudent(p.face); return; }
     if (p.reward) { if (!reward.collected && G.time - reward.t > 0.6) collectReward(); return; }
@@ -2562,11 +2611,7 @@ export function createClassroom(students, hooks) {
       const b = recess.ball;
       if (Math.hypot(x - b.x, y - (b.y - 5 - b.z)) < 16) { kickBall(); return; }
     }
-    if (p.f && p.f.type === 'teacher') { // twirl!
-      teacherAct('twirl', 0.9); teach.vz = 70; sfx.giggle(1.05, 4);
-      burst('heart', p.f.x, p.f.y - 50, 3, ['#ff6f91', '#ff9ec4'], { up: true, sp: 30 });
-      return;
-    }
+    if (p.f && p.f.type === 'teacher') { tapTeacher(); return; }
     if (p.f && p.f.type === 'calendar') {
       p.f.pop = G.time + 0.25; sfx.pop(1.2);
       const t = RT.calHelper(awake()) || awake().find(s => s.kind === 'owl') || pick(awake().length ? awake() : students);
@@ -2652,6 +2697,7 @@ export function createClassroom(students, hooks) {
   window.__ltNaughty = (i) => { students[i].naughty = { until: G.time + 22, next: 0 }; };
   window.__ltHint = () => ({ hint, lastInput, nextHintAt, time: G.time, phase, busy, story: !!story, reward: !!reward, dayCard: !!dayCard, menu: !!menu, book: !!bookOpen, q: quiz.active });
   window.__ltTeacher = () => css(furn.teacher.x, furn.teacher.y - 30);
+  window.__ltTeach = () => ({ act: teach.act && G.time < teach.act.t0 + teach.act.dur ? teach.act.name : null, last: teach.last, pts: [8, 20, 32, 44, 52].map(d => css(furn.teacher.x, furn.teacher.y - d)) });
   window.__ltMenu = () => (menu ? menu.items.map(m => css(m.x + 24, m.y + 24)) : []);
   window.__ltAbc = (ch) => css(abcCardX(LETTERS.indexOf(ch)) + 2, L.abc.y + 5);
   window.__ltUpd = () => (L.updBtn ? css(L.updBtn.x + 11, L.updBtn.y + 11) : null);
@@ -2679,6 +2725,7 @@ export function createClassroom(students, hooks) {
   }
   const quietOK = () => SC.calmNow() && !interrupting();
   async function leaveBlock() {
+    if (DZ.on && students.some(s => s.mode !== 'away')) { G.save.decorSeen = G.save.decorStamp; persist(); } // the class watched her decorate: no gasp tomorrow
     armed = null; hint = null; DZ.close(); dayCard = null;
     if (recess) await endRecess();
     if (story) story = null;
