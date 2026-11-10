@@ -3,6 +3,7 @@
 import { G, wait, persist, rand, pick, clamp } from './state.js';
 import { Pix, cached, darken, lighten, mix } from './raster.js';
 import * as S from './sprites.js';
+import * as UI from './ui.js';
 import { sfx } from './audio.js';
 import { act, hop, talk, speak, walkTo } from './students.js';
 import * as LD from './learndata.js';
@@ -481,9 +482,8 @@ export function createRituals(ctx) {
     }
     if (chart.drag) D(c, ctx.scaled(ctx.miniFace(chart.drag.s.kind, true), 2), chart.drag.x - 13, chart.drag.y - 13);
     const k = Math.sin(G.time * 5) > 0.3 ? 1 : 0;
-    D(c, ctx.btnFrame(done.w, done.h, k ? '#fff6c8' : '#fff3dc', 'jdone'), done.x, done.y - k);
-    D(c, S.ICONS.check(), done.x + 9, done.y + 7 - k);
-    D(c, ctx.btnFrame(26, 26), back.x, back.y); D(c, S.ICONS.back(), back.x + 4, back.y + 3);
+    UI.drawBtn(c, done.x, done.y - k, done.w, done.h, UI.FACE.green, false, S.ICONS.check()); // v2.3 chunky: ✔ green, back blue
+    UI.drawBtn(c, back.x, back.y, 26, 26, UI.FACE.blue, false, S.ICONS.back());
   }
   function closeChart(how) {
     chart = null;

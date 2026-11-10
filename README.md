@@ -153,5 +153,6 @@ Tip: turn on **Guided Access** (Settings → Accessibility → Guided Access) an
 | `js/row.js` | the row of watching students used by the learning corners |
 | `js/sprites.js` | all pixel art (students, furniture, icons, stamps, stickers) |
 | `js/raster.js` | tiny no-anti-aliasing pixel rasterizer |
+| `js/ui.js` | chunky pressable buttons (outline, lip, press-down) and passive panels, shared by every scene |
 | `js/audio.js` | synthesized sound effects and speech |
 | `tools/` | Playwright screenshot walkthrough and icon generator |

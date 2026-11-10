@@ -1,6 +1,7 @@
 import { G, makeView, persist, rand, pick, wait } from './state.js';
 import { Pix, cached, hex, darken, lighten } from './raster.js';
 import * as S from './sprites.js';
+import * as UI from './ui.js';
 import { WALLS } from './decor.js';
 import { sfx, strokeStart, strokeSpeed, strokeEnd } from './audio.js';
 import { sayHint, sayUI, drawHand } from './hints.js';
@@ -319,8 +320,9 @@ export function createBoard(students, hooks) {
       if (sel) R(c, L.markerX - 6 * k, m.y + Math.round((m.h - 3 * k) / 2), 3 * k, 3 * k, MARKERS[m.k].c);
     }
     // tools (right)
-    const tb = (b, icon, on) => { D(c, btnFrame(b.w, b.h, '#fff3dc', on), b.x, b.y + (press && press.btn === b ? 1 : 0)); D(c, icon(), b.x + 4, b.y + 3 + (press && press.btn === b ? 1 : 0)); };
-    tb(L.back, S.ICONS.back, false);
+    // v2.3 chunky buttons: back is a blue tool, the picked tool turns yellow
+    const tb = (b, icon, on, face) => UI.drawBtn(c, b.x, b.y, b.w, b.h, face || (on ? UI.FACE.yellow : UI.FACE.cream), !!(press && press.btn === b), icon());
+    tb(L.back, S.ICONS.back, false, UI.FACE.blue);
     tb(L.eraser, S.ICONS.eraser, tool === 'erase');
     tb(L.wipeBtn, S.ICONS.wipe, false);
     // stamps

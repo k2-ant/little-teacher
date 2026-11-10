@@ -4,6 +4,7 @@
 import { G, persist, wait, clamp, rand } from './state.js';
 import { cached, glow } from './raster.js';
 import * as S from './sprites.js';
+import * as UI from './ui.js';
 import { sfx } from './audio.js';
 import * as DC from './decor.js';
 import * as LD from './learndata.js';
@@ -110,8 +111,8 @@ export function createDecorate(api) {
     if (tk > 0.02) { // the ▲ handle: tap to bring the tray back up
       const r = handleR, bob = tuck ? Math.round(Math.abs(Math.sin(G.time * 4)) * 2) : 0;
       c.globalAlpha = Math.min(1, tk * 1.5);
-      D(c, api.btnFrame(r.w, r.h + 2, '#fff6c8', 'dzhandle'), r.x, r.y);
-      D(c, upArrow(), r.x + Math.round((r.w - 13) / 2), r.y + 4 - bob);
+      UI.drawBtn(c, r.x, r.y, r.w, r.h + 2, UI.FACE.yellow, false); // v2.3 chunky
+      D(c, upArrow(), r.x + Math.round((r.w - 13) / 2), r.y + 3 - bob);
       c.globalAlpha = 1;
     }
     c.restore();
@@ -125,16 +126,17 @@ export function createDecorate(api) {
   function drawTray(c) {
     // tabs: folder tabs sitting on the tray
     tabR.forEach(r => {
-      const act = r.id === tab, lift = act ? 0 : 2;
-      D(c, api.btnFrame(r.w, r.h + 2, act ? '#fff3dc' : '#f1dcc0', 'dztab' + act), r.x, r.y + lift);
-      D(c, r.id === 'wall' ? DC.trayIcon('wall') : r.id === 'floor' ? DC.trayIcon('floor') : DC.decoIcon(r.id), r.x + 4, r.y + 2 + lift - (act && G.time - tabT < 0.25 ? 1 : 0));
+      // v2.3: the open tab joins the cream tray; the others are chunky pink buttons
+      const act = r.id === tab, ic = r.id === 'wall' ? DC.trayIcon('wall') : r.id === 'floor' ? DC.trayIcon('floor') : DC.decoIcon(r.id);
+      if (act) { D(c, api.btnFrame(r.w, r.h + 2, '#fff3dc', 'dztab' + act), r.x, r.y); D(c, ic, r.x + 4, r.y + 2 - (G.time - tabT < 0.25 ? 1 : 0)); }
+      else UI.drawBtn(c, r.x, r.y - 3, r.w, r.h + 1, UI.FACE.pink, false, ic);
     });
     D(c, api.btnFrame(Math.round(P.w), P.h, '#fff3dc', 'dztray'), P.x, P.y);
     const ar = tabR.find(r => r.id === tab); R(c, ar.x + 1, P.y, ar.w - 2, 2, '#fff3dc'); // the open tab joins the tray
     // undo
     const can = undoStack.length > 0, dn = flash === 'undo' && G.time - tabT < 0.2 ? 1 : 0;
-    D(c, api.btnFrame(undoR.w, undoR.h, can ? '#dff0ff' : '#ece6dc', 'dzundo' + can), undoR.x, undoR.y + dn);
-    c.globalAlpha = can ? 1 : 0.35; D(c, DC.decoIcon('undo'), undoR.x + 5, undoR.y + 1 + dn); c.globalAlpha = 1;
+    UI.drawBtn(c, undoR.x, undoR.y, undoR.w, undoR.h, can ? UI.FACE.blue : '#e6e0e8', !!dn);
+    c.globalAlpha = can ? 1 : 0.35; const ui = DC.decoIcon('undo'); D(c, ui, undoR.x + 5, undoR.y + UI.faceY(undoR.h, ui.height, !!dn)); c.globalAlpha = 1;
     // tiles (clipped to the strip; tall things may poke out of the top)
     if (tk > 0.6) return; // tucked: just the tabs (the tiles stay hidden below)
     const { list } = tiles();

@@ -3,6 +3,7 @@
 // resolves when the whistle has called everyone back in. The yard follows today's weather.
 import { G, makeView, wait, rand, pick, clamp } from './state.js';
 import { Pix, cached, glow, darken, lighten, mix } from './raster.js';
+import * as UI from './ui.js';
 import * as S from './sprites.js';
 import { sfx } from './audio.js';
 import { act, speak, animalSound, pose, tapEscalate } from './students.js';
@@ -34,15 +35,6 @@ const LIKES = {
 const ALL = ['ball', 'slide', 'swing', 'sand', 'seesaw', 'hop', 'chase'];
 
 // ------------------------------------------------------------------ sprites
-function btnFrame(w, h, col = '#fff3dc', key = '') {
-  return cached('ybtn' + w + 'x' + h + col + key, () => {
-    const p = new Pix(w, h);
-    p.rect(1, 0, w - 2, h - 1, darken(col, 0.5)); p.rect(0, 1, w, h - 3, darken(col, 0.5));
-    p.rect(1, 1, w - 2, h - 3, col); p.hline(2, w - 3, 1, lighten(col, 0.6));
-    p.rect(1, h - 2, w - 2, 1, darken(col, 0.35));
-    return p.canvas();
-  });
-}
 function whistleIcon() {
   return cached('ywhistle', () => {
     const p = new Pix(22, 18);
@@ -331,7 +323,8 @@ export function createPlayground(students, hooks) {
     for (let i = 0; i < 40; i++) R(c, top.x0 + 2 + rnd(i + 900) * (top.x1 - top.x0 - 4), top.y0 + 2 + rnd(i + 950) * (top.y1 - top.y0 - 4), 1, 1, pl);
     for (let i = 0; i < 8; i++) {
       const r = hopCell(i), col = CHALK[i];
-      R(c, r.x, r.y, r.w, 1, col); R(c, r.x, r.y + r.h - 1, r.w, 1, col); R(c, r.x, r.y, 1, r.h, col); R(c, r.x + r.w - 1, r.y, 1, r.h, col);
+      // v2.3: each square is filled with its chalk colour (the dark number is drawn smooth on top each frame)
+      R(c, r.x, r.y, r.w, r.h, col); R(c, r.x + 1, r.y + 1, r.w - 2, r.h - 2, mix(col, pc, 0.25));
     }
   }
   function drawDoor(c) {
@@ -939,7 +932,7 @@ export function createPlayground(students, hooks) {
   // the hopscotch's chalk numbers, in the school font (smooth, so drawn each frame rather than baked into the ground)
   function drawHopNumbers(c) {
     for (let i = 0; i < 8; i++) {
-      const r = hopCell(i), ch = Math.max(5, Math.min(8, r.h - 4)), num = textSprite(String(i + 1), { h: ch, col: CHALK[i], weight: 0.24 });
+      const r = hopCell(i), ch = Math.max(5, Math.min(8, r.h - 4)), num = textSprite(String(i + 1), { h: ch, col: '#3a2a4a', weight: 0.26 });
       D(c, num, Math.round(r.x + (r.w - num.width) / 2), Math.round(r.y + (r.h + ch) / 2) - num.lt.base);
     }
   }
@@ -1018,12 +1011,12 @@ export function createPlayground(students, hooks) {
     const nag = (hint && hint.key === 'yardWhistle') || (isOpen && t - lastInput > 90);
     const wb = L.whistle, bob = nag ? Math.round(Math.abs(Math.sin(t * 7)) * 2) : 0;
     if (!leaving) {
-      if (nag) D(c, glow(btnFrame(wb.w, wb.h, '#fff6c8', 'w'), '#ffd23f', 'ywglow'), wb.x - 2, wb.y - 2 - bob);
-      const pr = press && press.btn === 'whistle' ? 1 : 0;
-      D(c, btnFrame(wb.w, wb.h, nag ? '#fff6c8' : '#fff3dc', 'w'), wb.x, wb.y - bob + pr);
-      D(c, whistleIcon(), wb.x + 6, wb.y + 6 - bob + pr);
-      const hb = L.help, hp = press && press.btn === 'help' ? 1 : 0;
-      D(c, btnFrame(hb.w, hb.h), hb.x, hb.y + hp); D(c, S.bubble('q'), hb.x + 5, hb.y + 5 + hp);
+      // v2.3 chunky buttons: the whistle is green (it's "go back in"), ? is a blue tool
+      if (nag) D(c, glow(UI.button(wb.w, wb.h, UI.FACE.green), '#ffd23f', 'ywglow'), wb.x - 2, wb.y - 2 - bob);
+      const pr = !!(press && press.btn === 'whistle');
+      UI.drawBtn(c, wb.x, wb.y - (pr ? 0 : bob), wb.w, wb.h, UI.FACE.green, pr, whistleIcon());
+      const hb = L.help;
+      UI.drawBtn(c, hb.x, hb.y, hb.w, hb.h, UI.FACE.blue, !!(press && press.btn === 'help'), S.bubble('q'));
     }
     if (hint && !leaving) { const pt = hintPt(hint.key); if (pt) drawHand(c, pt.x, pt.y); }
   }

@@ -157,7 +157,7 @@ export function pose(s) {
     }
   }
   if (s.mood && !a && !s.sleep) {
-    const M = { triste: ['open', 'frown', 'sad'], enojado: ['open', 'frown', 'angry'], asustado: ['wide', 'o', 'scared'], cansado: ['sleepy', 'o', null] }[s.mood];
+    const M = { triste: ['open', 'down', 'sad'], enojado: ['open', 'grr', 'angry'], asustado: ['wide', 'gasp', 'scared'], cansado: ['sleepy', 'yawn', 'tired'] }[s.mood]; // v2.3: exaggerated faces
     if (M) { st.eyes = s.blink > 0 && M[0] === 'open' ? 'blink' : M[0]; st.mouth = M[1]; st.mood = M[2]; st.tongue = false; st.earUp = false; }
     if (s.mood === 'asustado') dx = Math.floor(t * 12) % 2;
   }

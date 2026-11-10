@@ -17,6 +17,7 @@ import { LETTERS, letterSentence } from './i18n.js';
 import { tapEscalate, crowned, naughtyAct } from './students.js';
 import { createSchedule, blockIcon, ICON_W, ICON_H } from './schedule.js';
 import { createDecorate } from './decorate.js';
+import * as UI from './ui.js';
 
 const R = (c, x, y, w, h, col) => { c.fillStyle = col; c.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); };
 const D = (c, img, x, y) => c.drawImage(img, Math.round(x), Math.round(y));
@@ -120,6 +121,7 @@ export function createClassroom(students, hooks) {
   let hurry = false; // morning: a tap on the floor speeds everyone up
   let bellBob = 0, prepHintN = 0, snackOn = false;
   // ---- spoken button names + "what do I do next?" hints
+  let wallFade = 0; // v2.3 0..0.15: how much the wall decorations step back while an activity runs
   let lastInput = 0, nextHintAt = 12, hint = null, hintIdx = 0, prepStamp = 0;
   const saidHint = {};
   const helper = () => students[3];
@@ -245,9 +247,9 @@ export function createClassroom(students, hooks) {
     if (!b || G.time > armed.until || busy || quiz.active || menu || bookOpen || story) { armed = null; return; }
     const ic = armed.id === 'star' ? S.ICONS.star() : DC.trayIcon(armed.id);
     const bob = Math.round(Math.sin(G.time * 6) * 2);
-    D(c, glow(btnFrame(b.w, b.h, '#fff6c8', 'on'), '#ffd23f', 'homeglow'), b.x - 2, b.y - 2);
-    D(c, btnFrame(b.w, b.h, '#fff6c8', 'on'), b.x, b.y);
-    c.globalAlpha = 0.35; D(c, ic, b.x + (b.w - ic.width) / 2, b.y + (b.h - ic.height) / 2 - 1); c.globalAlpha = 1;
+    D(c, glow(UI.button(b.w, b.h, UI.FACE.yellow), '#ffd23f', 'homeglow'), b.x - 2, b.y - 2);
+    D(c, UI.button(b.w, b.h, UI.FACE.yellow, true), b.x, b.y);
+    c.globalAlpha = 0.35; D(c, ic, b.x + (b.w - ic.width) / 2, b.y + UI.faceY(b.h, ic.height, true)); c.globalAlpha = 1;
     D(c, glow(ic, '#fff6b8', 'armed' + armed.id), b.x + b.w / 2 - 11, b.y - 24 + bob);
     D(c, ic, b.x + b.w / 2 - 9, b.y - 22 + bob);
     if (Math.random() < 0.08) burst('spark', b.x + b.w / 2 + rand(-8, 8), b.y - 14 + bob, 1, ['#ffd23f', '#ffffff'], { sp: 15 });
@@ -260,7 +262,7 @@ export function createClassroom(students, hooks) {
   let dayCard = null; // morning 'today is...' card
   let lastQ = -99, feelT = 40;
   const MOOD_BUBBLE = { triste: 'm:triste', enojado: 'm:enojado', asustado: 'm:asustado', cansado: 'm:cansado' };
-  const MOOD_COL = { triste: '#7ec8ff', enojado: '#ff6b5b', asustado: '#c9a2ff', cansado: '#cbbbe8' };
+  const MOOD_COL = S.MOOD_COL;
   const quiz = createQuiz({ burst: (x, y, cols) => burst('star', x, y, 8, cols, { up: true }), teacher: (n) => teacherAct(n, 1.2) });
   function askQuestion(s) {
     lastQ = G.time;
@@ -377,10 +379,10 @@ export function createClassroom(students, hooks) {
     }
     if (centros.drag && centros.drag.moved) D(c, scaled(miniFace(centros.drag.s.kind, true), 2), centros.drag.x - 13, centros.drag.y - 13);
     const k = Math.sin(G.time * 5) > 0.3 ? 1 : 0;
-    D(c, btnFrame(start.w, start.h, k ? '#fff6c8' : '#fff3dc', 'cstart'), start.x, start.y - k);
-    D(c, cached('bellicon', bellIcon), start.x + 9, start.y + 7 - k);
+    const sd = held(start);
+    UI.drawBtn(c, start.x, start.y - (sd ? 0 : k), start.w, start.h, UI.FACE.yellow, sd, cached('bellicon', bellIcon));
     const bk = chartBack();
-    D(c, btnFrame(26, 26), bk.x, bk.y); D(c, S.ICONS.back(), bk.x + 4, bk.y + 3);
+    UI.drawBtn(c, bk.x, bk.y, 26, 26, UI.FACE.blue, held(bk), S.ICONS.back());
   }
   function chartBack() { const { P } = centrosLayout(); return { x: Math.max(V.inset.l + 2, P.x - 12), y: Math.max(V.inset.t + 2, P.y - 12), w: 26, h: 26 }; }
   function runCentros() {
@@ -601,10 +603,9 @@ export function createClassroom(students, hooks) {
       const want = centroWants(sg.ci), done = centros.visited[sg.ci];
       const bob = want ? -Math.round(Math.abs(Math.sin(G.time * 5 + sg.ci)) * 4) : Math.round(Math.sin(G.time * 3 + sg.ci));
       R(c, sg.x + 12, sg.y + 24, 2, 10, '#a8703f');
-      const fr = btnFrame(sg.w, sg.h, ['#ffd8d6', '#d6eaff', '#fff2b8', '#dff5d6'][sg.ci], 'sign' + sg.ci);
-      if (want) { c.globalAlpha = 0.55 + 0.45 * Math.sin(G.time * 6 + sg.ci); D(c, glow(fr, '#ffd23f', 'signglow' + sg.ci), sg.x - 2, sg.y - 2 + bob); c.globalAlpha = 1; }
-      D(c, fr, sg.x, sg.y + bob);
-      const ic = C_ICONS[sg.ci](); D(c, ic, sg.x + (sg.w - ic.width) / 2, sg.y + (sg.h - ic.height) / 2 - 1 + bob);
+      const face = ['#ffb3ad', '#a9d2fa', '#ffe27a', '#b5e8a4'][sg.ci], sd = !!(press && press.sign && press.sign.ci === sg.ci);
+      if (want) { c.globalAlpha = 0.55 + 0.45 * Math.sin(G.time * 6 + sg.ci); D(c, glow(UI.button(sg.w, sg.h, face), '#ffd23f', 'signglow' + sg.ci), sg.x - 2, sg.y - 2 + bob); c.globalAlpha = 1; }
+      UI.drawBtn(c, sg.x, sg.y + bob, sg.w, sg.h, face, sd, C_ICONS[sg.ci]());
       if (done) { // a big gold star for a visited centro
         const st = S.ICONS.star(), tw = Math.floor(G.time * 3 + sg.ci) % 6 === 0 ? -1 : 0;
         D(c, glow(st, '#fff6b8', 'cstar'), sg.x + sg.w - 13, sg.y - 11 + tw);
@@ -668,6 +669,10 @@ export function createClassroom(students, hooks) {
     const a = teach.act && t < teach.act.t0 + teach.act.dur ? teach.act : null;
     const st = { eyes: teach.blink > 0 ? 'blink' : 'happy', mouth: 'grin', armL: 'down', armR: 'down', feet: 0, sway: Math.floor(t * 1.2) % 2 };
     let flip = false;
+    // v2.3 her face follows the moment: eyes open while she listens (a question, a story, a guest, a centro visit),
+    // and at goodbye she keeps waving
+    if (quiz.active || story || guest || RT.chartOpen || (centros && centros.stage === 'run')) { st.eyes = teach.blink > 0 ? 'blink' : 'open'; st.mouth = 'smile'; }
+    if (phase === 'goodbye' && !a) { st.eyes = 'happy'; st.armL = Math.floor(t * 4) % 2 ? 'wave1' : 'wave2'; st.mouth = 'open'; }
     if (a) {
       const k = t - a.t0, alt = (hz) => Math.floor(k * hz) % 2 === 0;
       if (a.name === 'wave') { st.armL = alt(5) ? 'wave1' : 'wave2'; st.mouth = 'open'; }
@@ -757,8 +762,9 @@ export function createClassroom(students, hooks) {
     const [wa, wb] = DC.WALLS[G.save.paint.wall] || DC.WALLS[0];
     const [fa, fb, fs] = DC.FLOORS[G.save.paint.floor] || DC.FLOORS[0];
     R(c, 0, 0, W, wh, wa);
-    for (let x = 2; x < W; x += 9) R(c, x, 3, 3, wh - 22, wb);
-    for (let x = 6; x < W; x += 18) for (let y = 10; y < wh - 24; y += 14) { R(c, x, y, 1, 1, '#f9c8b0'); R(c, x + 9, y + 7, 1, 1, '#cde3c8'); }
+    // v2.3: softer wallpaper (stripes and dots halfway back to the wall colour) so the busy decorated wall stays calm
+    for (let x = 2; x < W; x += 9) R(c, x, 3, 3, wh - 22, mix(wa, wb, 0.5));
+    for (let x = 6; x < W; x += 18) for (let y = 10; y < wh - 24; y += 14) { R(c, x, y, 1, 1, mix(wa, '#f9c8b0', 0.5)); R(c, x + 9, y + 7, 1, 1, mix(wa, '#cde3c8', 0.5)); }
     R(c, 0, 0, W, 3, '#e3c592'); R(c, 0, 3, W, 1, '#fff3d9');
     R(c, 0, wh - 20, W, 20, '#bfe0d0');
     R(c, 0, wh - 21, W, 2, '#8fc0a9'); R(c, 0, wh - 22, W, 1, '#d9f0e4');
@@ -1677,7 +1683,7 @@ export function createClassroom(students, hooks) {
       if (k === story.def && Math.random() < 0.06) burst('spark', r.x + rand(0, r.w), y + rand(0, r.h), 1, ['#ffd23f', '#ffffff'], { sp: 15 });
     });
     const bk = storyBack();
-    D(c, btnFrame(26, 26), bk.x, bk.y); D(c, S.ICONS.back(), bk.x + 4, bk.y + 3);
+    UI.drawBtn(c, bk.x, bk.y, 26, 26, UI.FACE.blue, held(bk), S.ICONS.back());
   }
   /** n places to sit on the rug: one gentle arc for a few friends, two staggered rows for a full class
    *  (kept clear of the ▶ button in the bottom-left corner) */
@@ -1997,15 +2003,21 @@ export function createClassroom(students, hooks) {
     c.drawImage(bg, 0, 0);
     drawWindow(c); drawDoor(c); drawBoard(c); drawAbcLine(c);
     RT.drawSwitch(c);
-    // wall decorations
+    // wall decorations: v2.3 they fade softly (~15%) while an activity has the focus, so the eye lands on it;
+    // in Decorar they're always full strength
+    const focus = !DZ.on && SC.curId !== 'decorar' && (quiz.active || (centros && centros.stage === 'run') || story || serve || (hint && G.time < hint.until));
+    wallFade += ((focus ? 0.15 : 0) - wallFade) * Math.min(1, 0.06);
+    c.save(); if (wallFade > 0.005) c.globalAlpha = 1 - wallFade;
     for (const f of Object.values(furn)) if (layerOf(f) === 'wall' && !(drag && drag.f === f)) drawItem(c, f);
+    c.restore();
     // rug
     const rug = furn.rug;
     if (!(drag && drag.f === rug)) D(c, S.rug(DC.RUGS[G.save.rugV % DC.RUGS.length]), rug.x - 42, rug.y - 32);
     drawCenterProps(c);
     // y-sorted objects
     const objs = [];
-    for (const f of Object.values(furn)) if (f.type !== 'rug' && layerOf(f) === 'floor' && !(drag && drag.f === f)) objs.push({ y: f.y, f });
+    // (v2.3: at goodbye the teacher comes to the front, so no turtle, cage or desk hides her wave)
+    for (const f of Object.values(furn)) if (f.type !== 'rug' && layerOf(f) === 'floor' && !(drag && drag.f === f)) objs.push({ y: f.type === 'teacher' && phase === 'goodbye' ? 1e6 : f.y, f });
     for (const s of students) if (s.mode !== 'seated' && s.mode !== 'away' && s.mode !== 'held') objs.push({ y: s.y, s });
     if (recess) objs.push({ y: recess.ball.y, ball: recess.ball });
     v19Objs(objs);
@@ -2075,10 +2087,11 @@ export function createClassroom(students, hooks) {
     drawOverlays(c);
   }
 
-  function drawButton(c, b, pressed) {
-    D(c, btnFrame(b.w, b.h), b.x, b.y + (pressed ? 1 : 0));
-    D(c, b.icon(), b.x + (b.w - 18) / 2, b.y + (b.h - 18) / 2 - 1 + (pressed ? 1 : 0));
-  }
+  /** v2.3: every tappable thing is a chunky button: blue for tools, green for go/done, red for the red card */
+  const BTN_FACE = { next: UI.FACE.green, cdone: UI.FACE.green, cardRed: UI.FACE.red };
+  function drawButton(c, b, pressed, face = BTN_FACE[b.id] || UI.FACE.blue) { UI.drawBtn(c, b.x, b.y, b.w, b.h, face, pressed, b.icon()); }
+  /** is she holding a finger on this rect right now? (for buttons that don't track their own press) */
+  const held = (r) => !!(press && r && !press.moved && inRect(press.x, press.y, r));
   function hudVisible() { return phase === 'class' || phase === 'activity' || phase === 'prep' || phase === 'morning'; }
   function shownBtns() {
     if (phase === 'prep') return btns.filter(b => ['help', 'next'].includes(b.id));
@@ -2089,32 +2102,30 @@ export function createClassroom(students, hooks) {
     return btns.filter(b => ['help', 'next'].includes(b.id) || (cards && ['star', 'cardGreen', 'cardRed'].includes(b.id)) || (run && ['toys', 'cdone'].includes(b.id)));
   }
   function drawHud(c) {
-    if (!hudVisible()) return;
+    if (!hudVisible() || quiz.active) return; // v2.3: nothing peeks out from under a question card
     DZ.draw(c); // (it tucks down to its tabs while she drags a thing into the room and after she places one)
     if (SC.curId === 'calendario' && phase === 'class' && !dayCard && !busy) drawBigFaces(c);
     if (choicesShown()) SC.drawChoices(c, choiceRects(), btnFrame, press && press.choice);
     for (const b of shownBtns()) {
-      const dn = press && press.btn === b ? 1 : 0;
+      const dn = !!(press && press.btn === b);
       if (b.id === 'next') { // big ▶ "siguiente": glows when this block is done
         const ready = (phase === 'prep' || phase === 'class' || recess) && !busy && (SC.purposeDone() || recess);
-        const k = ready ? Math.round(Math.abs(Math.sin(G.time * 4)) * 2) : 0;
-        if (ready) { c.globalAlpha = 0.6 + 0.4 * Math.sin(G.time * 4); D(c, glow(btnFrame(b.w, b.h, '#e6ffd8', 'next'), '#ffd23f', 'nextglow'), b.x - 2, b.y - 2 - k); c.globalAlpha = 1; }
-        D(c, btnFrame(b.w, b.h, '#e6ffd8', 'next'), b.x, b.y - k + dn);
-        const ic = b.icon(); D(c, ic, b.x + 3, b.y + (b.h - ic.height) / 2 - 1 - k + dn);
-        D(c, blockIcon(SC.nextId), b.x + b.w - ICON_W - 3, b.y + (b.h - ICON_H) / 2 - 1 - k + dn); // ▶ + the next card's picture
+        const k = ready && !dn ? Math.round(Math.abs(Math.sin(G.time * 4)) * 2) : 0;
+        if (ready) { c.globalAlpha = 0.6 + 0.4 * Math.sin(G.time * 4); D(c, glow(UI.button(b.w, b.h, UI.FACE.green), '#ffd23f', 'nextglow'), b.x - 2, b.y - 2 - k); c.globalAlpha = 1; }
+        const sh = UI.drawBtn(c, b.x, b.y - k, b.w, b.h, UI.FACE.green, dn);
+        const ic = b.icon(), fy = b.y - k + UI.faceY(b.h, 0, false) + sh;
+        D(c, ic, b.x + 3, fy - ic.height / 2);
+        D(c, blockIcon(SC.nextId), b.x + b.w - ICON_W - 3, fy - ICON_H / 2); // ▶ + the next card's picture
         continue;
       }
       if (b.id === 'cardRed') { drawRedCard(c, b, dn); continue; }
-      if (b.id === 'toys' && bellWants()) { c.globalAlpha = 0.6 + 0.4 * Math.sin(G.time * 5); D(c, glow(btnFrame(b.w, b.h, '#fff6c8', 'on'), '#ffd23f', 'homeglow'), b.x - 2, b.y - 2); c.globalAlpha = 1; } // v2.1: ring for a new round
-      D(c, btnFrame(b.w, b.h), b.x, b.y + dn);
-      const ic = b.icon();
-      D(c, ic, b.x + (b.w - ic.width) / 2, b.y + (b.h - ic.height) / 2 - 1 + dn);
+      if (b.id === 'toys' && bellWants()) { c.globalAlpha = 0.6 + 0.4 * Math.sin(G.time * 5); D(c, glow(UI.button(b.w, b.h, UI.FACE.yellow), '#ffd23f', 'homeglow'), b.x - 2, b.y - 2); c.globalAlpha = 1; } // v2.1: ring for a new round
+      drawButton(c, b, dn, b.id === 'toys' && bellWants() ? UI.FACE.yellow : undefined);
     }
   }
   function drawRedCard(c, b, dn) { // smaller, on a quiet frame; while it's held a ring fills up (like the ⟳ button)
     const a = b.art, x = b.x + (b.w - a) / 2, y = b.y + (b.h - a) / 2 + 1, ic = b.icon();
-    D(c, btnFrame(a, a, '#efe4d8', 'redcard'), x, y + dn);
-    D(c, ic, x + (a - ic.width) / 2, y + (a - ic.height) / 2 - 1 + dn);
+    UI.drawBtn(c, x, y, a, a + 2, UI.FACE.red, dn, ic);
     const hold = press && press.btn === b && press.redT0 && !press.redFired ? Math.min(1, (performance.now() - press.redT0) / RED_HOLD) : 0;
     if (hold > 0) ringAt(c, x + a / 2, y + a / 2, hold);
   }
@@ -2134,6 +2145,7 @@ export function createClassroom(students, hooks) {
     for (const f of fr) {
       const s = f.s, bob = s.here && acting(s, 'here') ? -2 : 0;
       D(c, scaled(miniFace(s.kind, s.here), 2), f.x, f.y + bob);
+      if (!s.here) { const zb = Math.floor(G.time * 2 + f.x) % 2; D(c, scaled(S.particle('z', '#4f6fc6'), 1), f.x + 20, f.y + 1 - zb); D(c, S.particle('z', '#6f8fd6'), f.x + 23, f.y - 4 - zb); } // v2.3: not here yet: a sleepy badge, still in full colour
       if (s.card) R(c, f.x + 3, f.y + 28, 8, 3, s.card === 'red' ? '#ef4b4b' : '#3cb44b');
       if (crowned(s)) D(c, cached('minicrown', () => { const p = new Pix(7, 5); p.map(1, 1, ['#.#.#', '#####', '#####'], { '#': '#ffd23f' }); p.px(3, 3, '#ef4b4b'); p.outline(); return p.canvas(); }), f.x + 10, f.y - 3);
       if (s.here) D(c, cached('bigtick', () => { const p = new Pix(10, 8); p.line(0, 4, 3, 7, '#3cb44b'); p.line(3, 7, 9, 0, '#3cb44b'); p.line(1, 4, 3, 6, '#3cb44b'); p.line(3, 6, 8, 0, '#3cb44b'); p.outline('#ffffff', 0.9); return p.canvas(); }), f.x + 17, f.y + 20);
@@ -2294,28 +2306,27 @@ export function createClassroom(students, hooks) {
       const big = scaled(ic, k);
       const pulse = Math.round(Math.sin(G.time * 4) * 2);
       const bx = Math.round(W / 2 - big.width / 2), by = Math.round(H * 0.58 - big.height / 2) + pulse;
-      D(c, btnFrame(big.width + 12, big.height + 12, '#fff3dc', 'big'), bx - 6, by - 6);
-      D(c, big, bx, by);
-      L.bigBtn = { x: bx - 6, y: by - 6, w: big.width + 12, h: big.height + 12 };
+      L.bigBtn = { x: bx - 6, y: by - 6, w: big.width + 12, h: big.height + 14 };
+      UI.drawBtn(c, L.bigBtn.x, L.bigBtn.y, L.bigBtn.w, L.bigBtn.h, phase === 'title' ? UI.FACE.green : UI.FACE.yellow, !!(press && press.big), big);
       L.stickBtn = { ...stickPos(), w: 26, h: 26 }; // Mis estampas
-      D(c, btnFrame(26, 26), L.stickBtn.x, L.stickBtn.y); D(c, S.ICONS.stickers(), L.stickBtn.x + 4, L.stickBtn.y + 3);
+      UI.drawBtn(c, L.stickBtn.x, L.stickBtn.y, 26, 26, UI.FACE.blue, !!(press && press.stick), S.ICONS.stickers());
       if (phase === 'title' || phase === 'night') { // grown-up corner: version, refresh, music on/off
         const vt = wsprite('v' + VERSION, '#8a7a90');
         const vx = W - V.inset.r - vt.width - 4, vy = H - V.inset.b - vt.height - 3;
         D(c, vt, vx, vy);
         L.updBtn = { x: vx - 24, y: vy - 8, w: 22, h: 22 };
         const glowOn = updateAvail && Math.floor(G.time * 3) % 2;
-        D(c, btnFrame(22, 22, glowOn ? '#fff3a0' : '#fff3dc', 'upd' + !!glowOn), L.updBtn.x, L.updBtn.y);
+        D(c, UI.button(22, 22, glowOn ? '#fff3a0' : '#efe6dc', !!(press && press.upd)), L.updBtn.x, L.updBtn.y);
         // grey, for grown-ups (not the green of Play or the letters' ↻); hold 1.5 s, a ring fills while held
-        D(c, cached('updicon2', () => { const p = new Pix(16, 16), g = '#9a8ea0'; for (let a = -2.6; a < 2.0; a += 0.06) { p.px(8 + Math.cos(a) * 5.5, 8 + Math.sin(a) * 5.5, g); p.px(8 + Math.cos(a) * 4.6, 8 + Math.sin(a) * 4.6, g); } p.map(10, 1, ['###', '.##', '..#'], { '#': g }); return p.canvas(); }), L.updBtn.x + 3, L.updBtn.y + 2);
+        D(c, cached('updicon2', () => { const p = new Pix(16, 16), g = '#9a8ea0'; for (let a = -2.6; a < 2.0; a += 0.06) { p.px(8 + Math.cos(a) * 5.5, 8 + Math.sin(a) * 5.5, g); p.px(8 + Math.cos(a) * 4.6, 8 + Math.sin(a) * 4.6, g); } p.map(10, 1, ['###', '.##', '..#'], { '#': g }); return p.canvas(); }), L.updBtn.x + 3, L.updBtn.y + 1 + (press && press.upd ? UI.DROP : 0));
         if (press && press.upd) {
           const k = Math.min(1, (performance.now() - press.updT0) / 1500), cx = L.updBtn.x + 11, cy = L.updBtn.y + 11;
           for (let a = 0; a < k * Math.PI * 2; a += 0.05) for (const rr of [12, 13]) R(c, cx + Math.sin(a) * rr - 0.5, cy - Math.cos(a) * rr - 0.5, 1, 1, k >= 1 ? '#7a5bc0' : '#8a7a90');
         }
         L.musBtn = { x: W - V.inset.r - 26, y: V.inset.t + 4, w: 22, h: 22 };
         const mOn = G.save.music !== false;
-        D(c, btnFrame(22, 22, '#fff3dc', 'mus'), L.musBtn.x, L.musBtn.y);
-        D(c, cached('musicon' + mOn, () => { const p = new Pix(16, 16); p.map(3, 2, ['....######', '....#....#', '....#....#', '....#....#', '..###..###', '.####.####', '..##...##.'], { '#': mOn ? '#7a5bc0' : '#b9a9c0' }); if (!mOn) { p.line(1, 14, 14, 1, '#ef4b4b'); p.line(2, 14, 15, 1, '#ef4b4b'); } p.outline(); return p.canvas(); }), L.musBtn.x + 3, L.musBtn.y + 3);
+        const md = !!(press && press.mus); D(c, UI.button(22, 22, '#efe6dc', md), L.musBtn.x, L.musBtn.y);
+        D(c, cached('musicon' + mOn, () => { const p = new Pix(16, 16); p.map(3, 2, ['....######', '....#....#', '....#....#', '....#....#', '..###..###', '.####.####', '..##...##.'], { '#': mOn ? '#7a5bc0' : '#b9a9c0' }); if (!mOn) { p.line(1, 14, 14, 1, '#ef4b4b'); p.line(2, 14, 15, 1, '#ef4b4b'); } p.outline(); return p.canvas(); }), L.musBtn.x + 3, L.musBtn.y + 1 + (md ? UI.DROP : 0));
         if (!updateChecked) { updateChecked = true; fetch('js/version.js', { cache: 'no-store' }).then(r => r.text()).then(t => { const m = t.match(/VERSION = '([^']+)'/); if (m && m[1] !== VERSION) updateAvail = m[1]; }).catch(() => {}); }
       }
       if (phase === 'title') {
@@ -2337,8 +2348,7 @@ export function createClassroom(students, hooks) {
     if (menu) {
       c.fillStyle = 'rgba(40,30,60,0.45)'; c.fillRect(0, 0, W, H);
       for (const m of menu.items) {
-        D(c, btnFrame(m.w, m.h, '#fff3dc', 'menu'), m.x, m.y);
-        D(c, scaled(m.icon(), 2), m.x + 6, m.y + 6);
+        UI.drawBtn(c, m.x, m.y, m.w, m.h, UI.FACE.yellow, held(m), scaled(m.icon(), 2));
       }
     }
     if (story) drawStory(c);
@@ -2433,9 +2443,9 @@ export function createClassroom(students, hooks) {
     const pages = Math.max(1, Math.ceil(all.length / pageSize));
     L.bookRect = { x: x - 3, y: y - 3, w: bw + 6, h: bh + 6 };
     L.bookBack = { x: Math.max(V.inset.l + 2, x - 12), y: Math.max(V.inset.t + 2, y - 12), w: 26, h: 26 };
-    D(c, btnFrame(26, 26), L.bookBack.x, L.bookBack.y); D(c, S.ICONS.back(), L.bookBack.x + 4, L.bookBack.y + 3);
+    UI.drawBtn(c, L.bookBack.x, L.bookBack.y, 26, 26, UI.FACE.blue, held(L.bookBack), S.ICONS.back());
     L.bookNext = pages > 1 ? { x: x + bw - 12, y: y + bh - 14, w: 26, h: 26 } : null;
-    if (L.bookNext) { D(c, btnFrame(26, 26), L.bookNext.x, L.bookNext.y); D(c, S.ICONS.play(), L.bookNext.x + 4, L.bookNext.y + 3); }
+    if (L.bookNext) UI.drawBtn(c, L.bookNext.x, L.bookNext.y, 26, 26, UI.FACE.green, held(L.bookNext), S.ICONS.play());
   }
 
   // ---------------------------------------------------------------- input
