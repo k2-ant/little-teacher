@@ -2,6 +2,15 @@
 
 The version number shows in the bottom-right corner of the start screen (for example `v1.7`).
 
+## v2.2 (2026-11-10)
+Small hands, based on research about how young children use touch screens:
+- **Tap, then tap:** in the shape sorter and the centros chart, tap a piece or a face, then tap where it goes. Dragging still works, and shapes now drop in from much further away (and find the matching hole).
+- **The decorating tray tucks away** while she places things, so the class and her decorations stay visible. Tap the ▲ or a tab to bring it back.
+- **The red card is set apart** from the star and green card, a little smaller, and needs a short press to pick up, so no friend gets one by accident.
+- **Right answers echo the word:** the friend says the answer, "¡Eso es!", then the answer again.
+- **Bigger touch areas on phones** for the Horario and the buttons.
+- **Friends help with hints:** sometimes a friend points and hops toward what to do next, instead of the hand.
+
 ## v2.1 (2026-11-10)
 From watching a pretend 4-year-old play:
 - **Centros you take part in:** each centro waits for the teacher (a raised paw and a glowing sign). Tap one and the teacher walks over for a question about that centro. Every answer leaves a reward there (a painting, an open book, letters, a block tower) and a gold star; all four done means a class cheer and a new round with the bell.
