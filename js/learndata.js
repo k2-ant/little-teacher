@@ -203,6 +203,14 @@ export const MYSTERY_LINES = { guest: '¡Hola, niños! Soy el lector misterioso.
 Object.assign(UI_WORDS, SCHED_NAMES, { snack: 'Almuerzo' });
 Object.assign(HINTS, SCHED_HINTS, { snackServe: 'Dale el almuerzo a tus amigos.' });
 const V20_OWL = () => [...Object.values(SCHED_SAY), MYSTERY_LINES.guest];
+// ---- v2.1 centros
+// each centro wants the teacher: the hand points at a sign, then at the bell for a new round (owl voice; merged into HINTS)
+// (the friends reuse Q_INTRO, the question prompts, Q_RIGHT and CENTERS[].line, which already have clips)
+export const V21_CENTROS_HINTS = { centrosVisit: 'Toca un centro para ayudar.', centrosBell: 'Toca la campana para cambiar de centro.' };
+Object.assign(HINTS, V21_CENTROS_HINTS);
+const V21_OWL = () => Object.values(V21_CENTROS_HINTS);
+// ---- end v2.1 centros
+
 /** lines the Lector Misterioso grandma reads in her own voice (audio/guest/) */
 export const guestPhrases = () => [MYSTERY_LINES.guest, ...BOOK_TEXT.flatMap(b => [b.title, ...b.lines])];
 
@@ -244,5 +252,6 @@ export function narratorPhrases() {
   Object.values(ALIVE_OWL).forEach(x => out.add(x));
   [WEATHER_ASK, ...WEATHER.map(w => w.line), ...Object.values(RITUAL_UI), ...Object.values(RITUAL_HINTS)].forEach(l => out.add(l));
   Object.values(YARD_HINTS).forEach(l => out.add(l));
+  V21_OWL().forEach(l => out.add(l));
   return [...out];
 }

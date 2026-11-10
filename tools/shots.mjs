@@ -281,10 +281,45 @@ await next();
 await p.waitForFunction(() => window.__ltCentros()?.stage === 'chart', null, { timeout: 30000 });
 await expectBlock('centros');
 await shot('11a-centros-chart');
-await tapAt(...(await ev(() => window.__ltCentros().start))); await p.waitForTimeout(3500);
+await tapAt(...(await ev(() => window.__ltCentros().start)));
+await p.waitForFunction(() => window.__ltCentros()?.arrived, null, { timeout: 30000 }); await p.waitForTimeout(600);
 await shot('11b-centros-run');
-await tapAt(...(await ev(() => window.__ltBtn('toys')))); await p.waitForTimeout(3500);
-await shot('11c-centros-rotate');
+// v2.1: each centro wants the teacher: tap its sign (or a friend there), she hops over, a friend asks a question
+const centrosRound = async (round) => {
+  for (let n = 0; n < 4; n++) {
+    const cs = await ev(() => window.__ltCentros());
+    const ci = cs.wants.findIndex(Boolean);
+    if (ci < 0) break;
+    // the first visit of a round taps a friend standing there, the rest tap the sign
+    await tapAt(...(n === 0 && cs.kids[ci] ? cs.kids[ci] : cs.signs[ci]));
+    await p.waitForTimeout(150);
+    if (round === 1 && n === 0) await shot('11c-centros-walk');
+    await p.waitForFunction(() => window.__ltCentros()?.quizReady, null, { timeout: 20000 });
+    await p.waitForTimeout(300);
+    if (round === 1 && n < 2) await shot(`11d-centros-question-${ci}`);
+    const kind = await ev(() => { const Q = window.__ltQuizQ(); return Q.steps[0].prompt; });
+    console.log('   centro', ci, 'asks', kind);
+    await pickOpt(false); await p.waitForTimeout(1300); // a miss: "Mmm... creo que no." and the right one glows
+    await pickOpt(true);
+    await p.waitForFunction((ci) => window.__ltCentros()?.visited[ci], ci, { timeout: 20000 });
+    await p.waitForTimeout(700);
+    if (round === 1 && n === 0) await shot(`11e-centros-reward-${ci}`);
+  }
+  const cs = await ev(() => window.__ltCentros());
+  if (!cs.visited.every(Boolean)) throw new Error('not every centro visited: ' + JSON.stringify(cs.visited));
+  await p.waitForFunction(() => window.__ltCentros()?.bellGlow, null, { timeout: 20000 });
+};
+await centrosRound(1);
+await p.waitForTimeout(300);
+await shot('11f-centros-all-cheer');
+await p.waitForTimeout(2500);
+await shot('11g-centros-all-done');
+await tapAt(...(await ev(() => window.__ltBtn('toys'))));
+await p.waitForFunction(() => window.__ltCentros()?.arrived && !window.__ltCentros().allDone, null, { timeout: 30000 }); await p.waitForTimeout(600);
+await shot('11h-centros-rotate');
+await centrosRound(2);
+await p.waitForTimeout(2500);
+await shot('11i-centros-round2');
 await tapAt(...(await ev(() => window.__ltBtn('cdone'))));
 await p.waitForFunction(() => window.__lt.room.phase === 'class', null, { timeout: 30000 });
 

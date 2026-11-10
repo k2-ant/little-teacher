@@ -61,9 +61,9 @@ function headOf(im, kind, mood) {
 const shuffle = (a) => a.map(v => [Math.random(), v]).sort((x, y) => x[0] - y[0]).map(v => v[1]);
 const sample = (arr, n, not) => shuffle(arr.filter(x => x !== not)).slice(0, n);
 
-/** build a random question for a student */
-export function makeQuestion(asker, students) {
-  const kind = pick(['color', 'color', 'shape', 'count', 'animal', 'letter', 'size']);
+/** build a random question for a student; `forced` picks the kind ('color' | 'shape' | 'count' | 'animal' | 'letter' | 'size', or a list to pick from) */
+export function makeQuestion(asker, students, forced) {
+  const kind = forced ? (Array.isArray(forced) ? pick(forced) : forced) : pick(['color', 'color', 'shape', 'count', 'animal', 'letter', 'size']);
   if (kind === 'color') {
     const q = pick(LD.COLOR_QS);
     const opts = shuffle([q.a, ...sample(Object.keys(LD.COLORS), 2, q.a)]);
