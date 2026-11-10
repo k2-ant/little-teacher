@@ -5,7 +5,8 @@ import * as S from './sprites.js';
 import { sfx } from './audio.js';
 import { speak } from './students.js';
 import { picture } from './pictures.js';
-import { wordSprite, FONT, DESC } from './i18n.js';
+import { textSprite, paperLines, INK } from './schoolfont.js';
+import { hiDraw } from './hires.js';
 import { FAMILIES, VOWELS, WORDS } from './learndata.js';
 
 const COLS = ['#ef5b5b', '#ff9a2e', '#e0a800', '#3cb44b', '#2f7de1', '#9b59d0', '#ff5fa8'];
@@ -28,14 +29,27 @@ function slot(w, h) {
 }
 
 export function createSilabas({ owl, row, tAct }) {
-  let mode = 'fam', fam = 'm', wi = 0, A = null;
+  let mode = 'fam', fam = 'm', wi = 0, A = null, small = false;
   let built = [], cards = [], doneAt = 0, singing = -1, shake = { i: -1, t: 0 };
   const R = (c, x, y, w, h, col) => { c.fillStyle = col; c.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); };
   const D = (c, im, x, y) => c.drawImage(im, Math.round(x), Math.round(y));
   const inR = (x, y, r) => r && x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
   const say = (t) => speak(owl, t, 'here');
-  // top of a word sprite inside a card: same baseline whether or not it has a tail (p q g y j)
-  const ty = (y, h, scale) => y + Math.floor((h - (9 + DESC) * scale) / 2);
+  // syllables in the round school letters. On a coloured block: white with a thin outline of a darker block
+  // colour, on a baseline that is the same for every block (whether or not the syllable has a tail).
+  const capOf = (h) => Math.round((h - 6) / 1.5); // cap height that fits a block: ascenders up top, tails below
+  const sylSprite = (syl, h, col) => textSprite(syl, { h: capOf(h), col: '#ffffff', outline: darken(col, 0.38) });
+  function sylOn(c, syl, r, col, dy = 0) {
+    const ch = capOf(r.h), t = sylSprite(syl, r.h, col), base = Math.round(r.y + 1 + (r.h - 3 - ch * 1.45) / 2 + ch);
+    D(c, t, r.x + r.w / 2 - t.width / 2, base - t.lt.base + dy);
+  }
+  /** a word on school-paper lines (faint baseline, dashed pink midline), centred on cx with its baseline at base */
+  function onLines(c, word, cx, base, ch, col = INK) {
+    const t = textSprite(word, { h: ch, col }), x0 = Math.round(cx - t.width / 2);
+    hiDraw(c, x0 - 8, base - ch, t.width + 16, ch, (o, k) => paperLines(o, x0 - 6, x0 + t.width + 6, base, ch / 2, k));
+    D(c, t, x0, base - t.lt.base);
+  }
+  const wOf = (syl, sh, pad = 8) => Math.max(sh + 2, sylSprite(syl, sh, '#000000').width + pad);
 
   function setWord(i) {
     wi = (i + WORDS.length) % WORDS.length;
@@ -56,54 +70,53 @@ export function createSilabas({ owl, row, tAct }) {
       mode = 'fam'; fam = it.ch; sfx.pop(1.2); singing = -1;
       say(fam + 'a');
     },
-    layout(area) {
-      A = area;
+    layout(area, isSmall = small) {
+      A = area; small = isSmall; // phones: everything is smaller on screen, so the blocks and letters grow
     },
     render(c) {
       const a = A;
       if (mode === 'fam') {
         // consonant + vowels = syllables
-        const bw = Math.min(30, Math.floor((a.w * 0.9 - 4 * 6) / 5)), bh = Math.round(bw * 0.9);
-        const tot = 5 * bw + 4 * 6, x0 = a.x + (a.w - tot) / 2, y0 = a.y + a.h / 2 - bh / 2 + 6;
-        const big = wordSprite(fam, '#5a4560', 3);
-        D(c, big, a.x + a.w / 2 - big.width / 2, a.y + 8);
+        const bw = Math.min(small ? 48 : 30, Math.floor((a.w * 0.9 - 4 * 6) / 5)), bh = Math.round(bw * (small ? 0.84 : 0.9));
+        const tot = 5 * bw + 4 * 6, x0 = a.x + (a.w - tot) / 2, y0 = a.y + Math.round(a.h / 2 - bh / 2) + (small ? 8 : 6);
+        const vh = small ? 22 : 16, bigH = Math.max(18, Math.min(small ? 30 : 24, y0 - vh - 10 - a.y - 6));
+        onLines(c, fam, a.x + a.w / 2, a.y + 6 + Math.round(bigH * 0.92), bigH);
         api.blocks = VOWELS.map((v, i) => ({ x: x0 + i * (bw + 6), y: y0, w: bw, h: bh, syl: fam + v, v, col: COLS[i] }));
-        api.vowelBtns = VOWELS.map((v, i) => ({ x: x0 + i * (bw + 6) + bw / 2 - 8, y: y0 - 22, w: 16, h: 16, v }));
-        for (const vb of api.vowelBtns) { const im = wordSprite(vb.v, COLS[VOWELS.indexOf(vb.v)], 2); D(c, im, vb.x + 8 - im.width / 2, vb.y + 2); }
+        api.vowelBtns = VOWELS.map((v, i) => ({ x: x0 + i * (bw + 6) + bw / 2 - vh / 2, y: y0 - vh - 6, w: vh, h: vh, v }));
+        for (const vb of api.vowelBtns) { const im = textSprite(vb.v, { h: Math.round(vh * 1.1), col: COLS[VOWELS.indexOf(vb.v)] }); D(c, im, vb.x + vb.w / 2 - im.width / 2, vb.y + Math.round(vb.h * 0.82) - im.lt.base); }
         api.blocks.forEach((b, i) => {
           const lift = singing === i || (b.pop > G.time) ? 3 : 0;
           D(c, block(b.w, b.h, b.col), b.x, b.y - lift);
-          const sc = b.w >= 28 ? 2 : 1, t = wordSprite(b.syl, '#ffffff', sc);
-          D(c, t, b.x + b.w / 2 - t.width / 2, ty(b.y, b.h, sc) - lift);
+          sylOn(c, b.syl, b, b.col, -lift);
         });
-        api.sing = { x: a.x + a.w / 2 - 13, y: y0 + bh + 10, w: 26, h: 24 };
+        api.sing = { x: a.x + a.w / 2 - 13, y: Math.min(y0 + bh + 10, a.y + a.h - 26), w: 26, h: 24 };
         D(c, block(26, 24, '#fff3dc'), api.sing.x, api.sing.y); D(c, S.ICONS.play(), api.sing.x + 4, api.sing.y + 3);
       } else {
         const w = WORDS[wi];
         const pic = picture(w.pic);
         const done = built.length === w.s.length;
-        if (pic) { const k = Math.max(1, Math.min(2, Math.floor(Math.min((a.w * 0.4) / pic.width, (a.h * 0.42) / pic.height)))); const bob = done ? Math.round(Math.sin(G.time * 6) * 2) : 0; c.drawImage(pic, Math.round(a.x + a.w / 2 - pic.width * k / 2), Math.round(a.y + 6 + bob), pic.width * k, pic.height * k); }
-        const sh = 28, gap = 4, wOf = (syl) => Math.max(30, wordSprite(syl, '#fff', 2).width + 8);
-        const sws = w.s.map(wOf), tot = sws.reduce((n, x) => n + x, 0) + (w.s.length - 1) * gap;
-        let sx = a.x + (a.w - tot) / 2; const sy = a.y + a.h * 0.5;
+        const sh = small ? 34 : 28, gap = 4;
+        if (pic) { const k = Math.max(1, Math.min(2, Math.floor(Math.min((a.w * 0.4) / pic.width, (a.h * (small ? 0.4 : 0.42)) / pic.height)))); const bob = done ? Math.round(Math.sin(G.time * 6) * 2) : 0; c.drawImage(pic, Math.round(a.x + a.w / 2 - pic.width * k / 2), Math.round(a.y + 6 + bob), pic.width * k, pic.height * k); }
+        const sws = w.s.map(syl => wOf(syl, sh)), tot = sws.reduce((n, x) => n + x, 0) + (w.s.length - 1) * gap;
+        let sx = a.x + (a.w - tot) / 2; const sy = Math.round(a.y + a.h * (small ? 0.45 : 0.5));
         w.s.forEach((syl, i) => {
           const sw = sws[i], r = { x: sx, y: sy, w: sw, h: sh }; sx += sw + gap;
-          if (built[i]) { D(c, block(sw, sh, built[i].col), r.x, r.y - (done ? Math.round(Math.abs(Math.sin(G.time * 5 + i)) * 2) : 0)); const t = wordSprite(syl, '#ffffff', 2); D(c, t, r.x + sw / 2 - t.width / 2, ty(r.y, sh, 2) - (done ? Math.round(Math.abs(Math.sin(G.time * 5 + i)) * 2) : 0)); }
+          if (built[i]) { const dy = done ? -Math.round(Math.abs(Math.sin(G.time * 5 + i)) * 2) : 0; D(c, block(sw, sh, built[i].col), r.x, r.y + dy); sylOn(c, syl, r, built[i].col, dy); }
           else D(c, slot(sw, sh), r.x, r.y);
         });
-        if (done) { const t = wordSprite(w.w, '#5a4560', 2); D(c, t, a.x + a.w / 2 - t.width / 2, sy + sh + 10); api.cardRects = []; }
+        if (done) { const wh = small ? 24 : 18; onLines(c, w.w, a.x + a.w / 2, sy + sh + 8 + wh, wh); api.cardRects = []; }
         else {
           // the answer cards must fit inside the paper (mariposa has 5 cards): squeeze if needed
-          let cg = 6, cws = cards.map(cd => wOf(cd.s));
+          let cg = 6, cws = cards.map(cd => wOf(cd.s, sh));
           const fit = () => cws.reduce((n, x) => n + x, 0) + (cards.length - 1) * cg;
-          if (fit() > a.w - 6) { cg = 3; cws = cards.map(cd => Math.max(26, wordSprite(cd.s, '#fff', 2).width + 4)); }
+          if (fit() > a.w - 6) { cg = 3; cws = cards.map(cd => wOf(cd.s, sh, 4)); }
           const cy = a.y + a.h - sh - 6, ctot = fit();
           let cx = a.x + (a.w - ctot) / 2;
           api.cardRects = cards.map((cd, i) => { const r = { x: cx, y: cy, w: cws[i], h: sh, cd }; cx += cws[i] + cg; return r; });
           for (const r of api.cardRects) {
             if (r.cd.used) { D(c, slot(r.w, sh), r.x, r.y); continue; }
             const dx = shake.i === cards.indexOf(r.cd) && G.time - shake.t < 0.4 ? (Math.floor(G.time * 30) % 2 ? 2 : -2) : 0;
-            D(c, block(r.w, sh, r.cd.col), r.x + dx, r.y); const t = wordSprite(r.cd.s, '#ffffff', 2); D(c, t, r.x + dx + r.w / 2 - t.width / 2, ty(r.y, sh, 2));
+            D(c, block(r.w, sh, r.cd.col), r.x + dx, r.y); sylOn(c, r.cd.s, { ...r, x: r.x + dx }, r.cd.col);
           }
         }
         api.next = done ? { x: a.x + a.w - 30, y: a.y + 4, w: 26, h: 24 } : null;

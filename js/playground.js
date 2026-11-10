@@ -9,12 +9,14 @@ import { act, speak, animalSound, pose, tapEscalate } from './students.js';
 import * as LD from './learndata.js';
 import { drawHand, sayUI } from './hints.js';
 import { weatherPic, scarf } from './rituals.js';
-import { FONT, numberWord } from './i18n.js';
+import { numberWord } from './i18n.js';
+import { textSprite } from './schoolfont.js';
 
 Object.assign(LD.HINTS, LD.YARD_HINTS);
 
 const R = (c, x, y, w, h, col) => { c.fillStyle = col; c.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); };
 const D = (c, img, x, y) => c.drawImage(img, Math.round(x), Math.round(y));
+const CHALK = ['#ffffff', '#ffe066', '#ffaed2', '#a9dcff', '#b4f0a4', '#ffc08a', '#e2c8ff', '#ffffff'];
 const inR = (x, y, r) => r && x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 const WEATHERS = ['sol', 'nubes', 'lluvia', 'nieve'];
 const SKY = { sol: ['#8fd0ff', '#d6f0ff'], nubes: ['#aebfcf', '#d8e2ec'], lluvia: ['#7f90a6', '#a9b8c8'], nieve: ['#c3d1df', '#e6eef6'] };
@@ -327,12 +329,9 @@ export function createPlayground(students, hooks) {
     R(c, top.x0, top.y0, top.x1 - top.x0, top.y1 - top.y0, pc);
     R(c, top.x0, top.y0, top.x1 - top.x0, 1, pe); R(c, top.x0, top.y0, 1, top.y1 - top.y0, pe); R(c, top.x1 - 1, top.y0, 1, top.y1 - top.y0, pe); R(c, top.x0, top.y1 - 1, top.x1 - top.x0, 1, pe);
     for (let i = 0; i < 40; i++) R(c, top.x0 + 2 + rnd(i + 900) * (top.x1 - top.x0 - 4), top.y0 + 2 + rnd(i + 950) * (top.y1 - top.y0 - 4), 1, 1, pl);
-    const chalk = ['#ffffff', '#ffe066', '#ffaed2', '#a9dcff', '#b4f0a4', '#ffc08a', '#e2c8ff', '#ffffff'];
     for (let i = 0; i < 8; i++) {
-      const r = hopCell(i), col = chalk[i];
+      const r = hopCell(i), col = CHALK[i];
       R(c, r.x, r.y, r.w, 1, col); R(c, r.x, r.y + r.h - 1, r.w, 1, col); R(c, r.x, r.y, 1, r.h, col); R(c, r.x + r.w - 1, r.y, 1, r.h, col);
-      const rows = FONT[String(i + 1)];
-      rows.forEach((row, j) => { for (let q = 0; q < row.length; q++) if (row[q] === '#') R(c, r.x + 5 + q, r.y + 2 + j, 1, 1, col); });
     }
   }
   function drawDoor(c) {
@@ -937,6 +936,13 @@ export function createPlayground(students, hooks) {
     }
     if (s.bubble) D(c, S.bubbleImg(s.bubble.kind), x + 20, y - 6);
   }
+  // the hopscotch's chalk numbers, in the school font (smooth, so drawn each frame rather than baked into the ground)
+  function drawHopNumbers(c) {
+    for (let i = 0; i < 8; i++) {
+      const r = hopCell(i), ch = Math.max(5, Math.min(8, r.h - 4)), num = textSprite(String(i + 1), { h: ch, col: CHALK[i], weight: 0.24 });
+      D(c, num, Math.round(r.x + (r.w - num.width) / 2), Math.round(r.y + (r.h + ch) / 2) - num.lt.base);
+    }
+  }
   function render() {
     const c = V.ctx, { W, H } = V, t = G.time;
     if (bgKey !== W + 'x' + H + wt) buildBg();
@@ -949,6 +955,7 @@ export function createPlayground(students, hooks) {
       D(c, cloudImg(k % 2, wt === 'lluvia'), x, y);
     }
     D(c, bg1, 0, 0);
+    drawHopNumbers(c);
     drawDoor(c);
     // hopscotch glow when a number is said
     for (let i = 0; i < 8; i++) {

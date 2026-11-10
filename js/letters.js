@@ -10,8 +10,9 @@ import { picture } from './pictures.js';
 import { strokesFor } from './strokes.js';
 import { createSilabas } from './silabas.js';
 import { sayHint, sayUI, drawHand } from './hints.js';
-import { wordSprite } from './i18n.js';
-import { LETTERS, NUMS, FONT, DESC, hasDescender, letterName, numberWord, letterWord, letterSentence } from './i18n.js';
+import { LETTERS, NUMS, letterName, numberWord, letterWord, letterSentence } from './i18n.js';
+import { textSprite, blitText, paperLines, INK } from './schoolfont.js';
+import { hiDraw } from './hires.js';
 
 const inkCol = (s, i) => RAINBOW[(s * 2 + Math.floor(i / 9)) % RAINBOW.length];
 const RAINBOW = ['#ef5b5b', '#ff9a2e', '#f5c000', '#3cb44b', '#2f7de1', '#9b59d0', '#ff5fa8'];
@@ -27,28 +28,27 @@ function btnFrame(w, h, col = '#fff3dc', on = false) {
     return p.canvas();
   });
 }
-function mini(ch, col) {
-  return cached('mini' + ch + col, () => {
-    const rows = FONT[ch], d = hasDescender(ch) ? DESC : 0; // tails hang below the other letters
-    const p = new Pix(rows[0].length, rows.length + d);
-    p.map(0, d, rows, { '#': col });
-    return p.canvas();
-  });
+/**
+ * A letter tile's label in the school font, on school-paper lines (faint baseline, dashed pink midline), so
+ * b d rise above the midline and p q g hang below the baseline. Drawn at device resolution.
+ * caps: true when everything on the tile is a capital or a number (they sit centred; no room kept for tails).
+ */
+export function tileLabel(c, r, text, col = INK, { caps = false, lines = true, capH } = {}) {
+  const ch = capH || Math.max(5, Math.round(caps ? r.h * 0.56 : (r.h - 3) / 1.5));
+  const base = r.y + Math.round(caps ? (r.h + ch) / 2 : (r.h - ch * 1.45) / 2 + ch);
+  if (lines) hiDraw(c, r.x, r.y, r.w, r.h, (o, k) => paperLines(o, r.x + 1, r.x + r.w - 1, base, ch / 2, k));
+  const sp = textSprite(text, { h: ch, col });
+  c.drawImage(sp, Math.round(r.x + (r.w - sp.width) / 2), base - sp.lt.base);
 }
-// pixel-perfect filled circle
-function dot(c, x, y, r, col) {
-  c.fillStyle = col;
-  const X = Math.round(x), Y = Math.round(y);
-  for (let dy = -r; dy <= r; dy++) { const w = Math.floor(Math.sqrt(r * r - dy * dy) + 0.5); c.fillRect(X - w, Y + dy, 2 * w + 1, 1); }
-}
-function arrow(c, x, y, dx, dy, col) { // little chevron pointing along (dx,dy)
+// smooth filled circle / chevron (into a device-resolution context)
+function disc(o, x, y, r, col) { o.fillStyle = col; o.beginPath(); o.arc(x, y, Math.max(0.3, r), 0, Math.PI * 2); o.fill(); }
+function arrow(o, x, y, dx, dy, col, sz = 3) { // chevron pointing along (dx,dy)
   const n = Math.hypot(dx, dy) || 1; dx /= n; dy /= n;
   const px = -dy, py = dx;
-  c.fillStyle = col;
-  for (let t = 0; t <= 3; t++) {
-    c.fillRect(Math.round(x + dx * t - px * (3 - t)), Math.round(y + dy * t - py * (3 - t)), 1, 1);
-    c.fillRect(Math.round(x + dx * t + px * (3 - t)), Math.round(y + dy * t + py * (3 - t)), 1, 1);
-  }
+  o.strokeStyle = col; o.lineWidth = Math.max(2, sz * 0.62); o.lineCap = 'round'; o.lineJoin = 'round';
+  o.beginPath();
+  o.moveTo(x + px * sz, y + py * sz); o.lineTo(x + dx * sz, y + dy * sz); o.lineTo(x - px * sz, y - py * sz);
+  o.stroke();
 }
 
 export function createLetters(students, hooks) {
@@ -92,7 +92,7 @@ export function createLetters(students, hooks) {
     L.area = { x: inset.l + 34, y: 3, w: L.pick.x - 5 - (inset.l + 34), h: L.ledge - 34 - 3 };
     row.layout(W, L.ledge, inset.l + 38, W - inset.r - 4);
     layoutGlyph();
-    sil.layout(L.area);
+    sil.layout(L.area, L.small);
   }
   function items() { return set === 'abc' ? LETTERS : NUMS; }
   function gridRects() {
@@ -131,18 +131,36 @@ export function createLetters(students, hooks) {
     L.pic = { x: a.x + a.w * 0.64, y: a.y + 8, w: a.w * 0.36 - 6, h: a.h - 40 };
     L.next = { x: a.x + a.w - 30, y: a.y + a.h - 28, w: 26, h: 24 };
     L.again = { x: a.x + a.w - 60, y: a.y + a.h - 28, w: 26, h: 24 };
-    // guide layer
-    guide = document.createElement('canvas'); guide.width = V.W; guide.height = V.H;
-    const g = guide.getContext('2d');
-    for (const st of strokes) for (const [x, y] of st) dot(g, x, y, r + 1, '#d9cbb5');
-    for (const st of strokes) for (const [x, y] of st) dot(g, x, y, r, '#f1e8da');
-    for (const st of strokes) st.forEach(([x, y], i) => { if (i % 4 === 0) R(g, x, y, 1, 1, '#bfae96'); });
-    ink = document.createElement('canvas'); ink.width = V.W; ink.height = V.H;
+    // guide + ink layers, painted smooth at device resolution (V.s device px per logical px) over the glyph's box
+    const pts = strokes.flat(), m = r + 3;
+    const gb = L.gb = { x: Math.floor(Math.min(gx, ...pts.map(p => p[0])) - m), y: Math.floor(Math.min(gy, ...pts.map(p => p[1])) - m) };
+    gb.w = Math.ceil(Math.max(gx + gw, ...pts.map(p => p[0])) + m) - gb.x; gb.h = Math.ceil(Math.max(gy + gh, ...pts.map(p => p[1])) + m) - gb.y;
+    const layer = () => {
+      const cv = document.createElement('canvas'); cv.width = gb.w * V.s; cv.height = gb.h * V.s;
+      const x = cv.getContext('2d'); x.setTransform(V.s, 0, 0, V.s, -gb.x * V.s, -gb.y * V.s); x.lineCap = 'round'; x.lineJoin = 'round';
+      return [cv, x];
+    };
+    let g;
+    [guide, g] = layer();
+    const path = (st) => { g.beginPath(); st.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.stroke(); };
+    g.strokeStyle = '#d9cbb5'; g.lineWidth = 2 * r + 2; strokes.forEach(path);
+    g.strokeStyle = '#f1e8da'; g.lineWidth = 2 * r; strokes.forEach(path);
+    for (const st of strokes) st.forEach(([x, y], i) => { if (i % 4 === 0) disc(g, x, y, Math.max(0.5, r * 0.11), '#bfae96'); }); // the dotted middle to follow
+    [ink] = layer();
     // re-ink progress (after a resize)
-    const ic = ink.getContext('2d');
     for (let s = 0; s < strokes.length; s++) {
       const upto = s < si ? strokes[s].length - 1 : s === si ? prog : -1;
-      for (let i = 0; i <= upto; i++) dot(ic, strokes[s][i][0], strokes[s][i][1], r - 1, inkCol(s, i));
+      if (upto >= 0) inkSeg(s, 0, upto);
+    }
+  }
+  /** the rainbow crayon from point i0 to i1 of stroke s */
+  function inkSeg(s, i0, i1) {
+    const ic = ink.getContext('2d'), st = strokes[s], w = 2 * (L.g.r - 1);
+    ic.lineCap = 'round'; ic.lineJoin = 'round'; ic.lineWidth = w;
+    if (i0 === 0) disc(ic, st[0][0], st[0][1], w / 2, inkCol(s, 0));
+    for (let i = i0 + 1; i <= i1; i++) {
+      ic.strokeStyle = inkCol(s, i);
+      ic.beginPath(); ic.moveTo(st[i - 1][0], st[i - 1][1]); ic.lineTo(st[i][0], st[i][1]); ic.stroke();
     }
   }
   function select(ch, silent) {
@@ -156,8 +174,8 @@ export function createLetters(students, hooks) {
     }
   }
   function inkTo(newProg) {
-    const st = strokes[si], ic = ink.getContext('2d'), col = inkCol(si, newProg);
-    for (let i = prog; i <= newProg; i++) dot(ic, st[i][0], st[i][1], L.g.r - 1, inkCol(si, i));
+    const st = strokes[si], col = inkCol(si, newProg);
+    inkSeg(si, prog, newProg);
     prog = newProg;
     tip = st[prog];
     const step = Math.floor(prog / (st.length - 1) * 4);
@@ -174,7 +192,7 @@ export function createLetters(students, hooks) {
     tracing = false; strokeEnd();
     if (si >= strokes.length) complete();
   }
-  function inkTo0(i) { const st = strokes[si], ic = ink.getContext('2d'); for (let j = prog; j <= i; j++) dot(ic, st[j][0], st[j][1], L.g.r - 1, inkCol(si, j)); }
+  function inkTo0(i) { if (i > prog) inkSeg(si, prog, i); }
   function advance(fx, fy) {
     if (done || si >= strokes.length) return;
     const st = strokes[si], LOOK = 9;
@@ -208,40 +226,48 @@ export function createLetters(students, hooks) {
     R(c, a.x - 3, a.y - 1, a.w + 6, a.h + 5, '#a8703f'); R(c, a.x - 3, a.y - 1, a.w + 6, 1, '#c98c55');
     R(c, a.x, a.y + 2, a.w, a.h - 2, '#fffaf0');
     if (set === 'ma') { sil.layout(a); sil.render(c); renderChrome(c); return; }
-    // handwriting lines: top, middle (dashed red), bottom
-    const lx0 = a.x + 4, lx1 = a.x + a.w * 0.63;
-    for (const [yy, col, dash] of [[g.y - 1, '#9fc3ec', 0], [g.y + g.h / 2, '#f3a9b8', 1], [g.y + g.h + 1, '#9fc3ec', 0]]) {
-      for (let x = lx0; x < lx1; x += dash ? 5 : 1) R(c, x, yy, dash ? 3 : 1, 1, col);
-    }
-    c.drawImage(guide, 0, 0);
-    c.drawImage(ink, 0, 0);
+    // handwriting lines (top, dashed midline, baseline), the guide letter, her rainbow crayon and the
+    // stroke helpers: all smooth, at device resolution
+    const lx0 = a.x + 4, lx1 = a.x + a.w * 0.63, gb = L.gb;
+    const st = !done && si < strokes.length ? strokes[si] : null;
+    const pulse = Math.floor(G.time * 3) % 2 || flashT > G.time, idle = G.time - idleSince;
+    const ring = st ? nudge(st) : null;
     if (done) { // shimmer along the letter
       for (let k = 0; k < 3; k++) { const st = pick(strokes); const p = pick(st); if (Math.random() < 0.5) row.burst('spark', p[0], p[1], 1, ['#ffd23f', '#ffb020'], { sp: 10, life: 0.5 }); }
-    } else if (si < strokes.length) {
-      const st = strokes[si];
-      // direction arrows on what's left of this stroke
-      for (let i = prog + 6; i < st.length - 3; i += 10) arrow(c, st[i][0], st[i][1], st[i + 2][0] - st[i - 2][0], st[i + 2][1] - st[i - 2][1], '#3cb44b');
+    }
+    const top = Math.min(gb.y, g.y - 2), bot = Math.max(gb.y + gb.h, g.y + g.h + 2);
+    hiDraw(c, Math.min(lx0, gb.x) - 12, top - 12, Math.max(lx1, gb.x + gb.w) - Math.min(lx0, gb.x) + 24, bot - top + 24, (o, k) => {
+      const lw = Math.max(1, Math.round(k * 0.6)) / k;
+      o.lineWidth = lw; o.strokeStyle = '#9fc4ea';
+      o.beginPath(); o.moveTo(lx0, g.y); o.lineTo(lx1, g.y); o.moveTo(lx0, g.y + g.h); o.lineTo(lx1, g.y + g.h); o.stroke();
+      o.strokeStyle = '#f3a8b4'; o.setLineDash([3, 2]);
+      o.beginPath(); o.moveTo(lx0, g.y + g.h / 2); o.lineTo(lx1, g.y + g.h / 2); o.stroke(); o.setLineDash([]);
+      o.drawImage(guide, gb.x, gb.y, gb.w, gb.h);
+      o.drawImage(ink, gb.x, gb.y, gb.w, gb.h);
+      if (!st) return;
+      // direction chevrons on what's left of this stroke
+      const az = Math.max(3, g.r * 0.5);
+      for (let i = prog + 6; i < st.length - 3; i += 10) arrow(o, st[i][0], st[i][1], st[i + 2][0] - st[i - 2][0], st[i + 2][1] - st[i - 2][1], '#2f9e44', az);
       // start dot with the stroke number
       if (prog === 0) {
-        const pulse = Math.floor(G.time * 3) % 2 || flashT > G.time;
-        dot(c, st[0][0], st[0][1], g.r + (pulse ? 2 : 1), '#2f9e44');
-        dot(c, st[0][0], st[0][1], g.r - (pulse ? 0 : 1), '#7dd370');
-        const num = mini(String(si + 1), '#ffffff');
-        D(c, num, st[0][0] - 2, st[0][1] - 3);
-      } else if (tip && !tracing) { dot(c, tip[0], tip[1], g.r, '#ffffff'); dot(c, tip[0], tip[1], g.r - 2, inkCol(si, prog)); }
-      nudge(c, st);
+        disc(o, st[0][0], st[0][1], g.r + (pulse ? 2 : 1), '#2f9e44');
+        disc(o, st[0][0], st[0][1], g.r - (pulse ? 0 : 1), '#7dd370');
+        const nh = Math.max(5, Math.round(g.r * 1.2)), num = textSprite(String(si + 1), { h: nh, col: '#ffffff', outline: '#2f9e44' });
+        blitText(o, num, Math.round(st[0][0] - num.width / 2), Math.round(st[0][1] + nh / 2 - num.lt.base), k);
+      } else if (tip && !tracing) { disc(o, tip[0], tip[1], g.r, '#ffffff'); disc(o, tip[0], tip[1], g.r - 2, inkCol(si, prog)); }
+      if (ring) ring(o);
       // demo: a star shows how to draw this stroke
-      const idle = G.time - idleSince;
       if (!tracing && idle > 1.2) {
         const t = ((idle - 1.2) % 2.6) / 1.8;
         if (t <= 1) {
           const i = Math.min(st.length - 1, prog + Math.floor((st.length - 1 - prog) * t));
-          for (let q = Math.max(prog, i - 12); q < i; q += 3) R(c, st[q][0], st[q][1], 1, 1, '#ffd23f');
+          for (let q = Math.max(prog, i - 12); q < i; q += 3) disc(o, st[q][0], st[q][1], 0.9, '#ffd23f');
           const im = S.particle('star', '#ffd23f');
-          D(c, im, st[i][0] - 3, st[i][1] - 3 + (Math.floor(G.time * 10) % 2));
+          o.imageSmoothingEnabled = false;
+          o.drawImage(im, Math.round(st[i][0] - 3), Math.round(st[i][1] - 3 + (Math.floor(G.time * 10) % 2)));
         }
       }
-    }
+    });
     // picture + counting stars
     const P = L.pic;
     if (!isNum()) {
@@ -281,15 +307,22 @@ export function createLetters(students, hooks) {
       const on = set === t.id;
       D(c, btnFrame(t.w, t.h, on ? '#ffe08a' : '#fffaf0', on), t.x, t.y);
       const chs = t.id === 'abc' ? ['A', 'B'] : t.id === '123' ? ['1', '2'] : ['m', 'a'];
-      D(c, mini(chs[0], '#ef6f6c'), t.x + 3, t.y + 5); D(c, mini(chs[1], '#64a8e8'), t.x + 10, t.y + 5);
+      const low = t.id === 'ma';
+      let th = Math.round(t.h * (low ? 0.8 : 0.5)), a0, a1;
+      for (; ; th--) { // as big as fits the tab
+        a0 = textSprite(chs[0], { h: th, col: '#ef6f6c' }); a1 = textSprite(chs[1], { h: th, col: '#4f95dc' });
+        if (a0.width + a1.width - 1 <= t.w - 4 || th <= 5) break;
+      }
+      const base = t.y + Math.round((t.h - 2 + (low ? th / 2 : th)) / 2), x0 = Math.round(t.x + (t.w - a0.width - a1.width + 1) / 2);
+      D(c, a0, x0, base - a0.lt.base); D(c, a1, x0 + a0.width - 1, base - a1.lt.base);
     }
     for (const r of gridRects()) {
       if (set === 'ma') {
         const sel = sil.isSel(r.it);
         R(c, r.x, r.y, r.w, r.h, sel ? '#ffd23f' : '#fffaf0'); R(c, r.x, r.y + r.h - 1, r.w, 1, sel ? '#e0a820' : '#e3cfae');
-        const im = r.it.id === 'words' ? wordSprite('pato', sel ? '#7a3f2a' : '#2f7de1') : mini(r.ch, sel ? '#7a3f2a' : '#5a4560');
-        const gk = r.it.id !== 'words' && L.small ? 2 : 1;
-        c.drawImage(im, r.x + Math.floor((r.w - im.width * gk) / 2), r.y + Math.floor((r.h - im.height * gk) / 2), im.width * gk, im.height * gk);
+        const tr = { x: r.x, y: r.y, w: r.w, h: r.h - 1 };
+        if (r.it.id === 'words') tileLabel(c, tr, 'pato', sel ? '#7a3f2a' : '#2f6fb8');
+        else tileLabel(c, tr, r.ch, sel ? '#7a3f2a' : INK);
         continue;
       }
       if (r.more) { // next page of letters
@@ -301,8 +334,8 @@ export function createLetters(students, hooks) {
       const sel = r.ch === cur;
       R(c, r.x, r.y, r.w, r.h, sel ? '#ffd23f' : '#fffaf0');
       R(c, r.x, r.y + r.h - 1, r.w, 1, sel ? '#e0a820' : '#e3cfae');
-      const im = mini(r.ch, sel ? '#7a3f2a' : '#5a4560'), gk = L.small ? 2 : 1;
-      c.drawImage(im, r.x + Math.floor((r.w - im.width * gk) / 2), r.y + Math.floor((r.h - im.height * gk) / 2), im.width * gk, im.height * gk);
+      tileLabel(c, { x: r.x, y: r.y, w: r.w, h: r.h - 1 }, r.ch, sel ? '#7a3f2a' : INK, { caps: true });
+      const gk = L.small ? 2 : 1;
       if (G.save.traced[r.ch]) R(c, r.x + r.w - 2 - gk * 2, r.y + 1, gk * 2, gk * 2, '#3cb44b');
     }
     row.renderParts(c);
@@ -313,21 +346,25 @@ export function createLetters(students, hooks) {
       sayHint(owl, 'trace');
     }
   }
-  function nudge(c, st) { // after a lift partway (not before she starts a letter), ~4 s of nothing
-    if (tracing || (si === 0 && prog === 0) || G.time - idleSince < 4) return;
-    const p = prog > 0 ? st[prog] : st[0], g = L.g;
-    for (let k = 0; k < 2; k++) {
-      const t = ((G.time - idleSince) * 1.4 + k * 0.5) % 1, rr = g.r + 2 + t * 7;
-      c.globalAlpha = 1 - t;
-      for (let a = 0; a < Math.PI * 2; a += 0.6 / rr) R(c, p[0] + Math.cos(a) * rr - 0.5, p[1] + Math.sin(a) * rr - 0.5, 1, 1, '#ffb020');
-    }
-    c.globalAlpha = 1;
+  function nudge(st) { // after a lift partway (not before she starts a letter), ~4 s of nothing: returns the ring drawer
+    if (tracing || (si === 0 && prog === 0) || G.time - idleSince < 4) return null;
+    const p = prog > 0 ? st[prog] : st[0], g = L.g, t0 = G.time - idleSince;
     if (nudgedFor !== idleSince && G.time - nudgeSaid > 15) {
       nudgedFor = idleSince; nudgeSaid = G.time;
       const s = row.talker();
       if (s) { act(s, 'cheer', 1); hop(s, 60); speak(s, 'Great job!', 'yay'); } // "¡Muy bien!": keep going
       row.burst('spark', p[0], p[1], 4, ['#ffd23f', '#ffffff'], { sp: 20, life: 0.6 });
     }
+    return (o) => {
+      o.strokeStyle = '#ffb020'; o.lineWidth = 1.2;
+      const a0 = o.globalAlpha;
+      for (let k = 0; k < 2; k++) {
+        const t = (t0 * 1.4 + k * 0.5) % 1, rr = g.r + 2 + t * 7;
+        o.globalAlpha = a0 * (1 - t);
+        o.beginPath(); o.arc(p[0], p[1], rr, 0, Math.PI * 2); o.stroke();
+      }
+      o.globalAlpha = a0;
+    };
   }
   async function countStars() {
     const n = +cur, ch = cur, run = ++starRun, talker = row.talker() || owl;

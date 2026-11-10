@@ -4,7 +4,8 @@ import * as S from './sprites.js';
 import { WALLS } from './decor.js';
 import { sfx, strokeStart, strokeSpeed, strokeEnd } from './audio.js';
 import { sayHint, sayUI, drawHand } from './hints.js';
-import { numberWord, letterName, wordSprite } from './i18n.js';
+import { numberWord, letterName } from './i18n.js';
+import { textSprite } from './schoolfont.js';
 import { STAR_COUNT_LINE } from './learndata.js';
 import { act, acting, hop, talk, speak, animalSound, coax, physics, pose, traits, startle, randomCheer, tapEscalate, crowned } from './students.js';
 
@@ -328,9 +329,9 @@ export function createBoard(students, hooks) {
       if (L.stampTile) D(c, btnFrame(st.w, st.h, '#fffaf0', on), st.x, st.y);
       else if (on) { R(c, st.x, st.y, st.w, st.h, '#ffd23f'); R(c, st.x + 1, st.y + 1, st.w - 2, st.h - 2, '#fff6c8'); }
       const bob = on ? Math.round(Math.sin(G.time * 8)) * L.stampK : 0;
-      if (L.stampK > 1 && /^[0-9A-Z]$/.test(st.id)) { // phone tiles: letters/numbers in the 5x7 font at 3x
-        const g = wordSprite(st.id, MARKERS[color].c, 3);
-        D(c, g, st.x + (st.w - g.width) / 2, st.y + (st.h - 21) / 2 - 6 + bob);
+      if (/^[0-9A-Z]$/.test(st.id)) { // letters/numbers: the round school font, smooth (stamped into the drawing as pixels)
+        const ch = Math.min(st.h - 4, L.stampK > 1 ? 21 : 13), g = textSprite(st.id, { h: ch, col: MARKERS[color].c, weight: 0.24 });
+        D(c, g, st.x + (st.w - g.width) / 2, Math.round(st.y + (st.h + ch) / 2) - g.lt.base + bob);
         continue;
       }
       const im = S.stamp(st.id, MARKERS[color].c), k = L.stampK;

@@ -12,6 +12,7 @@ import { drawHand } from './hints.js';
 import { createRituals, jobsButtonIcon } from './rituals.js';
 import { wordSprite as wsprite } from './i18n.js';
 import { lang, setLang, flag, DAY_WORDS, DAY_SHORT, DAY_COLORS, dayIndex, daySentence, wordSprite } from './i18n.js';
+import { textSprite } from './schoolfont.js';
 import { LETTERS, letterSentence } from './i18n.js';
 import { tapEscalate, crowned, naughtyAct } from './students.js';
 import { createSchedule, blockIcon, ICON_W, ICON_H } from './schedule.js';
@@ -562,9 +563,8 @@ export function createClassroom(students, hooks) {
         const j = i - (m - fresh); // the new ones pop in one by one
         const born = j < 0 ? 1 : clamp((G.time - centros.rewardT[2]) / 0.3 - j * 0.7, 0, 1);
         if (born <= 0) continue;
-        const img = wordSprite(ls[i], REW_COLS[i % REW_COLS.length], 2), ang = -Math.PI / 2 + (i - (m - 1) / 2) * 0.45;
+        const img = textSprite(ls[i], { h: 14, col: REW_COLS[i % REW_COLS.length], outline: '#ffffff', ow: 1.1 }), ang = -Math.PI / 2 + (i - (m - 1) / 2) * 0.45; // a white rim: readable on the chalkboard
         const p2 = centerSpot(2, 0, 1), lx = p2.x - 18 + Math.cos(ang) * 34, ly = p2.y - 40 + Math.sin(ang) * 12 + Math.round(Math.sin(G.time * 3 + i) * 2) + Math.round((1 - born) * 8);
-        D(c, glow(img, '#ffffff', 'rletter' + i), lx - img.width / 2 - 2, ly - img.height / 2 - 2); // a white rim: readable on the chalkboard
         D(c, img, lx - img.width / 2, ly - img.height / 2);
       }
       return;
@@ -1096,8 +1096,12 @@ export function createClassroom(students, hooks) {
       const bob = pk >= 0 && pk < 0.6 ? -Math.round(Math.sin(pk / 0.6 * Math.PI) * 4) : 0;
       const col = shown.includes(ch) && pk >= 0 ? ABC_COLS[k % ABC_COLS.length] : null;
       const sway = Math.round(Math.sin(G.time * 1.3 + k * 0.7) * 0.4);
-      if (pk >= 0 && pk < 0.6 && col) D(c, glow(S.abcCard(ch, col), '#fff6b8', 'abcg' + ch), abcCardX(k) - 2 + sway, A.y + bob);
+      if (pk >= 0 && pk < 0.6 && col) D(c, glow(S.abcCard(ch, col), '#fff6b8', 'abcg'), abcCardX(k) - 2 + sway, A.y + bob);
       D(c, S.abcCard(ch, col), abcCardX(k) - 1 + sway, A.y + 1 + bob);
+      if (col) { // the letter she traced, in the round school font (smooth, at device resolution)
+        const t = textSprite(ch, { h: 4.6, col: '#ffffff', weight: 0.27, outline: darken(col, 0.2), ow: 0.3 });
+        D(c, t, abcCardX(k) - 1 + sway + 2.5 - t.width / 2, A.y + 1 + bob + 6.5 - t.lt.base);
+      }
     });
   }
   function abcAt(x, y) {
@@ -2264,8 +2268,6 @@ export function createClassroom(students, hooks) {
       r(2, 4, w - 4, h - 6, '#b9a99a'); r(0, 3, w - 2, h - 5, '#fffaf0');
       r(0, 3, w - 2, 12, DAY_COLORS[di]); r(0, 3, w - 2, 2, lighten(DAY_COLORS[di], 0.4));
       for (const rx of [24, w - 30]) { r(rx, 0, 4, 9, '#9aa7b8'); r(rx, 0, 4, 1, '#d6dee8'); }
-      const wd = wordSprite(DAY_WORDS[di], DAY_COLORS[di], 2);
-      x.drawImage(wd, Math.round((w - 2 - wd.width) / 2), 22);
       for (let q = 0; q < 5; q++) r(Math.round((w - 2) / 2 - 31 + q * 13), 48, 10, 8, q === di ? DAY_COLORS[q] : '#e6dccb');
       return cv;
     });
@@ -2276,7 +2278,10 @@ export function createClassroom(students, hooks) {
       cx += (cal.x - cx) * q; cy += (cal.y - ch / 2 - cy) * q; s = 1 - q * 0.8;
     }
     const w = Math.round(card.width * s), h = Math.round(card.height * s);
-    c.drawImage(card, Math.round(cx - w / 2), Math.round(cy - h / 2 + (k < 2.4 ? Math.sin(G.time * 3) * 2 : 0)), w, h);
+    const x0 = Math.round(cx - w / 2), y0 = Math.round(cy - h / 2 + (k < 2.4 ? Math.sin(G.time * 3) * 2 : 0));
+    c.drawImage(card, x0, y0, w, h);
+    const wd = textSprite(DAY_WORDS[di], { h: 15, col: DAY_COLORS[di], weight: 0.22 }), ws = w / card.width; // "LUNES" in the school font, smooth
+    c.drawImage(wd, x0 + ((card.width - 2 - wd.width) / 2) * ws, y0 + (41 - wd.lt.base) * ws, wd.width * ws, wd.height * ws);
     if (k > 0.3 && k < 2.4 && Math.random() < 0.3) burst('spark', cx + rand(-60, 60), cy + rand(-30, 30), 1, ['#ffd23f', DAY_COLORS[di]], { sp: 20 });
   }
 

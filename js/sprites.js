@@ -1,4 +1,5 @@
 import { Pix, cached, darken, lighten } from './raster.js';
+import { pixelText } from './schoolfont.js';
 
 export const INK = '#2b1d2e';
 const WHITE = '#ffffff';
@@ -512,28 +513,6 @@ export function bookshelf() {
 }
 
 // ---------------------------------------------------------------- small bitmaps
-const FONT = {
-  '1': ['..#..', '.##..', '#.#..', '..#..', '..#..', '..#..', '#####'],
-  '2': ['.###.', '#...#', '....#', '...#.', '..#..', '.#...', '#####'],
-  '3': ['####.', '....#', '....#', '.###.', '....#', '....#', '####.'],
-  '4': ['...#.', '..##.', '.#.#.', '#..#.', '#####', '...#.', '...#.'],
-  '5': ['#####', '#....', '####.', '....#', '....#', '#...#', '.###.'],
-  'A': ['.###.', '#...#', '#...#', '#####', '#...#', '#...#', '#...#'],
-  'B': ['####.', '#...#', '#...#', '####.', '#...#', '#...#', '####.'],
-  'C': ['.###.', '#...#', '#....', '#....', '#....', '#...#', '.###.'],
-  'D': ['###..', '#..#.', '#...#', '#...#', '#...#', '#..#.', '###..'],
-  'E': ['#####', '#....', '#....', '####.', '#....', '#....', '#####'],
-  'F': ['#####', '#....', '#....', '####.', '#....', '#....', '#....'],
-};
-export function glyph(ch, color, scale = 2) {
-  return cached('g' + ch + color + scale, () => {
-    const rows = FONT[ch];
-    const p = new Pix(5 * scale + 2, 7 * scale + 2);
-    p.map(1, 1, rows, { '#': color }, scale);
-    return p.canvas();
-  });
-}
-export function glyphPix(ch) { return FONT[ch]; }
 
 const STAR = [
   '.....#.....',
@@ -582,12 +561,9 @@ function sunPix(p, x, y) {
 /** stamps: return a canvas of the stamp (colour-aware for letters/numbers) */
 export const STAMPS = ['star', 'heart', 'apple', 'sun', '1', '2', '3', '4', '5', 'A', 'B', 'C'];
 export function stamp(id, color) {
-  return cached('stamp' + id + (FONT[id] ? color : ''), () => {
-    if (FONT[id]) {
-      const p = new Pix(12, 16);
-      p.map(1, 1, FONT[id], { '#': color }, 2);
-      return p.canvas();
-    }
+  const text = /^[0-9A-ZÑ]$/.test(id);
+  return cached('stamp' + id + (text ? color : ''), () => {
+    if (text) return pixelText(id, color, 13); // letters and numbers: the school font, as crisp pixels for her drawing
     const p = new Pix(13, 13);
     if (id === 'star') starPix(p, 1, 1);
     if (id === 'heart') heartPix(p, 2, 2);
@@ -850,22 +826,14 @@ export function crown() {
     return p.canvas();
   });
 }
-const MINI = {
-  A: ['.#.', '#.#', '###', '#.#', '#.#'], B: ['##.', '#.#', '##.', '#.#', '##.'], C: ['.##', '#..', '#..', '#..', '.##'], D: ['##.', '#.#', '#.#', '#.#', '##.'],
-  E: ['###', '#..', '##.', '#..', '###'], F: ['###', '#..', '##.', '#..', '#..'], G: ['.##', '#..', '#.#', '#.#', '.##'], H: ['#.#', '#.#', '###', '#.#', '#.#'],
-  I: ['###', '.#.', '.#.', '.#.', '###'], J: ['..#', '..#', '..#', '#.#', '.#.'], K: ['#.#', '#.#', '##.', '#.#', '#.#'], L: ['#..', '#..', '#..', '#..', '###'],
-  M: ['#.#', '###', '###', '#.#', '#.#'], N: ['##.', '#.#', '#.#', '#.#', '#.#'], Ñ: ['###', '...', '##.', '#.#', '#.#'], O: ['.#.', '#.#', '#.#', '#.#', '.#.'],
-  P: ['##.', '#.#', '##.', '#..', '#..'], Q: ['.#.', '#.#', '#.#', '##.', '.##'], R: ['##.', '#.#', '##.', '#.#', '#.#'], S: ['.##', '#..', '.#.', '..#', '##.'],
-  T: ['###', '.#.', '.#.', '.#.', '.#.'], U: ['#.#', '#.#', '#.#', '#.#', '###'], V: ['#.#', '#.#', '#.#', '#.#', '.#.'], W: ['#.#', '#.#', '###', '###', '#.#'],
-  X: ['#.#', '#.#', '.#.', '#.#', '#.#'], Y: ['#.#', '#.#', '.#.', '.#.', '.#.'], Z: ['###', '..#', '.#.', '#..', '###'],
-};
-/** a 5x8 card for the alphabet line on the wall: blank (cream) until the letter has been traced */
+/** a 5x8 card for the alphabet line on the wall: blank (cream) until the letter has been traced
+ * (its letter is drawn on top in the school font, at device resolution: see classroom.js drawAbcLine) */
 export function abcCard(ch, col) {
-  return cached('abccard' + ch + (col || ''), () => {
+  return cached('abccard' + (col || ''), () => {
     const p = new Pix(5, 8);
     p.rect(0, 0, 5, 8, col || '#fffaf0');
     p.rect(0, 7, 5, 1, col ? darken(col, 0.25) : '#e6dccb');
-    if (col) { p.hline(0, 4, 0, lighten(col, 0.45)); p.map(1, 1, MINI[ch] || MINI.A, { '#': '#ffffff' }); }
+    if (col) p.hline(0, 4, 0, lighten(col, 0.45));
     p.px(2, 0, '#a06a44'); // clothes peg
     return p.canvas();
   });

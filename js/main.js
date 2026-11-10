@@ -8,6 +8,7 @@ import { createShapes } from './shapes.js';
 import { createPlayground } from './playground.js';
 import { VERSION } from './version.js';
 import { Pix, cached } from './raster.js';
+import { beginPresent, endPresent } from './hires.js';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -133,9 +134,12 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 
-function blit(v) {
-  ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(v.buf, 0, 0, v.W * v.s, v.H * v.s);
+/** render a scene onto the screen: its pixel buffer, scaled up, with its smooth letters at device resolution */
+function show(scene, alpha = 1) {
+  const v = scene.view;
+  beginPresent(v, ctx, alpha);
+  scene.render();
+  endPresent(v, ctx, alpha);
 }
 const ease = (t) => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
 function render() {
@@ -145,8 +149,8 @@ function render() {
     trans.t += 1 / 60 / 0.35;
     const k = ease(Math.min(1, trans.t));
     const A = scenes[trans.from], B = scenes[trans.to];
-    A.render(); blit(A.view);
-    B.render(); ctx.globalAlpha = k; blit(B.view); ctx.globalAlpha = 1;
+    show(A);
+    show(B, k);
     if (trans.t >= 1) { mode = trans.to; trans = null; }
     return;
   }
@@ -156,17 +160,14 @@ function render() {
     const t = ease(Math.min(1, trans.t));
     const k = trans.dir === 'in' ? t : 1 - t;
     const rv = room.view, bv = board.view;
-    room.render(); blit(rv);
+    show(room);
     // zoom the drawing from the wall board to the full-screen board
     const ba = room.boardAt ? room.boardAt() : { x: Math.round(rv.W / 2 - 52) + 4, y: 16 };
     const b0 = { x: ba.x * rv.s, y: ba.y * rv.s, w: 96 * rv.s, h: 54 * rv.s };
     const br = board.rect();
     const b1 = { x: br.x * bv.s, y: br.y * bv.s, w: BW * bv.s, h: BH * bv.s };
     if (k > 0.55) {
-      board.render();
-      ctx.globalAlpha = (k - 0.55) / 0.45;
-      blit(bv);
-      ctx.globalAlpha = 1;
+      show(board, (k - 0.55) / 0.45);
     }
     const lerp = (a, b) => a + (b - a) * k;
     ctx.imageSmoothingEnabled = false;
@@ -181,9 +182,7 @@ function render() {
     }
     return;
   }
-  const v = view();
-  v.render();
-  blit(v.view);
+  show(view());
 }
 
 function drawRotate() {

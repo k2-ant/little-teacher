@@ -1,4 +1,5 @@
 // Shared game state, views (integer pixel scaling), timers and saving.
+import { hookView } from './hires.js';
 export const G = {
   time: 0,
   devW: 1, devH: 1, dpr: 1,
@@ -16,6 +17,7 @@ export function makeView(targetH, minW, minH = 120) {
   buf.width = W; buf.height = H;
   const ctx = buf.getContext('2d');
   ctx.imageSmoothingEnabled = false;
+  hookView(ctx, buf, s); // smooth letters are painted at device resolution on top (hires.js)
   const k = G.dpr / s;
   const inset = {
     t: Math.ceil(G.insets.t * k), r: Math.ceil(G.insets.r * k),

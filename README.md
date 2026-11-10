@@ -141,8 +141,10 @@ Tip: turn on **Guided Access** (Settings → Accessibility → Guided Access) an
 | `js/students.js` | student poses, actions, personality traits |
 | `js/decor.js` | decorations, desk supplies, paint colours, and the teacher (Louise) |
 | `js/decorate.js` | the Decorar tray: picture tabs, room themes, select-to-edit bubbles, undo, placement |
-| `js/i18n.js` | Spanish phrases, letter names, words, shape names, font |
-| `js/strokes.js` | handwriting stroke paths for every letter and number |
+| `js/i18n.js` | Spanish phrases, letter names, words, shape names, `wordSprite` (school font) |
+| `js/schoolfont.js` | the round ball-and-stick "school" letters: stroke glyphs (a-z, ñ, accents, A-Z, 0-9, ¡¿!?), spacing, round-pen rendering |
+| `js/hires.js` | paints smooth letters at full device resolution on top of the pixel views (keeps draw order) |
+| `js/strokes.js` | tracing strokes for every letter and number, taken from the school font |
 | `audio/` | ElevenLabs voice clips (one folder per student) + `clips.json` |
 | `js/letters.js` | alphabet & numbers tracing board |
 | `js/shapes.js` | shape sorter |

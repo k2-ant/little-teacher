@@ -1,67 +1,34 @@
-// Handwriting strokes for uppercase letters (incl. Ñ) and numbers 0-10.
-// Coordinates are in a 100 x 140 box (y down). Each stroke is drawn in order, in the direction listed.
-const L = (x1, y1, x2, y2) => [[x1, y1], [x2, y2]];
-function A(cx, cy, rx, ry, a0, a1) { // arc, degrees, 0 = right, 90 = down
-  const pts = [], n = Math.max(6, Math.ceil(Math.abs(a1 - a0) / 8));
-  for (let i = 0; i <= n; i++) { const a = (a0 + (a1 - a0) * i / n) * Math.PI / 180; pts.push([cx + Math.cos(a) * rx, cy + Math.sin(a) * ry]); }
-  return pts;
-}
-const S = (...parts) => parts.flat();
-const bumpTop = S(L(15, 0, 52, 0), A(52, 35, 32, 35, -90, 90), L(52, 70, 15, 70));
+// Handwriting strokes for the tracing board: uppercase letters (incl. Ñ) and numbers 0-10.
+// They come straight from the school font (schoolfont.js), so the guide she traces is the very letter on the
+// tiles, with its strokes in the order and direction they are taught.
+// Coordinates are in a 100 x 140 box (y down): y = 0 is the top line, 70 the dashed midline, 140 the baseline.
+import { glyphStrokes, glyphBox, CAP } from './schoolfont.js';
 
-const RAW = {
-  A: [L(50, 0, 10, 140), L(50, 0, 90, 140), L(27, 90, 73, 90)],
-  B: [L(15, 0, 15, 140), bumpTop, S(L(15, 70, 56, 70), A(56, 105, 33, 35, -90, 90), L(56, 140, 15, 140))],
-  C: [A(55, 70, 45, 70, -40, -320)],
-  D: [L(15, 0, 15, 140), S(L(15, 0, 42, 0), A(42, 70, 48, 70, -90, 90), L(42, 140, 15, 140))],
-  E: [L(15, 0, 15, 140), L(15, 0, 85, 0), L(15, 70, 72, 70), L(15, 140, 85, 140)],
-  F: [L(15, 0, 15, 140), L(15, 0, 85, 0), L(15, 70, 72, 70)],
-  G: [S(A(55, 70, 45, 70, -40, -360), L(100, 70, 62, 70))],
-  H: [L(15, 0, 15, 140), L(85, 0, 85, 140), L(15, 70, 85, 70)],
-  I: [L(50, 0, 50, 140), L(20, 0, 80, 0), L(20, 140, 80, 140)],
-  J: [S(L(70, 0, 70, 103), A(42, 103, 28, 37, 0, 180)), L(42, 0, 95, 0)],
-  K: [L(15, 0, 15, 140), L(85, 0, 15, 82), L(40, 58, 87, 140)],
-  L: [S(L(15, 0, 15, 140), L(15, 140, 85, 140))],
-  M: [L(8, 0, 8, 140), S(L(8, 0, 50, 85), L(50, 85, 92, 0)), L(92, 0, 92, 140)],
-  N: [L(15, 0, 15, 140), L(15, 0, 85, 140), L(85, 140, 85, 0)],
-  O: [A(50, 70, 45, 70, -90, -450)],
-  P: [L(15, 0, 15, 140), bumpTop],
-  Q: [A(50, 70, 45, 70, -90, -450), L(58, 100, 96, 140)],
-  R: [L(15, 0, 15, 140), bumpTop, L(45, 70, 88, 140)],
-  S: [S(A(50, 35, 38, 35, -20, -270), A(50, 105, 40, 35, -90, 160))],
-  T: [L(8, 0, 92, 0), L(50, 0, 50, 140)],
-  U: [S(L(15, 0, 15, 95), A(50, 95, 35, 45, 180, 0), L(85, 95, 85, 0))],
-  V: [S(L(10, 0, 50, 140), L(50, 140, 90, 0))],
-  W: [S(L(4, 0, 27, 140), L(27, 140, 50, 40), L(50, 40, 73, 140), L(73, 140, 96, 0))],
-  X: [L(15, 0, 85, 140), L(85, 0, 15, 140)],
-  Y: [L(12, 0, 50, 70), L(88, 0, 50, 70), L(50, 70, 50, 140)],
-  Z: [S(L(15, 0, 85, 0), L(85, 0, 15, 140), L(15, 140, 85, 140))],
-  0: [A(50, 70, 40, 70, -90, -450)],
-  1: [S(L(25, 28, 52, 0), L(52, 0, 52, 140))],
-  2: [S(A(50, 40, 36, 38, -165, 30), L(81, 59, 12, 140), L(12, 140, 88, 140))],
-  3: [S(A(48, 35, 36, 35, -160, 90), A(48, 105, 40, 35, -90, 160))],
-  4: [S(L(62, 0, 10, 95), L(10, 95, 92, 95)), L(68, 30, 68, 140)],
-  5: [S(L(25, 0, 22, 62), A(50, 96, 38, 40, -135, 150)), L(25, 0, 85, 0)],
-  6: [S(A(55, 70, 42, 70, -55, -270), A(55, 105, 40, 35, 90, -180))],
-  7: [S(L(12, 0, 88, 0), L(88, 0, 35, 140))],
-  8: [S(A(50, 35, 32, 35, -30, -270), A(50, 105, 38, 35, -90, 270), A(50, 35, 32, 35, 90, -30))],
-  9: [S(A(50, 40, 36, 40, -5, -365), L(86, 37, 80, 140))],
-};
-// Ñ = N squeezed lower + a wavy tilde first
-RAW['Ñ'] = [
-  [[22, 14], [32, 5], [44, 6], [56, 15], [68, 16], [78, 6]],
-  ...RAW.N.map(st => st.map(([x, y]) => [x, 30 + y * 110 / 140])),
-];
-RAW['10'] = [
-  ...RAW[1].map(st => st.map(([x, y]) => [x * 0.42, y])),
-  ...RAW[0].map(st => st.map(([x, y]) => [52 + x * 0.48, y])),
-];
+export const BOX_W = 100, BOX_H = 140;
+const U = BOX_H / CAP; // box units per font unit
+const MAX_W = 124; // wider than this (W, 10) gets squeezed a little sideways
+
+function raw(ch) {
+  let strokes, w, top;
+  if (ch === '10') { // "1" and "0" side by side, a little closer than in a word
+    const one = glyphStrokes('1'), zero = glyphStrokes('0'), w1 = glyphBox('1').w, gap = 0.42;
+    strokes = [...one, ...zero.map(st => st.map(([x, y]) => [x + w1 + gap, y]))];
+    w = w1 + gap + glyphBox('0').w; top = CAP;
+  } else {
+    strokes = glyphStrokes(ch);
+    if (!strokes) return null;
+    const b = glyphBox(ch); w = b.w; top = b.top;
+  }
+  const k = Math.min(1, CAP / (top + 0.1)); // Ñ: its tilde has to fit under the top line too
+  const sx = Math.min(1, MAX_W / (w * U * k));
+  return strokes.map(st => st.map(([x, y]) => [BOX_W / 2 + (x - w / 2) * U * k * sx, BOX_H - y * U * k]));
+}
 
 /** resample each stroke into evenly spaced points (step in box units) */
 export function strokesFor(ch, step = 2.2) {
-  const raw = RAW[ch];
-  if (!raw) return null;
-  return raw.map(st => {
+  const r = raw(ch);
+  if (!r) return null;
+  return r.map(st => {
     const out = [st[0]];
     for (let i = 1; i < st.length; i++) {
       const [x0, y0] = st[i - 1], [x1, y1] = st[i];
@@ -71,5 +38,3 @@ export function strokesFor(ch, step = 2.2) {
     return out;
   });
 }
-export const BOX_W = 100, BOX_H = 140;
-export function boxWidth(ch) { return ch === '10' ? 100 : 100; }
