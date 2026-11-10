@@ -2,6 +2,7 @@
 import { G, makeView, rand, pick, wait } from './state.js';
 import { Pix, cached, darken, lighten, glow } from './raster.js';
 import * as S from './sprites.js';
+import * as UI from './ui.js';
 import * as DC from './decor.js';
 import { sfx } from './audio.js';
 import { speak } from './students.js';
@@ -29,9 +30,9 @@ function inside(shape, x, y, w, h) { // x,y in pixel centres, 0..w, 0..h
   }
   return false;
 }
-export function shapeSprite(shape, col, kind = 'piece') {
-  return cached('shp' + shape + col + kind, () => {
-    const [w, h] = SIZE[shape];
+export function shapeSprite(shape, col, kind = 'piece', k = 1) { // k: v2.3 bigger pieces for the quiz cards
+  return cached('shp' + shape + col + kind + k, () => {
+    const [w, h] = SIZE[shape].map(v => Math.round(v * k));
     const p = new Pix(w + 2, h + 2);
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (inside(shape, x + 0.5, y + 0.5, w, h)) p.px(x + 1, y + 1, col);
     if (kind === 'piece') {
@@ -47,14 +48,6 @@ export function shapeSprite(shape, col, kind = 'piece') {
       const src = p.d.slice();
       for (let y = 1; y < h + 1; y++) for (let x = 1; x < w + 1; x++) if (src[y * (w + 2) + x] && (!src[(y - 1) * (w + 2) + x] || !src[(y - 2) * (w + 2) + x])) p.px(x, y, '#3a2416');
     }
-    return p.canvas();
-  });
-}
-function btnFrame(w, h, col = '#fff3dc') {
-  return cached('sbtn' + w + h + col, () => {
-    const p = new Pix(w, h);
-    p.rect(1, 0, w - 2, h - 1, darken(col, 0.5)); p.rect(0, 1, w, h - 3, darken(col, 0.5));
-    p.rect(1, 1, w - 2, h - 3, col); p.hline(2, w - 3, 1, lighten(col, 0.6)); p.rect(1, h - 2, w - 2, 1, darken(col, 0.35));
     return p.canvas();
   });
 }
@@ -146,7 +139,7 @@ export function createShapes(students, hooks) {
     const st = { eyes: 'happy', mouth: tk ? 'open' : 'grin', armL: tk === 'clap' ? (alt ? 'clap' : 'front') : tk === 'cheer' ? 'up' : 'down', armR: tk === 'clap' ? (alt ? 'clap' : 'front') : tk === 'cheer' ? 'up' : 'down', sway: Math.floor(G.time * 1.2) % 2 };
     D(c, DC.teacher(st), V.inset.l + 3, L.ledge - DC.TH + 4);
     row.render(c, W, H);
-    D(c, btnFrame(26, 26), L.back.x, L.back.y); D(c, S.ICONS.back(), L.back.x + 4, L.back.y + 3);
+    UI.drawBtn(c, L.back.x, L.back.y, 26, 26, UI.FACE.blue, !!(press && !press.moved && press.x0 >= L.back.x && press.x0 <= L.back.x + 26 && press.y0 >= L.back.y && press.y0 <= L.back.y + 26), S.ICONS.back());
     row.renderParts(c);
     // hint: a hand carries a shape to its hole
     const free = sel || pieces.find(p => !p.placed);

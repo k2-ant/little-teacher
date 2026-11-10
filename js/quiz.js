@@ -1,7 +1,8 @@
 // A friendly question card that a student asks the teacher. No wrong answers end anything:
 // a miss just gets "Mmm... creo que no." and the right answer glows.
 import { G, wait, rand, pick } from './state.js';
-import { Pix, cached, darken, lighten } from './raster.js';
+import { Pix, cached, darken, lighten, mix } from './raster.js';
+import * as UI from './ui.js';
 import * as S from './sprites.js';
 import { sfx } from './audio.js';
 import { speak, speechLen, act, hop, talk, pose } from './students.js';
@@ -21,9 +22,9 @@ function card(w, h, col = '#fffaf0', rim = '#c9a77a') {
 }
 function splat(col) {
   return cached('splat' + col, () => {
-    const p = new Pix(30, 28);
-    p.ball(15, 14, 11, 10, col, { shadow: darken(col, 0.15) });
-    for (const [x, y, r] of [[4, 8, 3], [26, 7, 2.5], [25, 22, 3], [6, 22, 2], [15, 2, 2]]) p.ball(x, y, r, r, col, { hi: false });
+    const p = new Pix(42, 40); // v2.3: big enough to fill ~70% of an answer card
+    p.ball(21, 20, 15.5, 14, col, { shadow: darken(col, 0.15) });
+    for (const [x, y, r] of [[5.5, 11, 4.2], [36.5, 10, 3.5], [35, 31, 4.2], [8.5, 31, 3], [21, 3, 2.8]]) p.ball(x, y, r, r, col, { hi: false });
     p.outline('#2a1630', col === '#ffffff' ? 0.35 : 0.6);
     return p.canvas();
   });
@@ -45,16 +46,19 @@ function speaker(n) {
     return p.canvas();
   });
 }
-/** just the head of a student sprite (so faces can be shown big) */
+/** just the head of a student sprite (ears and hats included, down to the chin), trimmed to its painted columns */
 function headOf(im, kind, mood) {
-  return cached('qhead' + kind + mood, () => {
-    // start at the first painted row (ears/hats included) and keep ~the head
+  return cached('qhead2' + kind + mood, () => {
     const d = im.getContext('2d').getImageData(0, 0, im.width, im.height).data;
+    const op = (x, y) => d[(y * im.width + x) * 4 + 3] > 0;
     let top = 0;
-    while (top < im.height - 1 && ![...Array(im.width).keys()].some(x => d[(top * im.width + x) * 4 + 3])) top++;
-    const h = Math.min(29, im.height - top), cv = document.createElement('canvas');
-    cv.width = im.width; cv.height = h;
-    cv.getContext('2d').drawImage(im, 0, top, im.width, h, 0, 0, im.width, h);
+    while (top < im.height - 1 && ![...Array(im.width).keys()].some(x => op(x, top))) top++;
+    const bot = Math.min(im.height, S.HEAD_Y1[kind] || 29);
+    let x0 = im.width, x1 = 0;
+    for (let y = top; y < bot; y++) for (let x = 0; x < im.width; x++) if (op(x, y)) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); }
+    const cv = document.createElement('canvas');
+    cv.width = x1 - x0 + 1; cv.height = bot - top;
+    cv.getContext('2d').drawImage(im, x0, top, cv.width, cv.height, 0, 0, cv.width, cv.height);
     return cv;
   });
 }
@@ -73,7 +77,7 @@ export function makeQuestion(asker, students, forced) {
     const shapes = Object.keys(LD.SHAPE_QS), a = pick(shapes);
     const cols = shuffle(Object.values(LD.COLORS).filter(c => c !== '#ffffff'));
     const opts = shuffle([a, ...sample(shapes, 2, a)]);
-    return { prompt: LD.SHAPE_QS[a], promptPic: null, options: opts.map((sh, i) => ({ img: shapeSprite(sh, cols[i]), say: shapeName(sh), right: sh === a })) };
+    return { prompt: LD.SHAPE_QS[a], promptPic: null, options: opts.map((sh, i) => ({ img: shapeSprite(sh, cols[i], 'piece', 1.45), say: shapeName(sh), right: sh === a })) };
   }
   if (kind === 'count') {
     const n = 1 + Math.floor(Math.random() * 5);
@@ -133,6 +137,15 @@ function bigHeart() {
     return p.canvas();
   });
 }
+function closeBtn() {
+  return cached('qclose2', () => {
+    const p = new Pix(18, 18);
+    p.ball(9, 9, 8.2, 8.2, '#e6e0e8', { shadow: '#cfc6d4', hi: false });
+    for (let i = 0; i < 7; i++) { p.px(5 + i, 5 + i, '#8a7f90'); p.px(6 + i, 5 + i, '#8a7f90'); p.px(12 - i, 5 + i, '#8a7f90'); p.px(11 - i, 5 + i, '#8a7f90'); }
+    p.outline('#6a5f70', 0.5);
+    return p.canvas();
+  });
+}
 export function createQuiz(fx) {
   let Q = null; // { asker, steps, i, picked, rightAt, wrong:Set, onDone, cheer:{k,t0}, finale }
   const parts = []; let partT = 0; // the quiz's own confetti (the room's particles are hidden under the quiz panel)
@@ -175,11 +188,13 @@ export function createQuiz(fx) {
       const { W, H } = V, st = Q && Q.steps[Q.i];
       const pw = Math.min(W - 16, 250), ph = Math.min(H - 16, 176);
       L.panel = { x: Math.round(W / 2 - pw / 2), y: Math.round(H / 2 - ph / 2), w: pw, h: ph };
-      L.close = { x: L.panel.x + pw - 22, y: L.panel.y - 6, w: 26, h: 26 };
+      // v2.3: a small grey ✕ on the panel's outer corner (the hit area stays finger-sized)
+      L.closeArt = { x: L.panel.x + pw - 12, y: L.panel.y - 6, w: 18, h: 18 };
+      L.close = { x: L.closeArt.x - 6, y: L.closeArt.y - 6, w: 30, h: 30 };
       L.prompt = { x: L.panel.x + 82, y: L.panel.y + 10, w: pw - 92, h: 72 };
       // faces get wider cards so they can be drawn at 2x
       const gap = st && st.wide ? 6 : 10, n = 3;
-      const ow = st && st.wide ? Math.max(58, Math.min(74, Math.floor((pw - 12 - (n - 1) * gap) / n))) : 58, oh = st && st.wide ? 70 : 58;
+      const ow = Math.max(58, Math.min(st && st.wide ? 76 : 70, Math.floor((pw - 12 - (n - 1) * gap) / n))), oh = st && st.wide ? 72 : 62;
       const tot = n * ow + (n - 1) * gap;
       L.opts = [0, 1, 2].map(k => ({ x: Math.round(L.panel.x + pw / 2 - tot / 2 + k * (ow + gap)), y: L.panel.y + ph - oh - 12, w: ow, h: oh }));
     },
@@ -198,7 +213,7 @@ export function createQuiz(fx) {
       const B = L.prompt;
       D(c, card(B.w, B.h, '#ffffff', '#c9b8d8'), B.x, B.y);
       for (let k = 0; k < 4; k++) R(c, B.x - 4 + k, B.y + 30 + k, 4 - k, 1, '#c9b8d8');
-      if (st.promptPic) { const p = st.promptPic, k = Math.max(1, Math.min(2, Math.floor(Math.min((B.w - 10) / p.width, (B.h - 10) / p.height)))); c.drawImage(p, Math.round(B.x + (B.w - p.width * k) / 2), Math.round(B.y + (B.h - p.height * k) / 2), p.width * k, p.height * k); }
+      if (st.promptPic) { const p = st.promptPic, k = Math.max(1, Math.min(3, Math.floor(Math.min((B.w - 10) / p.width, (B.h - 10) / p.height)))); c.drawImage(p, Math.round(B.x + (B.w - p.width * k) / 2), Math.round(B.y + (B.h - p.height * k) / 2), p.width * k, p.height * k); }
       else if (st.stars) { const s = S.ICONS.star(), per = st.stars > 3 ? 3 : st.stars; for (let i = 0; i < st.stars; i++) D(c, s, B.x + (B.w - per * 20) / 2 + (i % per) * 20, B.y + 8 + Math.floor(i / per) * 20 + (st.stars <= 3 ? 12 : 0)); }
       else if (!Q.finale) { // nothing to look at: a pulsing speaker says "listen!"
         const q = speaker(Math.floor(G.time * 3) % 4), k = 3, bob = Math.floor(G.time * 3) % 4 === 3 ? 1 : 0;
@@ -215,12 +230,15 @@ export function createQuiz(fx) {
         const picked = Q.picked === k;
         const ct = Q.cheer && Q.cheer.k === k ? G.time - Q.cheer.t0 : 9; // the right card bounces
         const by = ct < 1 ? Math.round(Math.abs(Math.sin(ct * 11)) * 7 * (1 - ct)) : 0;
-        const ry = r.y - (picked ? 2 : 0) - by;
-        D(c, card(r.w, r.h, picked && o.right ? '#e8ffd8' : glow ? '#fff3b0' : '#fffaf0', picked && o.right ? '#3cb44b' : glow ? '#ffb020' : '#c9a77a'), r.x, ry);
-        let img = o.img, pad = o.face ? 6 : 10, kk = Math.max(1, Math.floor(Math.min((r.w - pad) / img.width, (r.h - pad) / img.height)));
-        if (o.big) kk = Math.max(2, kk); else if (o.small) kk = 1;
+        const ry = r.y - by;
+        // v2.3: chunky cards; a feelings face sits on its mood's colour; the picked card is pressed down
+        const base = o.face ? mix(S.MOOD_COL[o.mood] || '#fffaf0', '#ffffff', 0.5) : '#fffaf0';
+        const face = picked && o.right ? '#c9f2b4' : glow ? '#ffe680' : base;
         if (Q.wrong.has(k)) c.globalAlpha = 0.35;
-        c.drawImage(img, Math.round(r.x + (r.w - img.width * kk) / 2), Math.round(ry + (r.h - img.height * kk) / 2), img.width * kk, img.height * kk);
+        D(c, UI.button(r.w, r.h, face, picked, picked && o.right ? '#2f8a3a' : glow ? '#e08a00' : null), r.x, ry);
+        let img = o.img, pad = o.face ? 4 : 8, fh = r.h - UI.LIP - 2, kk = Math.max(1, Math.floor(Math.min((r.w - pad) / img.width, (fh - pad) / img.height)));
+        if (o.big) kk = Math.max(2, kk); else if (o.small) kk = 1;
+        c.drawImage(img, Math.round(r.x + (r.w - img.width * kk) / 2), ry + UI.faceY(r.h, img.height * kk, picked), img.width * kk, img.height * kk);
         if (o.face) { const mb = S.moodBubble(o.mood); D(c, mb, r.x + r.w - mb.width + 4, ry - 8); }
         c.globalAlpha = 1;
       });
@@ -228,8 +246,9 @@ export function createQuiz(fx) {
       if (Q.cheer && Q.cheer.t0 && L.opts[Q.cheer.k]) {
         const t = G.time - Q.cheer.t0, r = L.opts[Q.cheer.k], ck = bigCheck();
         const sc = t < 0.07 ? 1 : t < 0.22 ? 3 : 2, w = ck.width * sc, h = ck.height * sc;
-        const cx = r.x + r.w / 2, cy = r.y - 4 - Math.round(Math.sin(G.time * 5) * 1.5);
-        c.drawImage(ck, Math.round(cx - w / 2), Math.round(cy - h * 0.75), w, h);
+        // v2.3: pinned to the chosen card's top-right corner, so it covers neither the friend nor the answer
+        const cx = r.x + r.w - 6, cy = r.y + 4 - Math.round(Math.sin(G.time * 5) * 1.5);
+        c.drawImage(ck, Math.round(cx - w / 2), Math.round(cy - h / 2), w, h);
       }
       // feelings: the friend feels better: a big heart rises over the question bubble
       if (Q.finale) {
@@ -246,9 +265,7 @@ export function createQuiz(fx) {
         const im = S.particle(q.kind, q.color);
         D(c, im, q.x - im.width / 2, q.y - im.height / 2);
       }
-      D(c, card(26, 26, '#ffe0e0', '#c97a7a'), L.close.x, L.close.y);
-      c.fillStyle = '#c94f4f';
-      for (let i = 0; i < 10; i++) { c.fillRect(L.close.x + 8 + i, L.close.y + 8 + i, 2, 2); c.fillRect(L.close.x + 17 - i, L.close.y + 8 + i, 2, 2); }
+      D(c, closeBtn(), L.closeArt.x, L.closeArt.y); // small, grey: for grown-ups, not the brightest thing here
     },
     tap(x, y) {
       if (!Q) return false;

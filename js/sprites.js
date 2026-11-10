@@ -1,4 +1,4 @@
-import { Pix, cached, darken, lighten } from './raster.js';
+import { Pix, cached, darken, lighten, mix } from './raster.js';
 
 export const INK = '#2b1d2e';
 const WHITE = '#ffffff';
@@ -11,9 +11,9 @@ export const ALL_KINDS = ['bunny', 'puppy', 'turtle', 'owl', 'frog', 'cat', 'bea
 export const KINDS = ALL_KINDS;
 export const PAL = {
   bunny: { fur: '#fff4ee', shadow: '#ead2d4', inner: '#ffb7c9', top: '#b9a5ec', feet: '#fff4ee', voice: 1.9, accent: '#b9a5ec' },
-  puppy: { fur: '#f1c27c', shadow: '#d39b55', ear: '#8f5a3a', muzzle: '#fff1d8', top: '#f1c27c', feet: '#f1c27c', voice: 1.5, accent: '#e0475b' },
+  puppy: { fur: '#f6c955', shadow: '#d9a234', ear: '#c97f2e', muzzle: '#fff3d6', top: '#f6c955', feet: '#f6c955', voice: 1.5, accent: '#e0475b' },
   turtle: { fur: '#97d883', shadow: '#6db35d', shell: '#3f9a72', shellHi: '#6fcb9b', rim: '#e3c97a', top: '#f3e09e', feet: '#97d883', voice: 1.2, accent: '#ffcf4a' },
-  owl: { fur: '#ad7d5a', shadow: '#87583c', disk: '#f6e3c2', top: '#ad7d5a', belly: '#ecd2a4', feet: '#ff9f3a', voice: 1.4, accent: '#7a5bc0' },
+  owl: { fur: '#a6899f', shadow: '#7f6479', disk: '#f7eee4', top: '#a6899f', belly: '#e8dce4', feet: '#ff9f3a', marks: '#b49cb4', voice: 1.4, accent: '#7a5bc0' },
   frog: { fur: '#86d36a', shadow: '#5fae4c', belly: '#e3f5b0', top: '#86d36a', feet: '#86d36a', voice: 1.7, accent: '#ff7fb5' },
   // v2.0: gatito (ginger tabby in a striped tee), osito (the biggest, in dungarees), ratoncito (the smallest, shirt + bow tie)
   cat: { fur: '#f7a65e', shadow: '#d9823f', stripe: '#d0702c', muzzle: '#ffe3c6', inner: '#ffb7c9', top: '#46bfb3', stripeTop: '#e6fbf7', feet: '#f7a65e', voice: 1.55, accent: '#46bfb3' },
@@ -69,7 +69,7 @@ function eyes(p, kind, xl, y, xr) {
     else if (kind === 'closed') { p.px(x - 1, y + 1, INK); p.px(x, y + 2, INK); p.px(x + 1, y + 2, INK); p.px(x + 2, y + 1, INK); }
     else if (kind === 'blink') { p.rect(x - 1, y + 2, 4, 1, INK); }
     else if (kind === 'happy') { p.px(x - 1, y + 2, INK); p.px(x, y + 1, INK); p.px(x + 1, y + 1, INK); p.px(x + 2, y + 2, INK); }
-    else if (kind === 'sleepy') { p.rect(x, y + 1, 2, 2, INK); p.rect(x - 1, y + 1, 4, 1, darken('#fff4ee', 0.5)); }
+    else if (kind === 'sleepy') { p.rect(x, y + 2, 2, 1, INK); p.hline(x - 1, x + 2, y + 1, INK); p.px(x - 1, y + 2, '#7a6a80'); } // v2.3: heavy, droopy lids
   }
 }
 function mouth(p, kind, my, dx) {
@@ -80,6 +80,11 @@ function mouth(p, kind, my, dx) {
   else if (kind === 'grin') { p.px(X(14), my, INK); p.px(X(19), my, INK); p.rect(X(15), my + 1, 4, 2, INK); p.px(X(16), my + 2, '#ff7b93'); p.px(X(17), my + 2, '#ff7b93'); }
   else if (kind === 'flat') { p.rect(X(15), my + 1, 4, 1, INK); }
   else if (kind === 'frown') { p.px(X(15), my + 1, INK); p.px(X(16), my, INK); p.px(X(17), my, INK); p.px(X(18), my + 1, INK); }
+  // v2.3 feelings mouths: sad turns down, angry is a full-width frown, scared a little open 'o', tired a big yawn
+  else if (kind === 'down') { p.hline(X(15), X(18), my, INK); p.px(X(14), my + 1, INK); p.px(X(19), my + 1, INK); }
+  else if (kind === 'grr') { p.hline(X(14), X(19), my, INK); p.px(X(13), my + 1, INK); p.px(X(20), my + 1, INK); p.hline(X(15), X(18), my + 1, '#7a2e45'); }
+  else if (kind === 'gasp') { p.rect(X(16), my, 2, 3, INK); p.px(X(15), my + 1, INK); p.px(X(18), my + 1, INK); p.rect(X(16), my + 1, 2, 1, '#7a2e45'); }
+  else if (kind === 'yawn') { p.rect(X(15), my, 4, 4, INK); p.rect(X(14), my + 1, 6, 2, INK); p.rect(X(15), my + 1, 4, 2, '#7a2e45'); p.hline(X(15), X(18), my + 3, '#ff7b93'); }
   else if (kind === 'munch') { p.rect(X(15), my, 4, 2, INK); p.px(X(16), my + 1, '#7a2e45'); p.px(X(17), my + 1, '#7a2e45'); }
 }
 
@@ -129,17 +134,19 @@ function drawPuppy(p, C, st) {
 
 function drawTurtle(p, C, st) {
   const hide = st.hide || 0;
-  if (hide > 0) {
-    p.ell(17, 37.5, 12.5, 3.4, C.rim);
-    p.ball(17, 32, 11.6, 8.6, C.shell, { shadow: darken(C.shell, 0.2) });
-    for (const [x, y] of [[11, 31], [17, 28], [23, 31], [14, 35], [20, 35]]) p.ell(x, y, 2.4, 1.9, C.shellHi, null, true);
-    p.px(15, 26, lighten(C.shell, 0.6)); p.px(14, 27, lighten(C.shell, 0.6));
-    p.rect(13, 25, 8, 1, '#ffcf4a'); // little beanie poking out
-    if (hide < 1) {
-      p.ell(17, 37.6, 5, 2, '#1d2a24');
-      const l = st.look || 0;
-      p.px(15 + l, 37, WHITE); p.px(18 + l, 37, WHITE); p.px(15 + l, 38, INK); p.px(18 + l, 38, INK);
-    }
+  if (hide > 0) { // v2.3: clearly a turtle in her shell (not a bush): plated shell, a yellow rim, feet and peeking eyes
+    const l = st.look || 0, RIM = '#f5cf4f';
+    p.ball(7, 38.4, 2.6, 1.8, C.fur, { hi: false }); p.ball(27, 38.4, 2.6, 1.8, C.fur, { hi: false }); // little feet
+    p.ball(17, 31.6, 11.6, 8.6, C.shell, { shadow: darken(C.shell, 0.2) });
+    const ln = darken(C.shell, 0.32); // the shell's plates
+    p.hline(14, 20, 27, ln); p.line(14, 27, 12, 30, ln); p.line(20, 27, 22, 30, ln); p.hline(12, 22, 31, ln);
+    p.line(12, 31, 14, 35, ln); p.line(22, 31, 20, 35, ln); p.line(12, 30, 7, 31, ln); p.line(22, 30, 27, 31, ln); p.vline(17, 31, 35, ln);
+    p.ell(17, 29, 2.2, 1.2, C.shellHi, null, true); p.px(13, 25, lighten(C.shell, 0.6)); p.px(12, 26, lighten(C.shell, 0.6));
+    p.ell(17, 37.2, 12.6, 2.6, RIM); p.hline(6, 28, 36, lighten(RIM, 0.4)); p.hline(7, 27, 39, darken(RIM, 0.25)); // the yellow rim
+    p.rect(13, 23, 8, 1, '#ffcf4a'); p.px(17, 22, '#ff7f6e'); // the beanie's pompom peeking out
+    // the dark opening at the front, and her eyes peeking out of it (high enough to clear the desk top)
+    p.ell(17, 34.6, 4.8, 2.4, '#1d2a24'); p.hline(13, 21, 36, darken(C.shell, 0.32));
+    p.rect(14 + l, 33, 2, 2, WHITE); p.rect(18 + l, 33, 2, 2, WHITE); p.px(15 + l, 34, INK); p.px(19 + l, 34, INK);
     return;
   }
   feet(p, C, st.feet);
@@ -172,7 +179,7 @@ function drawOwl(p, C, st) {
   arms(p, C, st, 'back');
   p.ball(17, 31, 8, 6.8, C.fur, { shadow: C.shadow });
   p.ell(17, 32, 5, 4.6, C.belly, null, true);
-  for (const [x, y] of [[15, 30], [19, 30], [17, 32], [15, 34], [19, 34]]) { p.px(x, y, '#c99e6e'); p.px(x + 1, y + 1, '#c99e6e'); p.px(x - 1, y + 1, '#c99e6e'); }
+  for (const [x, y] of [[15, 30], [19, 30], [17, 32], [15, 34], [19, 34]]) { p.px(x, y, C.marks); p.px(x + 1, y + 1, C.marks); p.px(x - 1, y + 1, C.marks); }
   arms(p, C, st, 'front');
   // ear tufts
   p.ball(9.2, 10 - (st.earUp ? 1 : 0), 2.4, 3.6, C.fur, { shadow: C.shadow, hi: false });
@@ -192,6 +199,7 @@ function drawOwl(p, C, st) {
   const m = st.mouth || 'smile';
   if (m === 'open' || m === 'grin' || m === 'munch') { p.rect(15, 24, 4, 2, INK); p.px(16, 25, '#ff7b93'); p.px(17, 25, '#ff7b93'); }
   else if (m === 'o') { p.rect(16, 24, 2, 2, INK); }
+  else if (['down', 'grr', 'gasp', 'yawn'].includes(m)) mouth(p, m, 24, 0);
   if (st.blush !== false) { p.px(8, 22, BLUSH); p.px(9, 22, BLUSH); p.px(24, 22, BLUSH); p.px(25, 22, BLUSH); }
 }
 
@@ -218,7 +226,8 @@ function drawFrog(p, C, st) {
   if (m === 'smile') { p.px(11, 22, INK); p.px(12, 23, INK); p.hline(13, 20, 24, INK); p.px(21, 23, INK); p.px(22, 22, INK); }
   else if (m === 'open' || m === 'grin') { p.px(11, 22, INK); p.px(22, 22, INK); p.rect(12, 23, 10, 2, INK); p.rect(13, 25, 8, 1, INK); p.hline(14, 19, 25, '#ff7b93'); }
   else if (m === 'o') { p.rect(16, 23, 2, 2, INK); }
-  else if (m === 'frown') { p.px(12, 24, INK); p.hline(13, 20, 23, INK); p.px(21, 24, INK); }
+  else if (m === 'frown' || m === 'down') { p.px(12, 24, INK); p.hline(13, 20, 23, INK); p.px(21, 24, INK); }
+  else if (m === 'grr') { p.px(10, 25, INK); p.px(11, 24, INK); p.hline(12, 21, 23, INK); p.px(22, 24, INK); p.px(23, 25, INK); p.hline(13, 20, 24, '#7a2e45'); }
   else mouth(p, m, 23, 0);
   if (st.blush !== false) { p.px(8, 22, BLUSH); p.px(9, 22, BLUSH); p.px(24, 22, BLUSH); p.px(25, 22, BLUSH); }
   // bow
@@ -309,10 +318,12 @@ function drawBear(p, C, st) {
 
 function drawMouse(p, C, st) {
   const hide = st.hide || 0, l = st.look || 0;
-  if (hide > 0) { // ducked down under the desk: only the big ears and the top of the head show
-    p.ball(10.4, 27.6, 4.6, 4.4, C.fur, { shadow: C.shadow, hi: false });
-    p.ball(23.6, 27.6, 4.6, 4.4, C.fur, { shadow: C.shadow, hi: false });
-    p.ell(10.6, 28, 2.8, 2.6, C.inner); p.ell(23.4, 28, 2.8, 2.6, C.inner);
+  if (hide > 0) { // ducked down under the desk: the big pink-lined ears, the top of the head and the curly tail show
+    p.line(24, 40, 28, 38, C.tail); p.line(28, 38, 30, 34, C.tail); p.line(30, 34, 30, 29, C.tail); p.line(30, 29, 28, 26, C.tail); p.px(27, 26, C.tail); p.px(26, 27, C.tail);
+    p.line(29, 38, 31, 34, C.tail); p.line(31, 34, 31, 29, C.tail); // (two pixels thick so it reads)
+    p.ball(10, 26.6, 5.2, 5, C.fur, { shadow: C.shadow, hi: false });
+    p.ball(24, 26.6, 5.2, 5, C.fur, { shadow: C.shadow, hi: false });
+    p.ell(10.2, 27, 3.4, 3.2, C.inner); p.ell(23.8, 27, 3.4, 3.2, C.inner);
     p.ball(17, 34, 8.6, 6.8, C.fur, { shadow: C.shadow });
     if (hide >= 1) { // paws over the eyes
       p.ball(13.4, 31.6, 2.6, 2.2, C.fur, { shadow: C.shadow, hi: false }); p.ball(20.6, 31.6, 2.6, 2.2, C.fur, { shadow: C.shadow, hi: false });
@@ -354,25 +365,55 @@ function postMouse(p, st) { if (!(st.hide > 0)) whiskers(p, [[24, 0], [26, 1]], 
 
 const DRAW = { bunny: drawBunny, puppy: drawPuppy, turtle: drawTurtle, owl: drawOwl, frog: drawFrog, cat: drawCat, bear: drawBear, mouse: drawMouse };
 const POST = { cat: postCat, mouse: postMouse }; // drawn after the outline
-// feelings overlays: eyebrows, tears, anger marks, sweat drops
-const EYES = { bunny: [12, 20, 17], puppy: [12, 20, 17], turtle: [12, 20, 17], owl: [13, 21, 16], frog: [10, 22, 11], cat: [12, 20, 17], bear: [11, 21, 16], mouse: [13, 19, 20] };
+// feelings overlays: eyebrows, tears, a red flush, sweat drops, big scared eyes (v2.3: exaggerated so a 5-year-old reads them)
+const EYES = { bunny: [12, 20, 17], puppy: [12, 20, 17], turtle: [12, 20, 17], owl: [13, 21, 16], frog: [10, 22, 13], cat: [12, 20, 17], bear: [11, 21, 16], mouse: [13, 19, 20] };
 // where the anger mark / sweat drop sit, relative to the original spot (top-right of the head)
-const MOOD_AT = { bear: { angry: [2, -2], scared: [2, -2] }, mouse: { angry: [-4, 7], scared: [0, 6] } };
+const MOOD_AT = { bear: { angry: [2, -2], scared: [2, -2] }, mouse: { angry: [3, -1], scared: [-2, 11] }, frog: { scared: [1, 2] }, owl: { scared: [0, 1] } };
+/** the feelings' colours (cards, glows, bubbles) */
+export const MOOD_COL = { triste: '#7ec8ff', enojado: '#ff6b5b', asustado: '#c9a2ff', cansado: '#cbbbe8' };
+/** the chin row of each student (head close-ups stop here) */
+export const HEAD_Y1 = { bunny: 29, puppy: 29, turtle: 28, owl: 28, frog: 28, cat: 28, bear: 29, mouse: 32 };
+/** tint the painted pixels inside an ellipse toward a colour (cheek flush) */
+function flush(p, cx, cy, rx, ry, col, t) {
+  for (let y = Math.floor(cy - ry); y <= cy + ry; y++) for (let x = Math.floor(cx - rx); x <= cx + rx; x++) {
+    const dx = (x + 0.5 - cx) / rx, dy = (y + 0.5 - cy) / ry;
+    if (dx * dx + dy * dy > 1) continue;
+    const v = p.get(x, y); if (!v) continue;
+    const hx = '#' + [v & 0xff, (v >> 8) & 0xff, (v >> 16) & 0xff].map(n => n.toString(16).padStart(2, '0')).join('');
+    if (hx === INK || hx === WHITE) continue;
+    p.px(x, y, mix(hx, col, t));
+  }
+}
+function drop(p, x, y, c = '#5fb4ef') { // a 2x3 drop: tear or sweat
+  p.px(x, y, '#bfe6ff'); p.px(x + 1, y, c); p.rect(x, y + 1, 2, 1, c); p.px(x, y + 1, '#dff2ff'); p.rect(x, y + 2, 2, 1, darken(c, 0.25));
+}
 function drawMood(p, kind, mood, look) {
   const [xl0, xr0, ey] = EYES[kind] || EYES.bunny;
   const [mx, my] = (MOOD_AT[kind] && MOOD_AT[kind][mood]) || [0, 0];
-  const xl = xl0 + look, xr = xr0 + look, by = ey - 2, B = '#5a3a4a';
-  if (mood === 'sad') {
-    p.px(xl - 1, by + 1, B); p.px(xl, by, B); p.px(xl + 1, by, B);
-    p.px(xr + 2, by + 1, B); p.px(xr + 1, by, B); p.px(xr, by, B);
-    for (const x of [xl, xr + 1]) { p.px(x, ey + 3, '#5fb4ef'); p.px(x, ey + 4, '#7ec8ff'); p.px(x, ey + 5, '#7ec8ff'); p.px(x, ey + 6, '#bfe6ff'); }
-  } else if (mood === 'angry') {
-    p.px(xl - 1, by, B); p.px(xl, by, B); p.px(xl + 1, by + 1, B);
-    p.px(xr + 2, by, B); p.px(xr + 1, by, B); p.px(xr, by + 1, B);
-    for (const [x, y] of [[26, 8], [28, 8], [27, 9], [26, 10], [28, 10]]) p.px(x + mx, y + my, '#ef4b4b');
-  } else if (mood === 'scared') {
-    p.hline(xl - 1, xl + 1, by - 1, B); p.hline(xr, xr + 2, by - 1, B);
-    p.px(27 + mx, 12 + my, '#9fd8ff'); p.px(27 + mx, 13 + my, '#9fd8ff'); p.px(26 + mx, 13 + my, '#bfe6ff'); p.px(27 + mx, 14 + my, '#7ec8ff');
+  const xl = xl0 + look, xr = xr0 + look, by = ey - 2, B = '#4a2a3a';
+  if (mood === 'sad') { // brows up in the middle, a big tear and a small one
+    p.px(xl - 1, by + 1, B); p.px(xl, by, B); p.px(xl + 1, by - 1, B);
+    p.px(xr + 2, by + 1, B); p.px(xr + 1, by, B); p.px(xr, by - 1, B);
+    drop(p, xl, ey + 3); p.px(xr + 1, ey + 3, '#7ec8ff'); p.px(xr + 1, ey + 4, '#5fb4ef');
+  } else if (mood === 'angry') { // brows slanting down to the nose, a red flush, the anger mark
+    for (const d of [0, 1]) {
+      p.px(xl - 2, by - 1 + d, B); p.px(xl - 1, by - 1 + d, B); p.px(xl, by + d, B); p.px(xl + 1, by + 1 + d, B);
+      p.px(xr + 3, by - 1 + d, B); p.px(xr + 2, by - 1 + d, B); p.px(xr + 1, by + d, B); p.px(xr, by + 1 + d, B);
+    }
+    const fy = kind === 'frog' ? 22 : ey + 5, green = kind === 'frog' || kind === 'turtle'; // green + red is mud: green friends get a pinker flush
+    flush(p, xl - 1, fy, 3.2, 2.2, green ? '#ff5a6a' : '#ff3a2a', green ? 0.7 : 0.5); flush(p, xr + 3, fy, 3.2, 2.2, green ? '#ff5a6a' : '#ff3a2a', green ? 0.7 : 0.5);
+    for (const [x, y] of [[26, 7], [28, 7], [27, 8], [26, 9], [28, 9], [25, 6], [29, 6], [25, 10], [29, 10]]) p.px(x + mx, y + my, '#ef4b4b');
+  } else if (mood === 'scared') { // big white eyes with small pupils, raised brows, a sweat drop
+    if (kind !== 'frog') for (const x of [xl, xr]) {
+      p.hline(x, x + 1, ey - 2, INK); p.hline(x, x + 1, ey + 4, INK); p.px(x - 1, ey - 1, INK); p.px(x + 2, ey - 1, INK); p.px(x - 1, ey + 3, INK); p.px(x + 2, ey + 3, INK);
+      p.vline(x - 2, ey, ey + 2, INK); p.vline(x + 3, ey, ey + 2, INK);
+      p.hline(x, x + 1, ey - 1, WHITE); p.rect(x - 1, ey, 4, 3, WHITE); p.hline(x, x + 1, ey + 3, WHITE); p.rect(x, ey + 1, 2, 2, INK);
+    }
+    if (kind !== 'frog') { p.hline(xl - 2, xl + 2, by - 2, B); p.hline(xr - 1, xr + 3, by - 2, B); }
+    drop(p, 26 + mx, 11 + my, '#7ec8ff'); p.px(27 + mx, 10 + my, '#9fd8ff');
+  } else if (mood === 'tired') { // heavy brows and little bags under the eyes
+    p.hline(xl - 1, xl + 2, by, B); p.hline(xr - 1, xr + 2, by, B);
+    if (kind !== 'frog') { p.hline(xl, xl + 1, ey + 4, '#b9a3d8'); p.hline(xr, xr + 1, ey + 4, '#b9a3d8'); }
   }
 }
 export function student(kind, st) {
@@ -387,28 +428,30 @@ export function student(kind, st) {
   });
 }
 
-/** 13x13 face for the attendance chart (same look as classroom.js's miniFace, covering all eight students) */
+/** 13x13 face for the attendance chart and the centros chart. v2.3: always in full colour (grey heads all
+ *  turned to mud); an absent friend just has sleepy closed eyes (the chart adds a little zzz badge) */
 export function miniFace(kind, on) {
-  return cached('mini8' + kind + on, () => {
+  return cached('mini9' + kind + on, () => {
     const p = new Pix(13, 13);
     const C = PAL[kind];
-    const g = (c) => on ? c : darken(lighten(c, 0.5), 0.15);
-    if (kind === 'bunny') { p.ell(4.5, 3, 1.5, 3.4, g(C.fur)); p.ell(8.5, 3, 1.5, 3.4, g(C.fur)); p.px(4, 2, g(C.inner)); p.px(8, 2, g(C.inner)); }
-    if (kind === 'owl') { p.ell(3, 3.5, 1.5, 2, g(C.fur)); p.ell(10, 3.5, 1.5, 2, g(C.fur)); }
-    if (kind === 'frog') { p.ell(4, 4.5, 2.4, 2.2, g(C.fur)); p.ell(9, 4.5, 2.4, 2.2, g(C.fur)); }
-    if (kind === 'cat') { for (let i = 0; i < 4; i++) { p.hline(2 - (i > 1 ? 1 : 0), 2 + Math.floor(i / 2), 1 + i, g(C.fur)); p.hline(10 - Math.floor(i / 2), 10 + (i > 1 ? 1 : 0), 1 + i, g(C.fur)); } p.px(2, 3, g(C.inner)); p.px(10, 3, g(C.inner)); }
-    if (kind === 'bear') { p.ell(2.4, 3.4, 2.2, 2.2, g(C.fur)); p.ell(10.6, 3.4, 2.2, 2.2, g(C.fur)); p.px(2, 3, g(C.inner)); p.px(10, 3, g(C.inner)); }
-    if (kind === 'mouse') { p.ell(2.6, 4, 2.6, 2.6, g(C.fur)); p.ell(10.4, 4, 2.6, 2.6, g(C.fur)); p.ell(2.6, 4, 1.4, 1.4, g(C.inner)); p.ell(10.4, 4, 1.4, 1.4, g(C.inner)); }
-    p.ball(6.5, 7.5, 5.5, 4.6, g(C.fur), { hi: false });
-    if (kind === 'puppy') { p.ell(1.6, 7, 1.5, 3, g(C.ear)); p.ell(11.4, 7, 1.5, 3, g(C.ear)); }
-    if (kind === 'turtle') p.ell(6.5, 4.6, 5, 2.4, g(C.accent), { y1: 4 });
-    if (kind === 'owl') { p.ell(4.5, 7.5, 2, 2, g(C.disk)); p.ell(8.5, 7.5, 2, 2, g(C.disk)); p.px(6, 9, g('#ffae4a')); }
-    if (kind === 'cat') { p.px(6, 4, g(C.stripe)); p.px(6, 5, g(C.stripe)); p.px(6, 9, g(PINK)); }
-    if (kind === 'bear') { p.ell(6.5, 9.4, 2.4, 1.6, g(C.muzzle)); p.px(6, 9, g(INK)); }
-    if (kind === 'mouse') p.px(6, 9, g(PINK));
-    const e = on ? INK : '#9a8d98';
-    if (kind === 'frog') { p.px(4, 4, e); p.px(9, 4, e); } else { p.px(4, 7, e); p.px(8, 7, e); }
+    if (kind === 'bunny') { p.ell(4.5, 3, 1.5, 3.4, C.fur); p.ell(8.5, 3, 1.5, 3.4, C.fur); p.px(4, 2, C.inner); p.px(8, 2, C.inner); }
+    if (kind === 'owl') { p.ell(3, 3.5, 1.5, 2, C.fur); p.ell(10, 3.5, 1.5, 2, C.fur); }
+    if (kind === 'frog') { p.ell(4, 4.5, 2.4, 2.2, C.fur); p.ell(9, 4.5, 2.4, 2.2, C.fur); }
+    if (kind === 'cat') { for (let i = 0; i < 4; i++) { p.hline(2 - (i > 1 ? 1 : 0), 2 + Math.floor(i / 2), 1 + i, C.fur); p.hline(10 - Math.floor(i / 2), 10 + (i > 1 ? 1 : 0), 1 + i, C.fur); } p.px(2, 3, C.inner); p.px(10, 3, C.inner); }
+    if (kind === 'bear') { p.ell(2.4, 3.4, 2.2, 2.2, C.fur); p.ell(10.6, 3.4, 2.2, 2.2, C.fur); p.px(2, 3, C.inner); p.px(10, 3, C.inner); }
+    if (kind === 'mouse') { p.ell(2.6, 4, 2.6, 2.6, C.fur); p.ell(10.4, 4, 2.6, 2.6, C.fur); p.ell(2.6, 4, 1.4, 1.4, C.inner); p.ell(10.4, 4, 1.4, 1.4, C.inner); }
+    p.ball(6.5, 7.5, 5.5, 4.6, C.fur, { hi: false });
+    if (kind === 'puppy') { p.ell(1.6, 7, 1.5, 3, C.ear); p.ell(11.4, 7, 1.5, 3, C.ear); p.ell(6.5, 9.6, 2.2, 1.4, C.muzzle); p.px(6, 9, INK); }
+    if (kind === 'turtle') p.ell(6.5, 4.6, 5, 2.4, C.accent, { y1: 4 });
+    if (kind === 'owl') { p.ell(4.5, 7.5, 2, 2, C.disk); p.ell(8.5, 7.5, 2, 2, C.disk); p.px(6, 9, '#ffae4a'); p.px(6, 4, C.shadow); }
+    if (kind === 'cat') { p.px(6, 4, C.stripe); p.px(6, 5, C.stripe); p.px(6, 9, PINK); }
+    if (kind === 'bear') { p.ell(6.5, 9.4, 2.4, 1.6, C.muzzle); p.px(6, 9, INK); }
+    if (kind === 'mouse') p.px(6, 9, PINK);
+    if (on) { if (kind === 'frog') { p.px(4, 4, INK); p.px(9, 4, INK); } else { p.px(4, 7, INK); p.px(8, 7, INK); } }
+    else if (kind === 'frog') { p.hline(3, 4, 5, INK); p.hline(8, 9, 5, INK); }
+    else { p.hline(3, 4, 7, INK); p.hline(8, 9, 7, INK); }
     if (on) { p.px(5, 10, INK); p.px(6, 10, INK); p.px(7, 10, INK); }
+    if (kind === 'owl') { p.px(3, 6, C.accent); p.px(10, 6, C.accent); } // the glasses' rims peek out
     p.outline();
     return p.canvas();
   });

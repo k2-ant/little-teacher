@@ -11,6 +11,7 @@ import { sfx } from './audio.js';
 import * as LD from './learndata.js';
 import { wordSprite } from './i18n.js';
 import { jobsButtonIcon } from './rituals.js';
+import * as UI from './ui.js';
 
 const R = (c, x, y, w, h, col) => { c.fillStyle = col; c.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); };
 const D = (c, img, x, y) => c.drawImage(img, Math.round(x), Math.round(y));
@@ -21,58 +22,59 @@ const inRect = (x, y, r) => r && x >= r.x && x <= r.x + r.w && y >= r.y && y <= 
 // calm: interruptions (knocks, raised paws, moods, naughty) may happen; cards: star / green / red shown
 export const BLOCKS = [
   { id: 'decorar', words: ['Decorar'], col: '#ff8fb8' },
-  { id: 'manana', words: ['Trabajo de', 'la mañana'], col: '#ffc21f', choices: ['pizarra', 'numeros'], calm: true, cards: true },
+  { id: 'manana', words: ['Mañana'], col: '#ffc21f', choices: ['pizarra', 'numeros'], calm: true, cards: true },
   { id: 'calendario', words: ['Calendario'], col: '#ef6f6c', choices: ['ayudantes', 'emociones'] },
   { id: 'alfabeto', words: ['Alfabeto'], col: '#64a8e8', choices: ['letras'], calm: true, cards: true },
   { id: 'recreo', words: ['Recreo'], col: '#7dd370', choices: ['recreo'] },
-  { id: 'lectura', words: ['Lectura con', 'Maestra'], col: '#b48be6', choices: ['cuento'] },
+  { id: 'lectura', words: ['Lectura'], col: '#b48be6', choices: ['cuento'] },
   { id: 'heggerty', words: ['Heggerty'], col: '#ff9a2e', choices: ['silabas'], calm: true, cards: true },
   { id: 'sla', words: ['S.L.A'], col: '#2f9e9e', choices: ['figuras', 'pizarra'], calm: true, cards: true },
-  { id: 'centros', words: ['Centros de', 'Aprendizaje'], col: '#5f86b8', choices: ['centros'], calm: true, cards: true },
+  { id: 'centros', words: ['Centros'], col: '#5f86b8', choices: ['centros'], calm: true, cards: true },
   { id: 'almuerzo', words: ['Almuerzo'], col: '#ef4b4b', choices: ['almuerzo'], cards: true },
-  { id: 'lector', words: ['Lector', 'Misterioso'], col: '#e0559a', choices: ['lector'] },
+  { id: 'lector', words: ['Lector'], col: '#e0559a', choices: ['lector'] },
   { id: 'casa', words: ['Casa'], col: '#a8703f' },
 ];
-export const CHOICE_WORDS = {
+export const CHOICE_WORDS = { // (spoken, not drawn: the choice cards are icon-only)
   pizarra: 'Pizarra', numeros: 'Números', letras: 'Letras', silabas: 'Sílabas', figuras: 'Figuras', ayudantes: 'Ayudantes',
   emociones: 'Emociones', recreo: 'Recreo', cuento: 'Cuento', centros: 'Centros', almuerzo: 'Almuerzo', lector: 'Lector',
 };
 const byId = (id) => BLOCKS.findIndex(b => b.id === id);
 
-// ------------------------------------------------------------------ a tiny 3-px font for the card words
-// rows top→bottom: capitals use rows 0-4, lowercase x-height rows 1-4, ascenders row 0, descenders 5-6
+// ------------------------------------------------------------------ the card labels' pixel font
+// v2.3: one short word per card in a 4-wide pixel face (x-height 5, caps 7, descenders 2), dark plum ink.
+// rows 0-6 sit on the baseline at row 6; g / y hang into rows 7-8. (UI labels only: the learning letters are i18n.js)
 const TF = {
-  A: ['.#.', '#.#', '###', '#.#', '#.#'], C: ['.##', '#..', '#..', '#..', '.##'], D: ['##.', '#.#', '#.#', '#.#', '##.'],
-  E: ['###', '#..', '##.', '#..', '###'], F: ['###', '#..', '##.', '#..', '#..'], H: ['#.#', '#.#', '###', '#.#', '#.#'],
-  L: ['#..', '#..', '#..', '#..', '###'], M: ['#...#', '##.##', '#.#.#', '#...#', '#...#'], N: ['#..#', '##.#', '#.##', '#..#', '#..#'],
-  P: ['##.', '#.#', '##.', '#..', '#..'], R: ['##.', '#.#', '##.', '#.#', '#.#'], S: ['.##', '#..', '.#.', '..#', '##.'],
-  T: ['###', '.#.', '.#.', '.#.', '.#.'], '.': ['.', '.', '.', '.', '#'],
-  a: ['...', '.##', '#.#', '#.#', '.##'], b: ['#..', '##.', '#.#', '#.#', '##.'], c: ['...', '.##', '#..', '#..', '.##'],
-  d: ['..#', '.##', '#.#', '#.#', '.##'], e: ['...', '.#.', '###', '#..', '.##'], f: ['.##', '#..', '##.', '#..', '#..'],
-  g: ['...', '.##', '#.#', '#.#', '.##', '..#', '##.'], h: ['#..', '##.', '#.#', '#.#', '#.#'], i: ['#', '.', '#', '#', '#'],
-  j: ['.#', '..', '.#', '.#', '.#', '.#', '#.'], l: ['#.', '#.', '#.', '#.', '.#'], m: ['.....', '####.', '#.#.#', '#.#.#', '#.#.#'],
-  n: ['...', '##.', '#.#', '#.#', '#.#'], 'ñ': ['###', '##.', '#.#', '#.#', '#.#'], o: ['...', '.#.', '#.#', '#.#', '.#.'],
-  p: ['...', '##.', '#.#', '#.#', '##.', '#..', '#..'], r: ['...', '#.#', '##.', '#..', '#..'], s: ['...', '.##', '#..', '..#', '##.'],
-  t: ['.#.', '###', '.#.', '.#.', '..#'], u: ['...', '#.#', '#.#', '#.#', '.##'], 'ú': ['..#', '.#.', '#.#', '#.#', '.##'],
-  'í': ['.#', '..', '#.', '#.', '#.'], y: ['...', '#.#', '#.#', '#.#', '.##', '..#', '##.'], z: ['...', '###', '..#', '#..', '###'],
-  v: ['...', '#.#', '#.#', '#.#', '.#.'],
+  A: ['.##.', '#..#', '#..#', '####', '#..#', '#..#', '#..#'], C: ['.###', '#...', '#...', '#...', '#...', '#...', '.###'],
+  D: ['###.', '#..#', '#..#', '#..#', '#..#', '#..#', '###.'], H: ['#..#', '#..#', '#..#', '####', '#..#', '#..#', '#..#'],
+  L: ['#...', '#...', '#...', '#...', '#...', '#...', '####'], M: ['#...#', '##.##', '#.#.#', '#...#', '#...#', '#...#', '#...#'],
+  R: ['###.', '#..#', '#..#', '###.', '#.#.', '#..#', '#..#'], S: ['.###', '#...', '#...', '.##.', '...#', '...#', '###.'],
+  '.': ['.', '.', '.', '.', '.', '.', '#'],
+  a: ['....', '....', '.##.', '...#', '.###', '#..#', '.###'], b: ['#...', '#...', '###.', '#..#', '#..#', '#..#', '###.'],
+  c: ['...', '...', '.##', '#..', '#..', '#..', '.##'], d: ['...#', '...#', '.###', '#..#', '#..#', '#..#', '.###'],
+  e: ['....', '....', '.##.', '#..#', '####', '#...', '.###'], f: ['.##', '#..', '###', '#..', '#..', '#..', '#..'],
+  g: ['....', '....', '.###', '#..#', '#..#', '#..#', '.###', '...#', '###.'], i: ['#', '.', '#', '#', '#', '#', '#'],
+  l: ['#', '#', '#', '#', '#', '#', '#'], m: ['.....', '.....', '##.#.', '#.#.#', '#.#.#', '#.#.#', '#.#.#'],
+  n: ['....', '....', '###.', '#..#', '#..#', '#..#', '#..#'], 'ñ': ['.#.#', '#.#.', '###.', '#..#', '#..#', '#..#', '#..#'],
+  o: ['....', '....', '.##.', '#..#', '#..#', '#..#', '.##.'], r: ['...', '...', '#.#', '##.', '#..', '#..', '#..'],
+  s: ['....', '....', '.###', '#...', '.##.', '...#', '###.'], t: ['.#.', '.#.', '###', '.#.', '.#.', '.#.', '..#'],
+  u: ['....', '....', '#..#', '#..#', '#..#', '#..#', '.###'], y: ['....', '....', '#..#', '#..#', '#..#', '#..#', '.###', '...#', '###.'],
+  z: ['....', '....', '####', '...#', '.##.', '#...', '####'],
 };
-/** the words of a card (one or two lines) as a tiny sprite */
-export function tinyText(lines, col = INK) {
-  if (typeof lines === 'string') lines = [lines];
-  return cached('tiny' + lines.join('|') + col, () => {
-    const wOf = (s) => [...s].reduce((n, ch) => n + (ch === ' ' ? 2 : (TF[ch] ? TF[ch][0].length : 3) + 1), -1);
-    const w = Math.max(1, ...lines.map(wOf)), lh = 7;
-    const p = new Pix(w, lh * (lines.length - 1) + 7);
-    lines.forEach((s, k) => {
-      let x = 0;
-      for (const ch of s) {
-        if (ch === ' ') { x += 2; continue; }
-        const g = TF[ch] || TF[ch.toLowerCase()] || ['###', '#.#', '#.#', '#.#', '###'];
-        p.map(x, k * lh, g, { '#': col });
-        x += g[0].length + 1;
-      }
-    });
+export const LABEL_INK = '#5a4560';
+/** a card's word as a pixel sprite (9 rows: 7 to the baseline + 2 for descenders) */
+export function tinyText(lines, col = LABEL_INK) {
+  const s = typeof lines === 'string' ? lines : lines.join(' ');
+  return cached('tiny2' + s + col, () => {
+    const gl = (ch) => TF[ch] || TF[ch.toLowerCase()] || ['####', '#..#', '#..#', '#..#', '#..#', '#..#', '####'];
+    const w = Math.max(1, [...s].reduce((n, ch) => n + (ch === ' ' ? 3 : gl(ch)[0].length + 1), -1));
+    const p = new Pix(w, 9);
+    let x = 0;
+    for (const ch of s) {
+      if (ch === ' ') { x += 3; continue; }
+      const g = gl(ch);
+      p.map(x, 0, g, { '#': col });
+      x += g[0].length + 1;
+    }
     return p.canvas();
   });
 }
@@ -183,7 +185,7 @@ export function choiceIcon(id) {
       for (let i = 0; i < 7; i++) p.hline(8 - i, 8 + i, 10 + i, '#ffd23f');
     }
     if (id === 'emociones') {
-      p.ball(9, 9, 7.5, 7.5, '#ffd23f', { hi: false }); p.rect(6, 6, 2, 3, INK); p.rect(11, 6, 2, 3, INK);
+      p.ball(9, 9, 7.5, 7.5, '#ff9f4a', { hi: false }); p.rect(6, 6, 2, 3, INK); p.rect(11, 6, 2, 3, INK); // (orange, so it shows on the yellow choice card)
       p.px(5, 12, INK); p.hline(6, 12, 13, INK); p.px(13, 12, INK); p.px(4, 10, '#ff9a9a'); p.px(14, 10, '#ff9a9a');
     }
     if (id === 'lector') { const cv = p.canvas(); cv.getContext('2d').drawImage(blockIcon('lector'), -1, 1); return cv; }
@@ -242,7 +244,7 @@ export function createSchedule(api) {
   function layout(V, compact) {
     // phones: every pixel of height goes to the cards (12 cards share ~390 CSS px), and a bit more width
     const i = V.inset, top = i.t + (compact ? 1 : 2), x = i.l + 2;
-    const w = compact ? ICON_W + 4 : 66, headH = compact ? 0 : 18;
+    const w = compact ? ICON_W + 4 : 72, headH = compact ? 0 : 18;
     const n = BLOCKS.length;
     const avail = V.H - i.b - top - headH - (compact ? 2 : 5);
     const pitch = clamp(Math.floor(avail / n), 14, 20), h = pitch - 1;
@@ -322,13 +324,16 @@ export function createSchedule(api) {
         D(c, glow(fr, '#ffd23f', 'schedglow' + cw + 'x' + cd.h), cd.x - 2, yy - 2);
         c.globalAlpha = 1;
       }
+      // v2.3: cards that aren't now fade as a whole (picture, frame and word together); the word is always dark plum ink
+      if (!on && !asking && !pressed) c.globalAlpha = 0.62;
       D(c, cardFrame(cw, cd.h, fill, b.col, ''), cd.x, yy);
       const ic = blockIcon(b.id);
       D(c, ic, cd.x + (compact ? Math.round((cw - ICON_W) / 2) : 2), yy + Math.round((cd.h - ICON_H) / 2));
-      if (!compact) { // picture first: the words are small and soft, darker only on the card that's on now
-        const tx = tinyText(b.words, on ? INK : '#8a7768');
-        D(c, tx, cd.x + ICON_W + 4, yy + Math.round((cd.h - (b.words.length > 1 ? 12 : 5)) / 2));
+      if (!compact) { // picture first, then one short word
+        const tx = tinyText(b.words);
+        D(c, tx, cd.x + ICON_W + 4 + Math.max(0, Math.floor((cw - ICON_W - 6 - (on ? 6 : 0) - tx.width) / 2)), yy + Math.round((cd.h - 7) / 2)); // (clear of the clothespin)
       }
+      c.globalAlpha = 1;
       if (st.done.has(b.id) && !on) D(c, tickImg(), cd.x + (compact ? cw - 8 : 1), yy - 1);
     }
     // the clothespin clipped on the right edge of the current card
@@ -368,25 +373,26 @@ export function createSchedule(api) {
   const taking = () => !!press;
 
   // ---- the big choice cards in the room (room coordinates)
+  // v2.3: icon-first: no word on the card (it's spoken on tap), the picture at 2x on a yellow chunky button
+  const CH_W = 46, CH_H = 42;
   function choiceRects(V, lo, hi) {
     const ids = cur().choices || [];
-    const ws = ids.map(id => Math.max(38, tinyText(CHOICE_WORDS[id] || id).width + 8)), ch = 33, gap = 6;
-    const tot = ws.reduce((a, w) => a + w, 0) + (ids.length - 1) * gap;
+    const ch = CH_H, gap = 6;
+    const tot = ids.length * CH_W + (ids.length - 1) * gap;
     const x0 = Math.round(clamp((lo + hi) / 2 - tot / 2, lo, Math.max(lo, hi - tot)));
-    const y = V.H - V.inset.b - ch - 3;
-    let x = x0;
-    return ids.map((id, k) => { const r = { id, x, y, w: ws[k], h: ch }; x += ws[k] + gap; return r; });
+    const y = V.H - V.inset.b - ch - 2;
+    return ids.map((id, k) => ({ id, x: x0 + k * (CH_W + gap), y, w: CH_W, h: ch }));
   }
-  function drawChoices(c, rects, btnFrame, pressId) {
-    const pulse = !st.used && !purposeDone();
+  const big = (im) => cached('ch2x' + (im.__chid ||= Math.random()), () => {
+    const cv = document.createElement('canvas'); cv.width = im.width * 2; cv.height = im.height * 2;
+    const x = cv.getContext('2d'); x.imageSmoothingEnabled = false; x.drawImage(im, 0, 0, cv.width, cv.height); return cv;
+  });
+  function drawChoices(c, rects, _btnFrame, pressId) {
+    const now = !st.used && !purposeDone(); // "pick one!": a gentle 2 px bob and a bright gold rim
     rects.forEach((r, k) => {
-      const bob = pulse && Math.floor(G.time * 2) % 4 === k % 4 ? -1 : 0;
-      const dn = pressId === r.id ? 1 : 0, y = r.y + bob + dn;
-      if (pulse) { c.globalAlpha = 0.5 + 0.4 * Math.sin(G.time * 4 + k); D(c, glow(btnFrame(r.w, r.h, '#fff6c8', 'ch'), '#ffd23f', 'chglow' + r.w), r.x - 2, y - 2); c.globalAlpha = 1; }
-      D(c, btnFrame(r.w, r.h, '#fff6c8', 'ch'), r.x, y);
-      D(c, choiceIcon(r.id), r.x + Math.round((r.w - 18) / 2), y + 3);
-      const tx = tinyText(CHOICE_WORDS[r.id] || r.id);
-      D(c, tx, r.x + Math.round((r.w - tx.width) / 2), y + 22);
+      const dn = pressId === r.id;
+      const bob = now && !dn ? -Math.round(Math.abs(Math.sin(G.time * 2.6 + k * 1.3)) * 2) : 0;
+      UI.drawBtn(c, r.x, r.y + bob, r.w, r.h, UI.FACE.yellow, dn, big(choiceIcon(r.id)), now ? '#e07a00' : null);
     });
   }
 
