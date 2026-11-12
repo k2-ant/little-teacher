@@ -78,7 +78,36 @@ resize();
 const portrait = () => window.innerHeight > window.innerWidth * 1.05;
 
 // ------------------------------------------------------------------ input (one finger at a time)
-let activeId = null;
+let activeId = null, lastMoveAt = 0, lastLocal = [0, 0], trailAt = [0, 0];
+// v2.6 touch sparkles: every touch answers, wherever it lands, so a little one always sees "I did that"
+const fx = [];
+const FX_COLS = ['#ffd23f', '#ff8fc0', '#7ec8ff', '#7dd370', '#b48be6', '#ffffff'];
+function touchFx(x, y, n) {
+  if (fx.length > 90) return;
+  if (n > 1) fx.push({ ring: true, x, y, t: 0, life: 0.35 });
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2, sp = (n > 1 ? 150 + Math.random() * 190 : 25 + Math.random() * 40) * G.dpr;
+    fx.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 30 * G.dpr, t: 0, life: 0.55 + Math.random() * 0.35, c: FX_COLS[(Math.random() * FX_COLS.length) | 0], big: Math.random() < 0.4 });
+  }
+}
+function drawFx(dt) {
+  const u = Math.max(2, Math.round(view().view.s)); // one "pixel" of sparkle, close to the art's pixels
+  for (let i = fx.length - 1; i >= 0; i--) {
+    const p = fx[i]; p.t += dt;
+    if (p.t >= p.life) { fx.splice(i, 1); continue; }
+    const k = p.t / p.life;
+    if (p.ring) { // a quick ring of dots where the finger landed
+      const r = u * (4 + k * 12); ctx.fillStyle = `rgba(255,255,255,${0.9 * (1 - k)})`;
+      for (let a = 0; a < 8; a++) ctx.fillRect(Math.round((p.x + Math.cos(a * Math.PI / 4) * r) / u) * u, Math.round((p.y + Math.sin(a * Math.PI / 4) * r) / u) * u, u, u);
+      continue;
+    }
+    p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 420 * G.dpr * dt; p.vx *= 1 - 3 * dt; p.vy *= 1 - 1.5 * dt;
+    const x = Math.round(p.x / u) * u, y = Math.round(p.y / u) * u, arm = k < 0.6 && p.big ? 2 : 1;
+    ctx.fillStyle = p.c; ctx.globalAlpha = k > 0.7 ? (1 - k) / 0.3 : 1;
+    ctx.fillRect(x - arm * u, y, (arm * 2 + 1) * u, u); ctx.fillRect(x, y - arm * u, u, (arm * 2 + 1) * u); // a plus-shaped twinkle
+    ctx.globalAlpha = 1;
+  }
+}
 function view() { return scenes[mode]; }
 function toLocal(e) {
   const v = view().view;
@@ -88,16 +117,28 @@ canvas.addEventListener('pointerdown', (e) => {
   e.preventDefault();
   unlock();
   if (!prefetched) { prefetched = true; setTimeout(prefetchClips, 3000); music.setOn(G.save.music !== false); music.start(); }
-  if (activeId !== null || trans || portrait()) return;
-  activeId = e.pointerId;
+  if (trans || portrait()) return;
+  if (activeId !== null) {
+    // v2.6: a resting palm or a held thumb must not block the game. If the finger that is down has not moved
+    // for a moment, let it go and follow the new one (little hands rarely touch with just one finger).
+    if (performance.now() - lastMoveAt < 500) return;
+    activeId = null; view().up(...lastLocal);
+  }
+  activeId = e.pointerId; lastMoveAt = performance.now(); lastLocal = toLocal(e);
   try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
-  view().down(...toLocal(e));
+  touchFx(e.clientX * G.dpr, e.clientY * G.dpr, 9); trailAt = [e.clientX, e.clientY];
+  view().down(...lastLocal);
 });
 canvas.addEventListener('pointermove', (e) => {
   if (e.pointerId !== activeId) return;
   e.preventDefault();
   const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
   for (const ev of (evs.length ? evs : [e])) view().move(...toLocal(ev));
+  const loc = toLocal(e);
+  if (Math.hypot(loc[0] - lastLocal[0], loc[1] - lastLocal[1]) > 2) lastMoveAt = performance.now();
+  lastLocal = loc;
+  // a little sparkle trail behind a dragging finger (not while drawing or tracing: the ink is the trail there)
+  if (mode !== 'board' && mode !== 'letters' && Math.hypot(e.clientX - trailAt[0], e.clientY - trailAt[1]) > 22) { trailAt = [e.clientX, e.clientY]; touchFx(e.clientX * G.dpr, e.clientY * G.dpr, 1); }
 });
 const end = (e) => {
   if (e.pointerId !== activeId) return;
@@ -131,6 +172,7 @@ function frame(now) {
   music.play(yard.isOpen ? yard.musicTrack : room.musicTrack);
   if (mode !== 'class') scenes[mode].update(dt);
   render();
+  if (fx.length && !portrait()) drawFx(dt / SPEED);
   requestAnimationFrame(frame);
 }
 

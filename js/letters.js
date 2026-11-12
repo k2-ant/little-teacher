@@ -1,5 +1,5 @@
 // Alphabet & numbers board: pick a letter/number and trace it stroke by stroke.
-import { G, makeView, persist, rand, pick, wait } from './state.js';
+import { G, makeView, persist, rand, pick, wait, little } from './state.js';
 import { earnStar, drawChip } from './jar.js';
 import * as UI from './ui.js';
 import { Pix, cached, darken, lighten } from './raster.js';
@@ -197,9 +197,9 @@ export function createLetters(students, hooks) {
   function inkTo0(i) { if (i > prog) inkSeg(si, prog, i); }
   function advance(fx, fy) {
     if (done || si >= strokes.length) return;
-    const st = strokes[si], LOOK = 9;
+    const st = strokes[si], LOOK = little() ? 18 : 9, tol = L.g.tol * (little() ? 2.2 : 1); // little ones: a finger anywhere near the letter paints it
     let best = -1;
-    for (let j = prog + 1; j <= Math.min(st.length - 1, prog + LOOK); j++) if (Math.hypot(st[j][0] - fx, st[j][1] - fy) < L.g.tol) best = j;
+    for (let j = prog + 1; j <= Math.min(st.length - 1, prog + LOOK); j++) if (Math.hypot(st[j][0] - fx, st[j][1] - fy) < tol) best = j;
     if (best > prog) inkTo(best);
   }
   function complete() {
@@ -404,7 +404,7 @@ export function createLetters(students, hooks) {
     if (x < g.x - g.r * 3 || x > g.x + g.w + g.r * 3 || y < g.y - g.r * 3 || y > g.y + g.h + g.r * 3) return;
     const st = strokes[si];
     let near = false;
-    for (let j = prog; j <= Math.min(st.length - 1, prog + 6); j++) if (Math.hypot(st[j][0] - x, st[j][1] - y) < L.g.tol * 1.3) near = true;
+    for (let j = prog; j <= Math.min(st.length - 1, prog + (little() ? 18 : 6)); j++) if (Math.hypot(st[j][0] - x, st[j][1] - y) < L.g.tol * (little() ? 2.6 : 1.3)) near = true;
     press.onGlyph = true;
     if (!near) { flashT = G.time + 0.8; idleSince = G.time - 1.2; sfx.tap(); return; } // show where to start
     tracing = true; last = [x, y]; idleSince = G.time;

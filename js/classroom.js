@@ -1,4 +1,4 @@
-import { G, makeView, wait, persist, rand, pick, clamp, SLOT, SLOTS, peekSlot, switchSlot } from './state.js';
+import { G, makeView, wait, persist, rand, pick, clamp, SLOT, SLOTS, peekSlot, switchSlot, little } from './state.js';
 import { Pix, cached, glow, darken, lighten, mix } from './raster.js';
 import * as S from './sprites.js';
 import { sfx, hush } from './audio.js';
@@ -294,6 +294,7 @@ export function createClassroom(students, hooks) {
     }
   }
   function naughtyTick(dt, calm) {
+    if (little()) { for (const s of students) s.naughty = null; return; } // no misbehaving (and no red card) for little ones
     if (calm && !busy && !story && !recess && !centros && quietOK()) {
       naughtyT -= dt;
       if (naughtyT < 0) {
@@ -1892,7 +1893,7 @@ export function createClassroom(students, hooks) {
     if (!roomShown()) { hint = null; lastInput = G.time; } // another scene is open: a fresh wait when she comes back
     const hintable = phase === 'prep' || phase === 'class' || (centros && centros.stage === 'chart') || (phase === 'activity' && (story || recess || (guest && guest.stage === 'knock') || (centros && centros.stage === 'run')));
     if (hintable && !drag && !quiz.active && !menu && !bookOpen && !reward && !dayCard && !busy) {
-      if (G.time - lastInput > 9 && G.time > nextHintAt && !hint) { showHint(false); nextHintAt = G.time + 16; }
+      if (G.time - lastInput > (little() ? 5 : 9) && G.time > nextHintAt && !hint) { showHint(false); nextHintAt = G.time + (little() ? 10 : 16); } // little ones get help sooner
     }
     const calm = phase === 'class' && !drag && !quiz.active;
     naughtyTick(dt, calm);
@@ -2176,7 +2177,7 @@ export function createClassroom(students, hooks) {
     if (phase !== 'class' && phase !== 'activity') return [];
     const cards = SC.cur.cards && !DZ.on && !serve;
     const run = centros && centros.stage === 'run';
-    return btns.filter(b => ['help', 'next'].includes(b.id) || (cards && ['star', 'cardGreen', 'cardRed'].includes(b.id)) || (run && ['toys', 'cdone'].includes(b.id)));
+    return btns.filter(b => ['help', 'next'].includes(b.id) || (cards && ['star', 'cardGreen', 'cardRed'].includes(b.id) && !(little() && b.id === 'cardRed')) || (run && ['toys', 'cdone'].includes(b.id)));
   }
   function drawHud(c) {
     if (!hudVisible() || quiz.active) return; // v2.3: nothing peeks out from under a question card
@@ -2511,7 +2512,8 @@ export function createClassroom(students, hooks) {
     const me = cards[SLOT];
     const sw = LOOK_PARTS.map((q, j) => ({ j, x: Math.round(me.x + cw / 2 - 35 + j * 24), y: me.y + ch - 29, w: 22, h: 22 }));
     const back = { x: Math.max(V.inset.l + 2, x0 - 14), y: Math.max(V.inset.t + 2, y0 - 14), w: 26, h: 26 };
-    return { cards, sw, back, k };
+    const tot = { x: me.x + cw - 25, y: me.y + 3, w: 22, h: 22 }; // v2.6: the "little one" switch (for a grown-up)
+    return { cards, sw, back, k, tot };
   }
   function swatchIcon(j, look) {
     return cached('lookico' + j + ',' + look.hair + ',' + look.outfit + ',' + look.skin, () => {
@@ -2534,7 +2536,7 @@ export function createClassroom(students, hooks) {
     c.fillStyle = 'rgba(40,30,60,0.5)'; c.fillRect(0, 0, W, H);
     const lay = whoLayout(); L.who = lay;
     for (const cd of lay.cards) {
-      const me = cd.i === SLOT, sv = peekSlot(cd.i), down = !!(press && press.who) && inRect(press.x, press.y, cd) && !(me && lay.sw.some(r => inRect(press.x, press.y, r)));
+      const me = cd.i === SLOT, sv = peekSlot(cd.i), down = !!(press && press.who) && inRect(press.x, press.y, cd) && !(me && [...lay.sw, lay.tot].some(r => inRect(press.x, press.y, r)));
       const dy = UI.drawBtn(c, cd.x, cd.y, cd.w, cd.h, me ? UI.FACE.yellow : UI.FACE.cream, down, null, me ? '#c98a00' : null);
       const st = me
         ? { eyes: Math.floor(G.time * 1.1) % 6 === 0 ? 'blink' : 'happy', mouth: 'grin', armL: Math.floor(G.time * 4) % 2 ? 'wave1' : 'wave2', armR: 'down', feet: 0, sway: Math.floor(G.time * 1.2) % 2 }
@@ -2549,6 +2551,16 @@ export function createClassroom(students, hooks) {
     }
     for (const r of lay.sw) UI.drawBtn(c, r.x, r.y, r.w, r.h, UI.FACE.blue, held(r), swatchIcon(r.j, G.save.look));
     UI.drawBtn(c, lay.back.x, lay.back.y, 26, 26, UI.FACE.blue, held(lay.back), S.ICONS.back());
+    UI.drawBtn(c, lay.tot.x, lay.tot.y, 22, 22, little() ? UI.FACE.green : '#efe6dc', held(lay.tot), totIcon(little()));
+  }
+  function totIcon(on) { // a baby's face with a curl and a dummy; grey when the mode is off
+    return cached('toticon' + on, () => {
+      const p = new Pix(14, 14), sk = on ? '#f6d2b8' : '#d8cfc8', ink = on ? '#3a2a24' : '#9a8ea0';
+      p.ell(7, 8, 5.5, 5.5, sk); p.px(7, 1, ink); p.px(8, 2, ink); p.px(7, 2, ink);
+      p.px(5, 7, ink); p.px(9, 7, ink); p.ell(7, 10.5, 2, 1.6, on ? '#ff8fb8' : '#b9a9c0'); p.px(7, 10, '#ffffff');
+      if (on) { p.px(3, 9, '#ff9fb4'); p.px(11, 9, '#ff9fb4'); }
+      p.outline(); return p.canvas();
+    });
   }
   function tapWho(x, y) {
     const lay = L.who || whoLayout();
@@ -2559,6 +2571,7 @@ export function createClassroom(students, hooks) {
       who.pop = G.time; sfx.pop(1.1 + sw.j * 0.15); sfx.sparkle();
       return;
     }
+    if (inRect(x, y, lay.tot)) { G.save.little = !little(); persist(); sfx.pop(G.save.little ? 1.5 : 0.8); if (G.save.little) sfx.sparkle(); return; }
     if (inRect(x, y, lay.back)) { sfx.whoosh(); sayUI('back'); who = null; return; }
     const cd = lay.cards.find(r => inRect(x, y, r));
     if (!cd) { sfx.pop(); who = null; return; }
@@ -2980,7 +2993,7 @@ export function createClassroom(students, hooks) {
   window.__ltNaughty = (i) => { students[i].naughty = { until: G.time + 22, next: 0 }; };
   window.__ltHint = () => ({ hint: hint && { ...hint, by: hint.by ? hint.by.kind : null }, lastInput, nextHintAt, time: G.time, phase, busy, story: !!story, reward: !!reward, dayCard: !!dayCard, menu: !!menu, book: !!bookOpen, q: quiz.active });
   window.__ltTeacher = () => css(furn.teacher.x, furn.teacher.y - 30);
-  window.__ltWho = () => ({ open: !!who, slot: SLOT, look: G.save.look, V: [V.W, V.H], btn: L.whoBtn && css(L.whoBtn.x + 13, L.whoBtn.y + 13), cards: L.who && L.who.cards.map(r => css(r.x + r.w / 2, r.y + 20)), sw: L.who && L.who.sw.map(r => css(r.x + 11, r.y + 11)), back: L.who && css(L.who.back.x + 13, L.who.back.y + 13) });
+  window.__ltWho = () => ({ open: !!who, slot: SLOT, look: G.save.look, V: [V.W, V.H], btn: L.whoBtn && css(L.whoBtn.x + 13, L.whoBtn.y + 13), little: little(), tot: L.who && css(L.who.tot.x + 11, L.who.tot.y + 11), cards: L.who && L.who.cards.map(r => css(r.x + r.w / 2, r.y + 20)), sw: L.who && L.who.sw.map(r => css(r.x + 11, r.y + 11)), back: L.who && css(L.who.back.x + 13, L.who.back.y + 13) });
   window.__ltJar = () => ({ pt: css(furn.jar.x, furn.jar.y - 18), shown: jarShown, full: jarFull(), flying: jarFly.length, partying, reward: reward && { id: reward.id, party: !!reward.party }, stick: css(stickPos().x + 13, stickPos().y + 13), next: L.bookNext && css(L.bookNext.x + 13, L.bookNext.y + 13), cells: (L.bookCells || []).map(r => css(r.x + r.w / 2, r.y + r.h / 2)) });
   window.__ltTeach = () => ({ act: teach.act && G.time < teach.act.t0 + teach.act.dur ? teach.act.name : null, last: teach.last, pts: [8, 20, 32, 44, 52].map(d => css(furn.teacher.x, furn.teacher.y - d)) });
   window.__ltMenu = () => (menu ? menu.items.map(m => css(m.x + 24, m.y + 24)) : []);

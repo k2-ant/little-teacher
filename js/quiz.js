@@ -1,6 +1,7 @@
 // A friendly question card that a student asks the teacher. No wrong answers end anything:
 // a miss just gets "Mmm... creo que no." and the right answer glows.
 import { G, wait, rand, pick } from './state.js';
+import { little } from './state.js';
 import { earnStar } from './jar.js';
 import { Pix, cached, darken, lighten, mix } from './raster.js';
 import * as UI from './ui.js';
@@ -178,6 +179,10 @@ export function createQuiz(fx) {
     get _Q() { return Q; },
     get active() { return !!Q; },
     open(asker, steps, onDone, intro) {
+      if (little()) for (const st of steps) { // little ones choose between two pictures
+        const r = st.options.find(o => o.right), other = st.options.find(o => o !== r && (!o.right || st.options.every(q => q.right)));
+        if (r && other && st.options.length > 2) st.options = st.options.filter(o => o === r || o === other);
+      }
       Q = { asker, steps, i: 0, onDone, wrong: new Set() };
       act(asker, 'raise', 1.5);
       if (intro) { speak(asker, intro, 'here'); Q.wait = true; wait(1.7).then(() => { if (Q && Q.asker === asker) { Q.wait = false; ask(); } }); }
@@ -322,6 +327,7 @@ export function createQuiz(fx) {
         });
       } else {
         Q.wrong.add(k);
+        if (little()) q.hint = true; // the right picture glows at once
         wait(0.9).then(() => { if (Q === q) { speak(q.asker, LD.Q_WRONG, 'giggle'); act(q.asker, 'giggle', 1); q.hint = true; } });
       }
       return true;
