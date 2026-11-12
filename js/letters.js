@@ -1,6 +1,7 @@
 // Alphabet & numbers board: pick a letter/number and trace it stroke by stroke.
 import { G, makeView, persist, rand, pick, wait } from './state.js';
-import { earnStar } from './jar.js';
+import { earnStar, drawChip } from './jar.js';
+import * as UI from './ui.js';
 import { Pix, cached, darken, lighten } from './raster.js';
 import * as S from './sprites.js';
 import * as DC from './decor.js';
@@ -289,9 +290,10 @@ export function createLetters(students, hooks) {
       }
     }
     // again + next buttons
-    if (done || si > 0) { D(c, btnFrame(L.again.w, L.again.h), L.again.x, L.again.y); D(c, againIcon(), L.again.x + 4, L.again.y + 3); }
-    D(c, btnFrame(L.next.w, L.next.h, done ? '#fff6c8' : '#fff3dc', done), L.next.x, L.next.y - (done && Math.floor(G.time * 4) % 2 ? 1 : 0));
-    D(c, S.ICONS.play(), L.next.x + 4, L.next.y + 3);
+    // v2.5: the same chunky buttons as everywhere else (blue = tool, green = go)
+    const dn = (r) => !!press && press.x >= r.x && press.x <= r.x + r.w && press.y >= r.y && press.y <= r.y + r.h;
+    if (done || si > 0) UI.drawBtn(c, L.again.x, L.again.y, L.again.w, L.again.h, UI.FACE.blue, dn(L.again), againIcon());
+    UI.drawBtn(c, L.next.x, L.next.y - (done && Math.floor(G.time * 4) % 2 ? 1 : 0), L.next.w, L.next.h, UI.FACE.green, dn(L.next), S.ICONS.play());
     renderChrome(c);
   }
   function renderChrome(c) {
@@ -303,7 +305,8 @@ export function createLetters(students, hooks) {
     const tim = DC.teacher(st);
     c.save(); c.translate(Math.round(V.inset.l + 3 + DC.TW), Math.round(L.ledge - DC.TH + 4)); c.scale(-1, 1); c.drawImage(tim, 0, 0); c.restore();
     row.render(c, W, H);
-    D(c, btnFrame(26, 26), L.back.x, L.back.y); D(c, S.ICONS.back(), L.back.x + 4, L.back.y + 3);
+    UI.drawBtn(c, L.back.x, L.back.y, 26, 26, UI.FACE.blue, !!press && press.x >= L.back.x && press.x <= L.back.x + 26 && press.y >= L.back.y && press.y <= L.back.y + 26, S.ICONS.back());
+    drawChip(c, L.back.x + 5, L.back.y + 31, W, H); // the class star jar
     for (const t of L.tabs) {
       const on = set === t.id;
       D(c, btnFrame(t.w, t.h, on ? '#ffe08a' : '#fffaf0', on), t.x, t.y);

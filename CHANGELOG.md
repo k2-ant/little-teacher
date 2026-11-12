@@ -2,6 +2,15 @@
 
 The version number shows in the bottom-right corner of the start screen (for example `v1.7`).
 
+## v2.5.1 (2026-11-12)
+Polish, from going through every screen at iPad and phone size:
+- **Start screen:** only one teacher now (a second one used to stand by the door behind the class).
+- **Star jar:** it stands beside the plant, so ▶ no longer hides its stool on phones; the stars inside are clearer; stars earned while the jar is full wait for the next jar instead of being lost.
+- **Stars you can see being earned:** the tracing board and the shape sorter show a little jar, and a star flies into it each time she finishes something there.
+- **Tracing board buttons** (back, again, next) are the same chunky blue and green buttons as everywhere else.
+- **Night screen:** the "good morning" button has a big smiling sun.
+- **Party sticker:** floats up and away when she taps it, instead of sliding to an empty corner.
+
 ## v2.5 (2026-11-12)
 A sprite pass over the whole game:
 - **Softer shading everywhere:** every rounded shape (friends, furniture, decorations, food, stickers) gets a half-tone between its lit side and its shadow, and a small glint.

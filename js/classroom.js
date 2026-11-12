@@ -27,7 +27,7 @@ const FURN_DEFAULT = {
   // v2.0: eight desks, two staggered rows of four (the Horario now takes the left edge of the screen)
   desk0: [0.32, 0.32], desk1: [0.48, 0.32], desk2: [0.64, 0.32], desk3: [0.80, 0.32],
   desk4: [0.235, 0.72], desk5: [0.395, 0.72], desk6: [0.555, 0.72], desk7: [0.715, 0.72],
-  rug: [0.15, 0.93], plant: [0.06, 0.45], shelf: [0.93, 0.13], jar: [0.07, 0.72], // v2.0: the plant moved by the door to make room for desk 7
+  rug: [0.15, 0.93], plant: [0.06, 0.45], shelf: [0.93, 0.13], jar: [0.145, 0.56], // v2.5: the jar stands beside the plant, clear of ▶ // v2.0: the plant moved by the door to make room for desk 7
 };
 const FURN_SIZE = { desk: [S.DESK_W, S.DESK_H], rug: [84, 32], plant: [28, 38], shelf: [38, 46], teacher: [22, DC.TH], jar: [JAR.JAR_W, JAR.JAR_H] };
 const sizeOf = (f) => FURN_SIZE[f.type] || DC.decoSize(f.type, f.sc); // v2.0: placed things can be resized
@@ -2020,7 +2020,7 @@ export function createClassroom(students, hooks) {
     if (f.type === 'plant') { D(c, S.plant(), f.x - 14, f.y - 38 - lift); RT.drawPlantExtra(c, f, lift); return; }
     if (f.type === 'shelf') return D(c, S.bookshelf(), f.x - 19, f.y - 46 - lift);
     if (f.type === 'jar') return drawJar(c, f, lift);
-    if (f.type === 'teacher') return drawTeacher(c, f);
+    if (f.type === 'teacher') { if (phase !== 'title') drawTeacher(c, f); return; } // on the start screen she is up front with the class
     const [w, h] = sizeOf(f);
     const bob = f.pop && G.time < f.pop ? -1 : 0;
     if (layerOf(f) === 'floor' && !(f.born > G.time)) shadow(c, f.x, f.y, w * 0.7);
@@ -2379,8 +2379,7 @@ export function createClassroom(students, hooks) {
     if (phase === 'title' || phase === 'night') {
       c.fillStyle = phase === 'title' ? 'rgba(255,240,220,0.35)' : 'rgba(20,16,50,0.35)'; c.fillRect(0, 0, W, H);
       const k = 3;
-      const ic = phase === 'title' ? S.ICONS.play() : S.ICONS.sun();
-      const big = scaled(ic, k);
+      const big = phase === 'title' ? scaled(S.ICONS.play(), k) : scaled(S.bigSun(), 2); // night: a big smiling sun for "good morning"
       const pulse = Math.round(Math.sin(G.time * 4) * 2);
       const bx = Math.round(W / 2 - big.width / 2), by = Math.round(H * 0.58 - big.height / 2) + pulse;
       L.bigBtn = { x: bx - 6, y: by - 6, w: big.width + 12, h: big.height + 14 };
@@ -2477,8 +2476,8 @@ export function createClassroom(students, hooks) {
     let scale = Math.min(1, k * 3);
     if (reward.collected) {
       const q = Math.min(1, (G.time - reward.ct) / 0.8);
-      const b = stickPos();
-      cx = cx + (b.x + 13 - cx) * q; cy = cy + (b.y + 13 - cy) * q; scale = 1 - q * 0.8;
+      const b = reward.party ? { x: W / 2 - 13, y: -40 } : stickPos(); // a party sticker floats up and away to her book
+      cx = cx + (b.x + 13 - cx) * q; cy = cy + (b.y + 13 - cy) * q * q; scale = 1 - q * 0.8;
     }
     const sw = big.width * scale, sh = big.height * scale;
     // sunburst

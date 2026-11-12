@@ -1,6 +1,6 @@
 // Shape corner: a wooden shape sorter. Drag each shape into its hole, or tap a shape and then tap its hole.
 import { G, makeView, rand, pick, wait } from './state.js';
-import { earnStar } from './jar.js';
+import { earnStar, drawChip } from './jar.js';
 import { Pix, cached, darken, lighten, glow } from './raster.js';
 import * as S from './sprites.js';
 import * as UI from './ui.js';
@@ -141,6 +141,7 @@ export function createShapes(students, hooks) {
     D(c, DC.teacher(st), V.inset.l + 3, L.ledge - DC.TH + 4);
     row.render(c, W, H);
     UI.drawBtn(c, L.back.x, L.back.y, 26, 26, UI.FACE.blue, !!(press && !press.moved && press.x0 >= L.back.x && press.x0 <= L.back.x + 26 && press.y0 >= L.back.y && press.y0 <= L.back.y + 26), S.ICONS.back());
+    drawChip(c, L.back.x + 5, L.back.y + 31, V.W, V.H); // the class star jar
     row.renderParts(c);
     // hint: a hand carries a shape to its hole
     const free = sel || pieces.find(p => !p.placed);

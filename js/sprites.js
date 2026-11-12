@@ -808,6 +808,13 @@ export function stickerShadow(id) {
     return c;
   });
 }
+function sunFace(p) { // 26 x 26
+  for (let a = 0; a < 8; a++) { const ca = Math.cos(a * Math.PI / 4), sa = Math.sin(a * Math.PI / 4); p.line(13 + ca * 8, 13 + sa * 8, 13 + ca * 11.5, 13 + sa * 11.5, '#ffb020'); p.line(13.5 + ca * 8, 12.5 + sa * 8, 13.5 + ca * 11, 12.5 + sa * 11, '#ffb020'); }
+  p.ball(13, 13, 7.5, 7.5, '#ffd23f'); p.px(10, 12, INK); p.px(10, 13, INK); p.px(15, 12, INK); p.px(15, 13, INK);
+  p.px(11, 15, INK); p.hline(12, 13, 16, INK); p.px(14, 15, INK); p.px(8, 15, '#ff9fb4'); p.px(9, 15, '#ff9fb4'); p.px(16, 15, '#ff9fb4'); p.px(17, 15, '#ff9fb4');
+}
+/** the smiling sun on the night screen's "good morning" button */
+export function bigSun() { return cached('bigsun', () => { const p = new Pix(26, 26); sunFace(p); p.outline(); return p.canvas(); }); }
 export function sticker(id) {
   return cached('stk' + id, () => {
     const p = new Pix(26, 26);
@@ -837,10 +844,7 @@ switch (id) {
         p.ball(5, 17, 3.5, 2.4, '#ffffff', { hi: false }); p.ball(21, 17, 3.5, 2.4, '#ffffff', { hi: false });
         break;
       }
-      case 'sun': // v2.5: a big smiling sun
-        for (let a = 0; a < 8; a++) { const ca = Math.cos(a * Math.PI / 4), sa = Math.sin(a * Math.PI / 4); p.line(13 + ca * 8, 13 + sa * 8, 13 + ca * 11.5, 13 + sa * 11.5, '#ffb020'); p.line(13.5 + ca * 8, 12.5 + sa * 8, 13.5 + ca * 11, 12.5 + sa * 11, '#ffb020'); }
-        p.ball(13, 13, 7.5, 7.5, '#ffd23f'); p.px(10, 12, INK); p.px(10, 13, INK); p.px(15, 12, INK); p.px(15, 13, INK);
-        p.px(11, 15, INK); p.hline(12, 13, 16, INK); p.px(14, 15, INK); p.px(8, 15, '#ff9fb4'); p.px(9, 15, '#ff9fb4'); p.px(16, 15, '#ff9fb4'); p.px(17, 15, '#ff9fb4'); break;
+      case 'sun': sunFace(p); break; // v2.5: a big smiling sun
       case 'flower':
         for (let a = 0; a < 5; a++) p.ball(13 + Math.cos(a * 1.257) * 5, 11 + Math.sin(a * 1.257) * 5, 3.6, 3.6, '#ff9ec4');
         p.ball(13, 11, 3, 3, '#ffd23f'); p.vline(13, 15, 22, '#4fae45'); p.ell(16, 19, 2.6, 1.3, '#6cc44f'); break;
