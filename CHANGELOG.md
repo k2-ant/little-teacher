@@ -2,16 +2,12 @@
 
 The version number shows in the bottom-right corner of the start screen (for example `v1.7`).
 
-## v2.6 (2026-11-12)
-For a two- or three-year-old:
-- **Little-one mode,** one switch per teacher: the baby-face button on her card in the teacher picker (green = on). With it on:
-  - tracing is very forgiving: a finger anywhere near the letter paints it;
-  - questions have two pictures, not three, and after a wrong tap the right one glows at once;
-  - in the shape sorter one tap sends a shape to its own hole;
-  - hints come after 5 seconds, not 9;
-  - there is no red card and nobody misbehaves.
-- **Every touch sparkles** (for everyone): a ring and a burst of twinkles wherever a finger lands, and a small trail behind a dragging finger.
-- **A resting hand no longer blocks the game** (for everyone): if one finger or a palm is down and still, a new touch takes over.
+## v2.7 (2026-11-12)
+One game for everyone, no modes:
+- **The little-one switch is gone.** There is nothing to set up for a younger child.
+- **Easier for small hands, for everyone:** tracing is a little more forgiving, the right answer glows straight after a wrong tap, and hints come after 7 seconds instead of 9.
+- **Every touch sparkles:** a ring and a burst of twinkles wherever a finger lands, and a small trail behind a dragging finger.
+- **A resting hand no longer blocks the game:** if one finger or a palm is down and still, a new touch takes over.
 
 ## v2.5.1 (2026-11-12)
 Polish, from going through every screen at iPad and phone size:

@@ -22,8 +22,8 @@ Louise is the teacher. She stands at the front, waves, claps and points at the b
 - **The star jar.** A jar on a stool by the plant. Every finished thing drops a star in (a traced letter, a built word, a round of shapes, an answered question, a friend who feels better, the watered plant, attendance, a story, lunch, a whole day). It is saved at once, so short visits add up. At 12 stars it glows and wiggles; tap it for a class party and a new sticker. She can drag the jar anywhere, like the plant.
 - **The sticker album.** 36 stickers, each with its own place, grey until earned. Finishing a day at **Casa** gives the next of 27 day stickers; each star-jar party gives a friend's face (all eight), then a trophy.
 
-## For a two- or three-year-old (little-one mode)
-Open the teacher picker (the pink face button on the start screen) and tap the small **baby-face button** in the corner of her card. Green means on. It is saved with that teacher, so a big sister's classroom is unaffected. With it on, tracing paints when a finger is anywhere near the letter, questions offer two pictures and show the answer after a wrong tap, one tap sends a shape to its hole, hints come sooner, and there is no red card or misbehaving. For everyone, every touch makes a sparkle, and a palm resting on the screen no longer stops taps from working.
+## Small hands
+There are no modes or settings for age. Every touch makes a sparkle, a palm resting on the screen doesn't stop taps from working, tracing is forgiving, a wrong answer shows the right one straight away, and nothing in the game can be failed.
 
 ## Which version is on the iPad?
 The version number (for example **v1.7**) is in the bottom-right corner of the start screen. See [CHANGELOG.md](CHANGELOG.md) for what's in each version. To release a new version, bump `VERSION` in `js/version.js`.
@@ -164,4 +164,4 @@ Tip: turn on **Guided Access** (Settings → Accessibility → Guided Access) an
 | `js/jar.js` | the class star jar: the saved count, earning a star, the jar sprite |
 | `js/ui.js` | chunky pressable buttons (outline, lip, press-down) and passive panels, shared by every scene |
 | `js/audio.js` | synthesized sound effects and speech |
-| `tools/` | Playwright screenshot walkthrough (`shots.mjs`), star-jar, teacher-picker and little-one checks (`jar-check.mjs`, `who-check.mjs`, `little-check.mjs`), icon generator |
+| `tools/` | Playwright screenshot walkthrough (`shots.mjs`), star-jar and teacher-picker checks (`jar-check.mjs`, `who-check.mjs`), icon generator |

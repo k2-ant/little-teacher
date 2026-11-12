@@ -1,6 +1,5 @@
 // Shape corner: a wooden shape sorter. Drag each shape into its hole, or tap a shape and then tap its hole.
 import { G, makeView, rand, pick, wait } from './state.js';
-import { little } from './state.js';
 import { earnStar, drawChip } from './jar.js';
 import { Pix, cached, darken, lighten, glow } from './raster.js';
 import * as S from './sprites.js';
@@ -206,10 +205,6 @@ export function createShapes(students, hooks) {
   function choose(p) { // tap a free piece: she picks it up (it glows and bobs) and hears its name
     sel = p; p.pop = G.time + 0.25; sfx.lift(); sfx.pop(1.2); sayShape(p.shape);
     row.burst('spark', p.x, p.y, 4, [p.col, '#ffffff']);
-    if (little()) { // little ones: one tap and the shape flies to its own hole
-      const k = holes.findIndex((h, i) => h.shape === p.shape && holeFree(i));
-      if (k >= 0) wait(0.45).then(() => { if (sel === p && !p.placed) { sel = null; placeIn(p, k, true); } });
-    }
   }
   function up() {
     const pr = press; press = null;

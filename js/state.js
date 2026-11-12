@@ -90,8 +90,6 @@ export function persist() {
 }
 export function persistNow() { try { localStorage.setItem(KEY, JSON.stringify(G.save)); } catch (e) { /* ignore */ } }
 
-/** v2.6 "little one" mode: this teacher is two or three years old, so everything is more forgiving */
-export const little = () => !!(G.save && G.save.little);
 export const rand = (a, b) => a + Math.random() * (b - a);
 export const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
