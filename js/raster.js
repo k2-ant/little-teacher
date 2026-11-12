@@ -88,8 +88,13 @@ export class Pix {
     const sh = opts.shadow || darken(base, 0.22);
     const hi = opts.hi || lighten(base, 0.35);
     this.ell(cx, cy, rx, ry, sh, opts.clip);
-    this.ell(cx - 0.6, cy - 0.8, rx - 0.7, ry - 0.9, base, opts.clip, true);
-    if (opts.hi !== false) this.ell(cx - rx * 0.38, cy - ry * 0.45, Math.max(1, rx * 0.32), Math.max(0.8, ry * 0.22), hi, opts.clip, true);
+    const big = rx >= 5 && ry >= 4.5; // v2.5: big forms get a soft half-tone between the lit side and the shadow rim
+    if (big) this.ell(cx - 0.5, cy - 0.7, rx - 0.6, ry - 0.8, mix(base, sh, 0.5), opts.clip, true);
+    this.ell(cx - (big ? 1.1 : 0.6), cy - (big ? 1.4 : 0.8), rx - (big ? 1.5 : 0.7), ry - (big ? 1.7 : 0.9), base, opts.clip, true);
+    if (opts.hi !== false) {
+      this.ell(cx - rx * 0.38, cy - ry * 0.45, Math.max(1, rx * 0.32), Math.max(0.8, ry * 0.22), hi, opts.clip, true);
+      if (big) this.ell(cx - rx * 0.42, cy - ry * 0.52, Math.max(0.8, rx * 0.14), 0.7, lighten(hi, 0.5), opts.clip, true); // a small glint
+    }
   }
   /** limb with its own darker rim so it reads against the body */
   limb(cx, cy, rx, ry, base) {

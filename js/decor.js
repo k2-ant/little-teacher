@@ -534,7 +534,7 @@ export function teacher(st, look = myLook()) {
     const e = st.eyes || 'happy';
     const eyeC = '#3a2a24';
     for (const x of [10, 18]) {
-      if (e === 'open') { p.rect(x, 13, 2, 3, eyeC); p.px(x, 13, '#ffffff'); }
+      if (e === 'open') { const x0 = x < 15 ? x - 1 : x; p.rect(x0, 13, 3, 3, eyeC); p.px(x0, 13, '#ffffff'); p.px(x0 + 2, 15, '#7a5a4a'); } // v2.5: bigger, glossy (like the friends')
       else if (e === 'blink') p.hline(x - 1, x + 2, 15, eyeC);
       else { p.px(x - 1, 15, eyeC); p.px(x, 14, eyeC); p.px(x + 1, 14, eyeC); p.px(x + 2, 15, eyeC); } // squinty smile eyes
       p.hline(x - 1, x + 2, 11, HAIR_S); // brows

@@ -64,8 +64,11 @@ function face(p, st, my, opts = {}) {
   mouth(p, st.mouth || 'smile', my, 0);
 }
 function eyes(p, kind, xl, y, xr) {
-  for (const x of [xl, xr]) {
-    if (kind === 'open') { p.rect(x, y, 2, 3, INK); p.px(x, y, WHITE); p.px(x + 1, y + 2, '#5a4560'); }
+  for (const [x, side] of [[xl, -1], [xr, 1]]) {
+    if (kind === 'open') { // v2.5: bigger, glossy eyes (3 x 3, growing outwards so the face stays symmetrical)
+      const x0 = side < 0 ? x - 1 : x;
+      p.rect(x0, y, 3, 3, INK); p.px(x0, y, WHITE); p.px(x0 + 2, y + 2, '#6a557a');
+    }
     else if (kind === 'wide') { p.rect(x - 1, y - 1, 3, 4, INK); p.px(x - 1, y - 1, WHITE); p.px(x, y, WHITE); }
     else if (kind === 'closed') { p.px(x - 1, y + 1, INK); p.px(x, y + 2, INK); p.px(x + 1, y + 2, INK); p.px(x + 2, y + 1, INK); }
     else if (kind === 'blink') { p.rect(x - 1, y + 2, 4, 1, INK); }
@@ -180,7 +183,7 @@ function drawOwl(p, C, st) {
   arms(p, C, st, 'back');
   p.ball(17, 31, 8, 6.8, C.fur, { shadow: C.shadow });
   p.ell(17, 32, 5, 4.6, C.belly, null, true);
-  for (const [x, y] of [[15, 30], [19, 30], [17, 32], [15, 34], [19, 34]]) { p.px(x, y, C.marks); p.px(x + 1, y + 1, C.marks); p.px(x - 1, y + 1, C.marks); }
+  for (const [x, y] of [[14, 30], [20, 30], [17, 32], [14, 34], [20, 34]]) { p.px(x, y + 1, C.marks); p.px(x + 1, y, C.marks); p.px(x - 1, y, C.marks); } // v2.5: tidy little feather scallops
   arms(p, C, st, 'front');
   // ear tufts
   p.ball(9.2, 10 - (st.earUp ? 1 : 0), 2.4, 3.6, C.fur, { shadow: C.shadow, hi: false });
@@ -192,7 +195,7 @@ function drawOwl(p, C, st) {
   p.ell(12.8, 18.4, 4.7, 4.6, C.disk); p.ell(21.2, 18.4, 4.7, 4.6, C.disk);
   const e = st.eyes || 'open';
   eyes(p, e === 'open' ? 'wide' : e, 13 + l, 17, 21 + l);
-  ring(p, 12.8, 18.4, 3.2, 4.1, C.accent); ring(p, 21.2, 18.4, 3.2, 4.1, C.accent);
+  ring(p, 12.8, 18.4, 3.75, 4.75, C.accent); ring(p, 21.2, 18.4, 3.75, 4.75, C.accent); // v2.5: solid round frames
   p.px(16, 18, C.accent); p.px(17, 18, C.accent);
   p.px(12, 14, lighten(C.accent, 0.6)); p.px(20, 14, lighten(C.accent, 0.6));
   // beak
@@ -280,7 +283,7 @@ function drawCat(p, C, st) {
   p.rect(16, 27, 2, 2, '#ffd447'); p.px(16, 27, '#fff2a0'); p.px(17, 28, '#d9a520');
   const l = st.look || 0, e = st.eyes || 'open';
   eyes(p, e, 12 + l, 17, 20 + l);
-  if (e === 'open') { p.px(13 + l, 19, '#5aa86a'); p.px(21 + l, 19, '#5aa86a'); }
+  if (e === 'open') { p.px(13 + l, 19, '#6cc47c'); p.px(22 + l, 19, '#6cc47c'); }
   if (st.blush !== false) { p.px(9, 21, BLUSH); p.px(10, 21, BLUSH); p.px(23, 21, BLUSH); p.px(24, 21, BLUSH); }
   p.hline(15, 18, 21, PINK); p.px(16, 22, darken(PINK, 0.15)); p.px(17, 22, darken(PINK, 0.15)); p.px(15, 21, lighten(PINK, 0.4));
   const m = st.mouth || 'smile';
@@ -489,7 +492,8 @@ export function chair(i) {
     const c = CHAIR_COLS[i % CHAIR_COLS.length];
     p.rect(2, 0, 20, 9, c); p.hline(2, 21, 0, lighten(c, 0.4)); p.hline(3, 20, 1, lighten(c, 0.2));
     p.rect(2, 7, 20, 2, darken(c, 0.2));
-    p.rect(4, 9, 2, 5, '#7f8ca3'); p.rect(18, 9, 2, 5, '#7f8ca3');
+    p.d[2] = 0; p.d[21] = 0; p.hline(5, 18, 4, darken(c, 0.1)); p.px(4, 2, lighten(c, 0.6)); p.px(5, 2, lighten(c, 0.6)); // v2.5: rounded back, a slat groove, a glint
+    p.rect(4, 9, 2, 5, '#7f8ca3'); p.rect(18, 9, 2, 5, '#7f8ca3'); p.vline(4, 9, 13, '#a3aec2'); p.vline(18, 9, 13, '#a3aec2');
     p.outline();
     return p.canvas();
   });
@@ -833,7 +837,10 @@ switch (id) {
         p.ball(5, 17, 3.5, 2.4, '#ffffff', { hi: false }); p.ball(21, 17, 3.5, 2.4, '#ffffff', { hi: false });
         break;
       }
-      case 'sun': sunPix(p, 7, 7); p.ell(13, 13, 1, 1, '#ffd23f'); break;
+      case 'sun': // v2.5: a big smiling sun
+        for (let a = 0; a < 8; a++) { const ca = Math.cos(a * Math.PI / 4), sa = Math.sin(a * Math.PI / 4); p.line(13 + ca * 8, 13 + sa * 8, 13 + ca * 11.5, 13 + sa * 11.5, '#ffb020'); p.line(13.5 + ca * 8, 12.5 + sa * 8, 13.5 + ca * 11, 12.5 + sa * 11, '#ffb020'); }
+        p.ball(13, 13, 7.5, 7.5, '#ffd23f'); p.px(10, 12, INK); p.px(10, 13, INK); p.px(15, 12, INK); p.px(15, 13, INK);
+        p.px(11, 15, INK); p.hline(12, 13, 16, INK); p.px(14, 15, INK); p.px(8, 15, '#ff9fb4'); p.px(9, 15, '#ff9fb4'); p.px(16, 15, '#ff9fb4'); p.px(17, 15, '#ff9fb4'); break;
       case 'flower':
         for (let a = 0; a < 5; a++) p.ball(13 + Math.cos(a * 1.257) * 5, 11 + Math.sin(a * 1.257) * 5, 3.6, 3.6, '#ff9ec4');
         p.ball(13, 11, 3, 3, '#ffd23f'); p.vline(13, 15, 22, '#4fae45'); p.ell(16, 19, 2.6, 1.3, '#6cc44f'); break;
@@ -843,7 +850,7 @@ switch (id) {
         for (const x of [9, 12, 15]) p.vline(x, 14, 20, '#4f97d6');
         for (const [x, y] of [[9, 9], [15, 8], [12, 11], [17, 11]]) p.px(x, y, ['#7dd370', '#ffd23f', '#64a8e8', '#fff'][x % 4]);
         break;
-      case 'balloon': p.ball(13, 9, 6.5, 7.5, '#ef6f6c'); p.rect(12, 16, 3, 2, '#c94f4f'); p.line(13, 18, 11, 24, '#8a7c90'); break;
+      case 'balloon': p.ball(13, 9, 7, 8, '#ff5f6e'); p.ell(10, 6, 1.4, 2.4, '#ffd0d6'); p.rect(12, 17, 3, 2, '#d94456'); p.px(13, 19, '#8a7c90'); p.px(14, 20, '#8a7c90'); p.px(13, 21, '#8a7c90'); p.px(12, 22, '#8a7c90'); p.px(13, 23, '#8a7c90'); p.px(14, 24, '#8a7c90'); break;
       case 'moon':
         p.ball(12, 13, 9, 9, '#ffe58a'); p.ell(17, 9, 7.4, 7.4, '#000000');
         for (let i = 0; i < p.d.length; i++) if (p.d[i] === 0xff000000) p.d[i] = 0;

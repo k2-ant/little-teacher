@@ -2,6 +2,14 @@
 
 The version number shows in the bottom-right corner of the start screen (for example `v1.7`).
 
+## v2.5 (2026-11-12)
+A sprite pass over the whole game:
+- **Softer shading everywhere:** every rounded shape (friends, furniture, decorations, food, stickers) gets a half-tone between its lit side and its shadow, and a small glint.
+- **Bigger, glossy eyes** for the friends and the teacher, so faces read from further away.
+- **The owl's glasses** are solid round frames now (they were dotted), and her belly feathers are tidy.
+- **Sun and balloon stickers** redrawn: a big smiling sun, a shiny balloon with a curly string.
+- **Chairs** have rounded backs and a little more detail.
+
 ## v2.4 (2026-11-12)
 Reasons to come back tomorrow:
 - **The star jar (el frasco de estrellas):** a jar on a little stool in the classroom. Finishing something drops a star in: a traced letter or number, a built word, a round of shapes, an answered question, a friend who feels better, the watered plant, attendance, a story, lunch, a whole day. The jar is saved straight away, so a five-minute visit still counts. When it holds 12 stars it glows: tap it for a **class party** (confetti, dancing, party music) and a new sticker.
