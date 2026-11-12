@@ -1,5 +1,6 @@
 // Sílabas: syllable families (ma me mi mo mu) and a word builder (pa + to = ¡pato!).
 import { G, wait, rand, pick } from './state.js';
+import { earnStar } from './jar.js';
 import { Pix, cached, darken, lighten } from './raster.js';
 import * as S from './sprites.js';
 import { sfx } from './audio.js';
@@ -140,7 +141,7 @@ export function createSilabas({ owl, row, tAct }) {
         if (r.cd.s === w.s[built.length]) {
           r.cd.used = true; built.push(r.cd); sfx.pop(1.2 + built.length * 0.1);
           if (built.length === w.s.length) {
-            doneAt = G.time;
+            doneAt = G.time; earnStar();
             (async () => {
               await wait(0.9);
               for (const s of w.s) { say(s); await wait(0.6); }

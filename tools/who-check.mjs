@@ -1,0 +1,28 @@
+// v2.4 check: node tools/who-check.mjs <outdir>  (serve the repo first: python3 -m http.server 8123)
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const { chromium, devices } = require('playwright');
+const out = process.argv[2], which = process.argv[3] || 'ipad';
+const b = await chromium.launch();
+const ctx = await b.newContext(which === 'ipad' ? { viewport: { width: 1180, height: 820 }, deviceScaleFactor: 1, hasTouch: true } : { ...devices['iPhone 13 landscape'] });
+const p = await ctx.newPage();
+p.on('pageerror', e => console.log('PAGEERROR', String(e)));
+p.on('console', m => { if (m.type() === 'error') console.log('ERR', m.text()); });
+await p.addInitScript(() => { if (!localStorage.getItem('littleTeacher.v1')) localStorage.setItem('littleTeacher.v1', JSON.stringify({ v: 1, day: 3, furniture: {}, seats: null, board: null, stickers: ['star', 'heart', 'f:cat'], stars: {}, jar: 4, paint: { wall: 2, floor: 1 } })); });
+await p.goto(`http://localhost:${process.env.LT_PORT || 8123}/index.html?fast`); await p.waitForTimeout(800);
+const ev = (fn, a) => p.evaluate(fn, a);
+const tap = async (x, y) => { await p.mouse.move(x, y); await p.mouse.down(); await p.mouse.up(); await p.waitForTimeout(250); };
+const shot = (n) => p.screenshot({ path: `${out}/${which}-${n}.png` });
+await shot('title');
+let w = await ev(() => window.__ltWho()); console.log('V', w.V);
+await tap(...w.btn); await shot('who1');
+w = await ev(() => window.__ltWho());
+await tap(...w.sw[0]); await tap(...w.sw[1]); await tap(...w.sw[1]); await shot('who1-dressed');
+console.log('look', JSON.stringify((await ev(() => window.__ltWho())).look));
+await tap(...w.cards[1]); await p.waitForTimeout(1200);
+w = await ev(() => window.__ltWho()); console.log('after switch', w.slot, w.open, JSON.stringify(w.look));
+await shot('who2');
+await tap(...w.sw[2]); await tap(...w.cards[1]); await shot('title2');
+console.log(JSON.stringify(await ev(() => ({ keys: Object.keys(localStorage), s1: JSON.parse(localStorage['littleTeacher.v1']).stickers, w: window.__ltWho().open, jar: window.__lt.G.save.jar, st: window.__lt.G.save.stickers }))));
+await tap(...(await ev(() => window.__ltBig()))); await p.waitForTimeout(6000); await shot('class2');
+await b.close();

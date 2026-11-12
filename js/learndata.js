@@ -158,6 +158,7 @@ export const V19_HINTS = {
   ballBack: 'Toca al perrito para regresar la pelota.', storyPick: 'Escoge un cuento.',
 };
 Object.assign(HINTS, V19_HINTS);
+HINTS.jar = STAR_COUNT_LINE; // v2.4: the star jar is full (a line that already has a clip)
 Object.assign(ITEM_WORDS, { dino: 'dinosaurio', robot: 'robot', rocket: 'cohete' });
 const V19_STUDENT = () => [...SNACK_THANKS, SNACK_FULL, DOOR_LINES.late, DOOR_LINES.ball, ...BOOK_TEXT.flatMap(b => b.words)];
 const V19_OWL = () => [...COUNT_WORDS, DOOR_LINES.parcel, ...BOOK_TEXT.flatMap(b => [b.title, ...b.lines])];

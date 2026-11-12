@@ -789,11 +789,41 @@ export function snack(kind, bites) {
 
 // ---------------------------------------------------------------- stickers (24x24 with die-cut white edge)
 export const STICKERS = ['star', 'heart', 'rainbow', 'sun', 'flower', 'cupcake', 'balloon', 'moon', 'butterfly', 'icecream', 'strawberry', 'fish', 'mushroom', 'crown', 'cloud', 'rocket'];
+// v2.4: eleven more day stickers, and the party stickers (one friend per star-jar party, then a trophy)
+STICKERS.push('apple', 'watermelon', 'donut', 'ladybug', 'bee', 'kite', 'umbrella', 'cherries', 'pencil', 'planet', 'snowman');
+export const PARTY_STICKERS = [...ALL_KINDS.map(k => 'f:' + k), 'trophy'];
+/** the sticker book's pages, in order: every sticker has its own place (a grey shape until she earns it) */
+export const ALBUM = [...STICKERS, ...PARTY_STICKERS];
+const FRIEND_BG = { bunny: '#ffd0e2', puppy: '#bfe6ff', turtle: '#fff2a0', owl: '#ffd9b0', frog: '#ffe0f0', cat: '#c9f0d0', bear: '#cfe0f7', mouse: '#e6d6ff' };
+const clearBlack = (p) => { for (let i = 0; i < p.d.length; i++) if (p.d[i] === 0xff000000) p.d[i] = 0; };
+/** a sticker's shape in flat grey: the empty place in the book */
+export function stickerShadow(id) {
+  return cached('stkshadow' + id, () => {
+    const src = sticker(id), c = document.createElement('canvas'); c.width = src.width; c.height = src.height;
+    const x = c.getContext('2d'); x.drawImage(src, 0, 0); x.globalCompositeOperation = 'source-in'; x.fillStyle = '#dfd3c3'; x.fillRect(0, 0, c.width, c.height);
+    return c;
+  });
+}
 export function sticker(id) {
   return cached('stk' + id, () => {
     const p = new Pix(26, 26);
     const o = 3;
-    switch (id) {
+    if (id.startsWith('f:')) { // a friend's face on a round badge (ears may poke out of the top)
+      const kind = id.slice(2);
+      const src = student(kind, { eyes: 'happy', mouth: 'open', armL: 'down', armR: 'down', feet: 0, look: 0, blush: true, hide: 0, wag: false, earUp: true, tongue: false });
+      const px = new Uint32Array(src.getContext('2d').getImageData(0, 0, SW, SH).data.buffer);
+      let top = 0; while (top < SH && !px.subarray(top * SW, (top + 1) * SW).some(v => v)) top++;
+      let lo = SW, hi = 0; // centre the head (lop ears and big ears lean to one side)
+      for (let y = top; y < top + 22; y++) for (let x = 0; x < SW; x++) if (px[y * SW + x]) { lo = Math.min(lo, x); hi = Math.max(hi, x); }
+      const x0 = Math.max(0, Math.min(SW - 26, Math.round((lo + hi + 1) / 2) - 13));
+      p.ell(13, 14, 11.5, 11.5, FRIEND_BG[kind] || '#fff2a0');
+      for (let y = 0; y < 25; y++) for (let x = 0; x < 26; x++) {
+        const v = px[(top + y) * SW + x + x0]; if (!v) continue;
+        const dx = x - 13, dy = y + 1 - 14;
+        if (y + 1 < 14 || dx * dx + dy * dy <= 11.5 * 11.5) p.d[(y + 1) * 26 + x] = v;
+      }
+    } else
+switch (id) {
       case 'star': p.map(o + 1, o + 2, STAR, { '#': '#ffd23f' }, 2); p.px(o + 9, o + 7, '#fff6b8'); break;
       case 'heart': p.map(o + 1, o + 3, HEART, { '#': '#ff6f91' }, 2); p.rect(o + 3, o + 5, 2, 2, '#ffd0dc'); break;
       case 'rainbow': {
@@ -842,6 +872,46 @@ export function sticker(id) {
         p.ball(8, 14, 5, 4.5, '#ffffff'); p.ball(14, 11, 6, 6, '#ffffff'); p.ball(19, 15, 4.5, 4, '#ffffff'); p.rect(8, 15, 12, 4, '#ffffff');
         p.px(11, 13, INK); p.px(16, 13, INK); p.px(13, 15, '#ff9fb4'); p.px(14, 15, '#ff9fb4');
         p.px(9, 21, '#64a8e8'); p.px(14, 22, '#64a8e8'); p.px(19, 21, '#64a8e8'); break;
+      case 'apple':
+        p.ball(13, 15, 8.5, 8, '#ef4b4b'); p.ell(9, 12, 1.6, 2.6, '#ff9a9a'); p.vline(13, 3, 8, '#7a4a2a'); p.ell(17, 5, 3.2, 1.8, '#6cc44f'); break;
+      case 'watermelon':
+        p.ell(13, 8, 11.5, 13, '#4fae45', { y0: 8 }); p.ell(13, 8, 10, 11.5, '#d8f5c0', { y0: 8 }); p.ell(13, 8, 9, 10.5, '#ff5f7a', { y0: 8 });
+        for (const [x, y] of [[9, 11], [13, 13], [17, 11], [11, 15], [15, 16]]) { p.px(x, y, INK); p.px(x, y + 1, INK); } break;
+      case 'donut':
+        p.ball(13, 14, 10.5, 9.5, '#e8b06a'); p.ell(13, 12.5, 9.5, 7.5, '#ff8fc0'); p.ell(13, 13.5, 3.2, 2.6, '#000000'); clearBlack(p);
+        for (const [x, y, c] of [[7, 10, '#ffffff'], [11, 7, '#ffd23f'], [17, 8, '#7ec8ff'], [20, 12, '#ffffff'], [8, 15, '#7dd370'], [18, 16, '#ffd23f'], [13, 18, '#7ec8ff']]) { p.px(x, y, c); p.px(x + 1, y, c); } break;
+      case 'ladybug':
+        p.ball(13, 15, 9.5, 8.5, '#ef4b4b'); p.ell(13, 6.5, 5, 3.5, INK); p.vline(13, 8, 23, INK);
+        for (const [x, y] of [[8, 12], [18, 12], [7, 18], [19, 18], [10, 21], [16, 21]]) p.ell(x, y, 1.6, 1.6, INK);
+        p.px(11, 6, '#ffffff'); p.px(15, 6, '#ffffff'); p.px(10, 2, INK); p.px(9, 1, INK); p.px(16, 2, INK); p.px(17, 1, INK); break;
+      case 'bee':
+        p.ball(8, 7, 4.5, 4, '#dff3ff', { hi: false }); p.ball(17, 6, 4.5, 4, '#dff3ff', { hi: false });
+        p.ball(13, 15, 10, 7.5, '#ffd23f'); for (const x of [10, 11, 15, 16]) p.vline(x, 8, 22, INK); p.rect(22, 15, 3, 1, INK);
+        p.rect(5, 13, 2, 2, INK); p.px(5, 13, '#ffffff'); p.px(7, 17, '#ff9fb4'); break;
+      case 'kite':
+        for (let y = 0; y < 17; y++) { const h = y < 7 ? Math.floor(y * 1.3) : Math.floor((16 - y) * 0.85); p.hline(13 - h, 13 + h, 1 + y, y < 7 ? '#ef6f6c' : '#ffd23f'); }
+        p.vline(13, 1, 17, '#ffffff'); p.hline(5, 21, 8, '#ffffff'); p.line(13, 18, 9, 24, '#8a7c90'); p.rect(10, 20, 2, 2, '#64a8e8'); p.rect(8, 23, 2, 2, '#7dd370'); break;
+      case 'umbrella':
+        p.ell(13, 12, 11.5, 10, '#b48be6', { y1: 12 }); for (const x of [5, 13, 21]) p.ell(x, 12, 4, 2.4, '#9a6fd6', { y0: 12 });
+        p.vline(13, 2, 3, '#5a4560'); p.vline(13, 13, 22, '#5a4560'); p.hline(10, 13, 23, '#5a4560'); p.px(10, 22, '#5a4560'); break;
+      case 'cherries':
+        p.line(14, 4, 8, 15, '#4fae45'); p.line(14, 4, 18, 16, '#4fae45'); p.ell(18, 4, 3.5, 1.8, '#6cc44f');
+        p.ball(8, 18, 5, 5, '#e8344e'); p.ball(18, 19, 5, 5, '#e8344e'); break;
+      case 'pencil':
+        p.rect(9, 2, 8, 3, '#ff8fb8'); p.rect(9, 5, 8, 2, '#c9d3df'); p.rect(9, 7, 8, 11, '#ffd23f'); p.vline(11, 7, 17, '#f5c000'); p.vline(14, 7, 17, '#f5c000');
+        for (let i = 0; i < 4; i++) p.hline(9 + i, 16 - i, 18 + i, '#f3dcb0'); p.rect(12, 22, 2, 2, INK); break;
+      case 'planet':
+        p.ell(13, 14, 12.5, 3.2, '#b48be6'); p.ell(13, 14, 9, 1.6, '#000000'); clearBlack(p);
+        p.ball(13, 13, 7.5, 7.5, '#ff9ec4'); p.hline(8, 18, 11, '#ffc2da'); p.hline(7, 15, 15, '#f47fae');
+        p.ell(13, 14, 12.5, 3.2, '#b48be6', { y0: 15 }); p.ell(13, 14, 9, 1.6, '#ff9ec4', { y0: 15 }); p.px(3, 4, '#fff6b8'); p.px(22, 6, '#fff6b8'); break;
+      case 'snowman':
+        p.ball(13, 18, 7.5, 6.5, '#ffffff'); p.ball(13, 9, 5.5, 5, '#ffffff'); p.rect(9, 2, 8, 3, INK); p.hline(7, 18, 5, INK);
+        p.px(11, 8, INK); p.px(15, 8, INK); p.rect(13, 10, 3, 1, '#ff9a2e'); p.hline(8, 18, 13, '#ef6f6c'); p.rect(16, 14, 2, 3, '#ef6f6c');
+        p.px(13, 17, INK); p.px(13, 20, INK); break;
+      case 'trophy':
+        p.rect(7, 4, 12, 7, '#ffd23f'); p.ell(13, 11, 6, 5, '#ffd23f'); p.rect(3, 5, 3, 2, '#e0a820'); p.rect(3, 5, 2, 6, '#e0a820'); p.rect(4, 10, 4, 2, '#e0a820');
+        p.rect(20, 5, 3, 2, '#e0a820'); p.rect(21, 5, 2, 6, '#e0a820'); p.rect(18, 10, 4, 2, '#e0a820');
+        p.rect(12, 16, 2, 3, '#e0a820'); p.rect(8, 19, 10, 2, '#ffd23f'); p.rect(6, 21, 14, 3, '#a8703f'); p.vline(9, 5, 10, '#fff6b8'); p.map(11, 6, ['.#.', '###', '.#.'], { '#': '#ffffff' }); break;
       case 'rocket':
         p.ball(13, 11, 4.5, 8, '#f6f0ff'); p.ell(13, 5, 3, 3, '#ef6f6c', { y1: 5 }); p.ball(13, 10, 2, 2, '#64a8e8');
         p.rect(7, 15, 3, 5, '#ef6f6c'); p.rect(16, 15, 3, 5, '#ef6f6c'); p.ell(13, 21, 2, 2.5, '#ffa65c'); p.px(13, 23, '#ffd23f'); break;

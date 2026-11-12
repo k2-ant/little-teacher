@@ -1,5 +1,6 @@
 // Decorations, desk supplies, paint swatches and the teacher (Louise) sprite.
 import { Pix, cached, darken, lighten } from './raster.js';
+import { G } from './state.js';
 import { INK, heartPix, starPix } from './sprites.js';
 import { pixelText } from './schoolfont.js';
 /** chalk a word onto a Pix in the round school letters (crisp pixels), its left/top at x, y */
@@ -443,10 +444,32 @@ const SKIN = '#f6d2b8', SKIN_S = '#e7b799', HAIR = '#8f6142', HAIR_HI = '#b07b52
 const TOP = '#86b2ea', TOP_S = '#6c97d2', SLEEVE = '#cfe0f7', RED = '#e8505b', GOLD = '#e8b84a';
 const SKIRT = '#fbe7a1', SKIRT_S = '#ecd27e', SKIRT_HI = '#fff6cf';
 
-export function teacher(st) {
-  const key = 'teacher' + [st.eyes, st.mouth, st.armL, st.armR, st.feet | 0, st.sway | 0].join(',');
+// v2.4: each girl has her own teacher. A look is { hair, outfit, skin } (indexes into the lists below);
+// look 0/0/0 is Louise, exactly as she was drawn above.
+export const HAIRS = [
+  [HAIR, HAIR_HI, HAIR_S], ['#e8c25a', '#f6dc8a', '#c79a35'], ['#3a2c3a', '#5a4860', '#241a26'], ['#c8603a', '#e48a58', '#9a4426'],
+  ['#5a3a28', '#7a5238', '#3e2619'], ['#ff8fc0', '#ffb9d8', '#e0609a'], ['#9a6fd6', '#b99aea', '#7448b0'],
+];
+export const OUTFITS = [ // [top, skirt]
+  [TOP, SKIRT], ['#ff8fb8', '#d9c2f5'], ['#7dd370', '#ffc2da'], ['#a884e0', '#bfeedd'], ['#ef6f6c', '#fdf6ee'], ['#5cc8c0', '#ffc98a'],
+];
+export const SKINS = [[SKIN, SKIN_S], ['#ffe3d2', '#f0c4a8'], ['#d9a57a', '#c08a5e'], ['#a8703f', '#8a5730'], ['#7a4a2a', '#5e3620']];
+export const DEFAULT_LOOKS = [{ hair: 0, outfit: 0, skin: 0 }, { hair: 1, outfit: 1, skin: 0 }, { hair: 4, outfit: 3, skin: 0 }];
+const idx = (v, n) => (((v | 0) % n) + n) % n;
+export const cleanLook = (l, slot = 0) => { const d = DEFAULT_LOOKS[slot] || DEFAULT_LOOKS[0]; return l && typeof l === 'object' ? { hair: idx(l.hair, HAIRS.length), outfit: idx(l.outfit, OUTFITS.length), skin: idx(l.skin, SKINS.length) } : { ...d }; };
+const myLook = () => (G.save && G.save.look) || DEFAULT_LOOKS[0];
+
+export function teacher(st, look = myLook()) {
+  const lk = cleanLook(look);
+  const key = 'teacher' + [st.eyes, st.mouth, st.armL, st.armR, st.feet | 0, st.sway | 0, lk.hair, lk.outfit, lk.skin].join(',');
   return cached(key, () => {
     const p = new Pix(TW, TH);
+    // this look's colours (they shadow Louise's palette above)
+    const [HAIR, HAIR_HI, HAIR_S] = HAIRS[lk.hair], [SKIN, SKIN_S] = SKINS[lk.skin];
+    const [TOP, SKIRT] = OUTFITS[lk.outfit];
+    const own = lk.outfit === 0;
+    const TOP_S = own ? '#6c97d2' : darken(TOP, 0.2), SLEEVE = own ? '#cfe0f7' : lighten(TOP, 0.6);
+    const SKIRT_S = own ? '#ecd27e' : darken(SKIRT, 0.14), SKIRT_HI = own ? '#fff6cf' : lighten(SKIRT, 0.6);
     const sw = st.sway | 0;
     // hair (back layer) - long, past the shoulders
     p.ell(15, 22, 11, 16, HAIR, { y1: 38 });

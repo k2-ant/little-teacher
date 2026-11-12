@@ -1,6 +1,7 @@
 // v1.9 daily rituals: the weather at circle time and the class jobs chart ("Ayudantes").
 // classroom.js creates one with createRituals(ctx) and calls into it from a few small hooks.
 import { G, wait, persist, rand, pick, clamp } from './state.js';
+import { earnStar } from './jar.js';
 import { Pix, cached, darken, lighten, mix } from './raster.js';
 import * as S from './sprites.js';
 import * as UI from './ui.js';
@@ -381,7 +382,7 @@ export function createRituals(ctx) {
     const s = holder('plantas');
     const V = ctx.V(), L = ctx.L();
     const finish = (who) => {
-      jobs().watered = today(); persist();
+      jobs().watered = today(); persist(); earnStar();
       sfx.chime(); ctx.burst('star', f.x, f.y - 34, 8, ['#ff6f91', '#ffd23f', '#7dd370'], { up: true });
       if (who) { act(who, 'cheer', 1.2); hop(who, 70); speak(who, LD.JOB_LINES.water, 'yay'); }
       for (const t of ctx.awake()) if (t !== who && t.mode === 'seated' && !t.act) act(t, 'clap', 1.2);

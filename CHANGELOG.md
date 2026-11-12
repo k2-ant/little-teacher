@@ -2,6 +2,13 @@
 
 The version number shows in the bottom-right corner of the start screen (for example `v1.7`).
 
+## v2.4 (2026-11-12)
+Reasons to come back tomorrow:
+- **The star jar (el frasco de estrellas):** a jar on a little stool in the classroom. Finishing something drops a star in: a traced letter or number, a built word, a round of shapes, an answered question, a friend who feels better, the watered plant, attendance, a story, lunch, a whole day. The jar is saved straight away, so a five-minute visit still counts. When it holds 12 stars it glows: tap it for a **class party** (confetti, dancing, party music) and a new sticker.
+- **A sticker album:** the sticker book now has a place for all 36 stickers, shown as grey shapes until she earns them. There are 11 new day stickers (apple, watermelon, donut, ladybug, bee, kite, umbrella, cherries, pencil, planet, snowman) and 9 party stickers: one for each friend in the class, then a trophy. Tap a sticker and it jumps. The book opens at her newest sticker.
+- **A teacher for each girl:** the pink face button on the start screen asks who is teaching today. Three teachers can share the iPad, each with her own classroom, decorations, stickers, star jar and school days. The classroom that was already there stays with the first teacher, untouched.
+- **Dress up the teacher:** three round buttons under her card change her hair (7 colours), her dress (6) and her skin (5). Louise's own look is still the first one.
+
 ## v2.3.1 (2026-11-10)
 - The ABC / 123 chalkboard on the classroom wall uses the new round school letters too.
 

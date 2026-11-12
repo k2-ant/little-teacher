@@ -1,6 +1,7 @@
 // A friendly question card that a student asks the teacher. No wrong answers end anything:
 // a miss just gets "Mmm... creo que no." and the right answer glows.
 import { G, wait, rand, pick } from './state.js';
+import { earnStar } from './jar.js';
 import { Pix, cached, darken, lighten, mix } from './raster.js';
 import * as UI from './ui.js';
 import * as S from './sprites.js';
@@ -283,6 +284,7 @@ export function createQuiz(fx) {
         Q.done = true;
         const last = Q.i === Q.steps.length - 1;
         celebrate(k, last);
+        if (last) earnStar(); // v2.4: a star for the class jar
         if (o.say && !st.after && last) { // a question: the word, the praise, then the word once more with the bounce (~2.9 s)
           wait(0.85).then(() => {
             if (Q !== q) return;

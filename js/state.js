@@ -36,7 +36,26 @@ export function tickTimers() {
 }
 
 // ---- save
-const KEY = 'littleTeacher.v1';
+// v2.4: three teachers can share the iPad, each with her own classroom, stickers and look. Teacher 1 keeps the
+// original key, so an existing classroom is untouched; the others get their own key.
+const KEY0 = 'littleTeacher.v1', WHO = 'littleTeacher.who';
+export const SLOTS = 3;
+const slotKey = (i) => (i ? KEY0 + '.p' + (i + 1) : KEY0);
+function readWho() { try { const n = parseInt(localStorage.getItem(WHO), 10); return n >= 0 && n < SLOTS ? n : 0; } catch (e) { return 0; } }
+export const SLOT = readWho(); // fixed for this page load, so a late save can never land in another teacher's classroom
+const KEY = slotKey(SLOT);
+/** a peek at another teacher's save (for the "who is teaching today?" picker); null if she hasn't played yet */
+export function peekSlot(i) {
+  if (i === SLOT) return G.save;
+  try { const s = JSON.parse(localStorage.getItem(slotKey(i))); return s && s.v === 1 ? s : null; } catch (e) { return null; }
+}
+/** hand the classroom over to another teacher: save, remember who, and start again with her classroom */
+export function switchSlot(i) {
+  if (i === SLOT || !(i >= 0 && i < SLOTS)) return;
+  persistNow();
+  try { localStorage.setItem(WHO, String(i)); sessionStorage.setItem('littleTeacher.pick', '1'); } catch (e) { return; }
+  location.reload();
+}
 export function loadSave() {
   let s = null;
   try { s = JSON.parse(localStorage.getItem(KEY)); } catch (e) { s = null; }
@@ -55,6 +74,8 @@ export function loadSave() {
   // v1.9 rituals: today's weather { day, w } and the class jobs { day, assign: {kind: job}, watered }
   if (!s.weather || typeof s.weather !== 'object' || typeof s.weather.w !== 'string') s.weather = null;
   if (!s.jobs || typeof s.jobs !== 'object' || !s.jobs.assign || typeof s.jobs.assign !== 'object') s.jobs = null;
+  s.jar = Math.max(0, s.jar | 0); s.parties = Math.max(0, s.parties | 0); // v2.4: the class star jar
+  if (s.look && typeof s.look !== 'object') s.look = null; // v2.4: this teacher's look (decor.js fills in the default)
   G.save = s;
   return s;
 }

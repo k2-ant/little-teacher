@@ -17,6 +17,11 @@ The day follows a picture **Horario** down the left side, just like the schedule
 
 Louise is the teacher. She stands at the front, waves, claps and points at the board. Tap her and she twirls, waves, or waves to the whole class (and they wave back). You can drag her anywhere in the room.
 
+## Reasons to come back
+- **A teacher for each girl.** The pink face button on the start screen asks who is teaching today. Up to three teachers share the iPad; each has her own classroom, decorations, sticker book, star jar and school days. Tap a card to hand the classroom over. The three round buttons under your own card change the teacher's hair, dress and skin. The first teacher is Louise, and her classroom is the one that was already on the iPad.
+- **The star jar.** A jar on a stool by the plant. Every finished thing drops a star in (a traced letter, a built word, a round of shapes, an answered question, a friend who feels better, the watered plant, attendance, a story, lunch, a whole day). It is saved at once, so short visits add up. At 12 stars it glows and wiggles; tap it for a class party and a new sticker. She can drag the jar anywhere, like the plant.
+- **The sticker album.** 36 stickers, each with its own place, grey until earned. Finishing a day at **Casa** gives the next of 27 day stickers; each star-jar party gives a friend's face (all eight), then a trophy.
+
 ## Which version is on the iPad?
 The version number (for example **v1.7**) is in the bottom-right corner of the start screen. See [CHANGELOG.md](CHANGELOG.md) for what's in each version. To release a new version, bump `VERSION` in `js/version.js`.
 
@@ -108,7 +113,7 @@ The **Centros de Aprendizaje** card opens the **centros chart**. Move the studen
 
 All day: tap friends (keep tapping for their own trick), give gold stars (every 5th earns a crown) and green/red cards, answer raised paws, drag desks and friends around, and answer the door when someone knocks (a late friend, a parcel with a new decoration, or a ball for the puppy).
 
-There are no fail states, timers, scores, ads, accounts or network features. Progress is saved in `localStorage`. All art is drawn in code and all sounds are made with WebAudio. The voices are pre-recorded ElevenLabs clips (see above).
+There are no fail states, timers, scores, ads, accounts or network features. Progress is saved in `localStorage` (one save per teacher). All art is drawn in code and all sounds are made with WebAudio. The voices are pre-recorded ElevenLabs clips (see above).
 
 ## Running it
 It's a static site with no build step:
@@ -153,6 +158,7 @@ Tip: turn on **Guided Access** (Settings → Accessibility → Guided Access) an
 | `js/row.js` | the row of watching students used by the learning corners |
 | `js/sprites.js` | all pixel art (students, furniture, icons, stamps, stickers) |
 | `js/raster.js` | tiny no-anti-aliasing pixel rasterizer |
+| `js/jar.js` | the class star jar: the saved count, earning a star, the jar sprite |
 | `js/ui.js` | chunky pressable buttons (outline, lip, press-down) and passive panels, shared by every scene |
 | `js/audio.js` | synthesized sound effects and speech |
-| `tools/` | Playwright screenshot walkthrough and icon generator |
+| `tools/` | Playwright screenshot walkthrough (`shots.mjs`), star-jar and teacher-picker checks (`jar-check.mjs`, `who-check.mjs`), icon generator |

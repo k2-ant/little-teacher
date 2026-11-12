@@ -1,0 +1,36 @@
+// v2.4 check: node tools/jar-check.mjs <outdir>  (serve the repo first: python3 -m http.server 8123)
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const { chromium } = require('playwright');
+const out = process.argv[2];
+const b = await chromium.launch();
+const ctx = await b.newContext({ viewport: { width: 1180, height: 820 }, deviceScaleFactor: 1, hasTouch: true });
+const p = await ctx.newPage();
+p.on('pageerror', e => console.log('PAGEERROR', String(e)));
+p.on('console', m => { if (m.type() === 'error') console.log('ERR', m.text()); });
+await p.addInitScript(() => { if (!localStorage.getItem('littleTeacher.v1')) localStorage.setItem('littleTeacher.v1', JSON.stringify({ v: 1, day: 3, furniture: {}, seats: null, board: null, stickers: ['star', 'heart'], stars: {}, jar: 9 })); });
+await p.goto(`http://localhost:${process.env.LT_PORT || 8123}/index.html?fast`);
+await p.waitForTimeout(800);
+const ev = (fn, a) => p.evaluate(fn, a);
+const tap = async (x, y) => { await p.mouse.move(x, y); await p.mouse.down(); await p.mouse.up(); };
+const shot = (n) => p.screenshot({ path: `${out}/${n}.png` });
+// sticker book on the title
+await tap(...(await ev(() => window.__ltJar().stick))); await p.waitForTimeout(500); await shot('book1');
+let j = await ev(() => window.__ltJar()); await tap(...j.cells[0]); await p.waitForTimeout(60); await shot('book1tap');
+await tap(...j.next); await p.waitForTimeout(300); await shot('book2');
+await tap(5, 400); await p.waitForTimeout(300);
+await tap(...(await ev(() => window.__ltBig())));
+await p.waitForFunction(() => { const s = window.__ltSched(), h = window.__ltHint(); return !s.going && !s.pending && !h.busy && h.phase === 'class'; }, null, { timeout: 40000 });
+await p.waitForTimeout(500); await shot('class-jar9');
+await ev(() => import('./js/jar.js').then(m => m.earnStar(3)));
+await p.waitForTimeout(250); await shot('flying');
+await p.waitForFunction(() => window.__ltJar().full, null, { timeout: 10000 });
+await p.waitForTimeout(300); await shot('full');
+await p.waitForTimeout(4000); await shot('full-hint'); console.log('hint', JSON.stringify(await ev(() => window.__ltHint().hint)));
+await tap(...(await ev(() => window.__ltJar().pt)));
+await p.waitForTimeout(500); await shot('party1'); await p.waitForTimeout(500); await shot('party2');
+await p.waitForFunction(() => window.__ltJar().reward, null, { timeout: 10000 });
+await p.waitForTimeout(400); await shot('prize'); console.log(JSON.stringify(await ev(() => window.__ltJar().reward)));
+await tap(590, 410); await p.waitForTimeout(600);
+await shot('after'); console.log(JSON.stringify(await ev(() => ({ j: window.__ltJar(), save: { jar: window.__lt.G.save.jar, parties: window.__lt.G.save.parties, st: window.__lt.G.save.stickers }, h: window.__ltHint().phase }))));
+await b.close();

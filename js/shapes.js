@@ -1,5 +1,6 @@
 // Shape corner: a wooden shape sorter. Drag each shape into its hole, or tap a shape and then tap its hole.
 import { G, makeView, rand, pick, wait } from './state.js';
+import { earnStar } from './jar.js';
 import { Pix, cached, darken, lighten, glow } from './raster.js';
 import * as S from './sprites.js';
 import * as UI from './ui.js';
@@ -187,7 +188,7 @@ export function createShapes(students, hooks) {
     row.burst('star', holes[k].x, holes[k].y, 6, [p.col, '#ffd23f', '#ffffff'], { up: true });
     row.react('clap', 1); sfx.clap(4, 0.6); tAct('clap', 1);
     if (pieces.every(q => q.placed)) {
-      roundDone = true;
+      roundDone = true; earnStar();
       wait(0.8).then(() => {
         sfx.fanfare(); row.cheer('cheer'); tAct('cheer', 1.6);
         row.burst('confetti', L.box.x + L.box.w / 2, L.box.y, 36, COLORS, { sp: 90, g: 80, life: 1.4 });

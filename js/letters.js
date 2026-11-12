@@ -1,5 +1,6 @@
 // Alphabet & numbers board: pick a letter/number and trace it stroke by stroke.
 import { G, makeView, persist, rand, pick, wait } from './state.js';
+import { earnStar } from './jar.js';
 import { Pix, cached, darken, lighten } from './raster.js';
 import * as S from './sprites.js';
 import * as DC from './decor.js';
@@ -202,7 +203,7 @@ export function createLetters(students, hooks) {
   }
   function complete() {
     done = true; doneAt = G.time;
-    G.save.traced[cur] = true; persist();
+    G.save.traced[cur] = true; persist(); earnStar();
     sfx.fanfare(); row.cheer(); tAct('cheer', 1.6);
     const a = L.area;
     row.burst('confetti', a.x + a.w / 2, a.y + 10, 34, RAINBOW, { sp: 90, g: 80, life: 1.4 });
