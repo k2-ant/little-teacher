@@ -2994,6 +2994,7 @@ export function createClassroom(students, hooks) {
   // v2.0 schedule
   window.__ltBig = () => (L.bigBtn ? css(L.bigBtn.x + L.bigBtn.w / 2, L.bigBtn.y + L.bigBtn.h / 2) : null);
   window.__ltStick = () => (L.stickBtn ? css(L.stickBtn.x + 13, L.stickBtn.y + 13) : null);
+  window.__ltTab = () => { const q = SC.tabPt(); return q ? { hidden: SC.hidden, at: [q.x * Vfull.s / G.dpr, q.y * Vfull.s / G.dpr] } : null; };
   window.__ltCard = (id) => { const q = SC.cardPt(id); return q ? [q.x * Vfull.s / G.dpr, q.y * Vfull.s / G.dpr] : null; };
   window.__ltChoice = (id) => { if (!choicesShown()) return null; const r = choiceRects().find(q => q.id === id); return r ? css(r.x + r.w / 2, r.y + r.h / 2) : null; };
   window.__ltRoom = () => ({ W: V.W, H: V.H, ox, s: V.s, floorTop: L.floorTop, wallH: L.wallH, furn: Object.fromEntries(Object.values(furn).map(f => [f.id, [f.x, f.y]])) });
@@ -3051,6 +3052,7 @@ export function createClassroom(students, hooks) {
     busy: () => busy, locked: () => ['title', 'goodbye', 'reward', 'night'].includes(phase),
     kidsIn: () => students.some(s => s.mode !== 'away'), leave: leaveBlock, arrive, enter: enterBlock, done: blockDone,
     say: (t) => speak(helper(), t, 'tap'), sayUI, askHome: () => { teacherAct('wave', 1.6); speak(helper(), LD.HINTS.homeAsk, 'tap'); },
+    relayout: () => resize(),
   });
 
   // ---------------------------------------------------------------- v2.0 Lector Misterioso: a knock, a surprise guest reads a book

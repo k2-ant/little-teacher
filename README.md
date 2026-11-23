@@ -13,7 +13,7 @@ Eight original pixel-art students come to class:
 - 🐻 a **big gentle bear** who gives bear hugs and loves honey
 - 🐭 a **tiny shy mouse** who ducks under his desk
 
-The day follows a picture **Horario** down the left side, just like the schedule on her real classroom wall. A clothespin marks what's happening now; the big ▶ button goes to the next part of the day, and tapping any card jumps there.
+The day follows a picture **Horario** down the left side, just like the schedule on her real classroom wall. A clothespin marks what's happening now; the big ▶ button goes to the next part of the day, and tapping any card jumps there. A little yellow tab on the schedule's edge tucks it away so the classroom gets the whole screen (tap the tab again to bring it back; ▶ still moves the day on).
 
 Louise is the teacher. She stands at the front, waves, claps and points at the board. Tap her and she twirls, waves, or waves to the whole class (and they wave back). You can drag her anywhere in the room.
 

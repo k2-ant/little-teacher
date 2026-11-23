@@ -3,7 +3,7 @@
 // current card). ▶ "siguiente" moves the clothespin to the next card; tapping any card jumps there.
 // classroom.js owns the room and the activities; this module owns the chart, its order and the
 // day's flow (createSchedule(api) gets small callbacks into the room).
-import { G, clamp } from './state.js';
+import { G, clamp, persist } from './state.js';
 import { Pix, cached, glow, darken, lighten } from './raster.js';
 import * as S from './sprites.js';
 import * as DC from './decor.js';
@@ -235,7 +235,7 @@ function cardFrame(w, h, fill, edge, key) {
  * say(text), sayUI(key), askHome()
  */
 export function createSchedule(api) {
-  const st = { cur: byId('manana'), done: new Set(), t0: 0, pending: null, going: false, casaArm: 0, pinY: null, labelUntil: 0, used: false, wig: 0, bounce: null, ret: null };
+  const st = { cur: byId('manana'), done: new Set(), t0: 0, pending: null, going: false, casaArm: 0, pinY: null, labelUntil: 0, used: false, wig: 0, bounce: null, ret: null, hidden: !!G.save.hideChart };
   // v2.1: the day starts at Trabajo de la mañana (the class walks in); Decorar is optional: its card opens the tray any time
   // and ▶ then goes back to the block she was in (st.ret)
   let LY = null; // chart layout (full-buffer coordinates)
@@ -249,8 +249,26 @@ export function createSchedule(api) {
     const avail = V.H - i.b - top - headH - (compact ? 2 : 5);
     const pitch = clamp(Math.floor(avail / n), 14, 20), h = pitch - 1;
     const cards = BLOCKS.map((b, k) => ({ id: b.id, k, x, w, h, y: k === 0 ? top : top + headH + 3 + k * pitch }));
-    LY = { compact, x, w, cards, head: { x, y: top + pitch + 1, w, h: headH }, right: x + w + (compact ? 4 : 6) };
+    // v2.8: the chart tucks away behind a little yellow tab, so the classroom can have the whole screen
+    const right = st.hidden ? i.l : x + w + (compact ? 4 : 6);
+    LY = { compact, x, w, cards, head: { x, y: top + pitch + 1, w, h: headH }, right, tab: { x: st.hidden ? i.l : right - 3, y: i.t + 3, w: 13, h: 24 } };
     return LY.right; // the room starts here
+  }
+  // the tab's hit area reaches up to the screen's edge and a little into the room (finger-sized on phones too)
+  const tabHit = () => ({ x: LY.tab.x, y: 0, w: LY.tab.w + 8, h: LY.tab.y + LY.tab.h + 8 });
+  const tabArrow = (dir) => cached('schedtab' + dir, () => {
+    const p = new Pix(6, 11);
+    for (let y = 0; y < 11; y++) { const n = 1 + Math.min(y, 10 - y); p.rect(dir > 0 ? 0 : 6 - n, y, n, 1, '#7a4a2a'); }
+    return p.canvas();
+  });
+  function drawTab(c) {
+    const t = LY.tab, dn = !!(press && press.tab);
+    UI.drawBtn(c, t.x, t.y, t.w, t.h, UI.FACE.yellow, dn, tabArrow(st.hidden ? 1 : -1));
+  }
+  function toggleChart() {
+    st.hidden = !st.hidden; G.save.hideChart = st.hidden; persist();
+    st.pinY = null; sfx.whoosh();
+    api.relayout(); // the room grows or shrinks to fit
   }
   const cur = () => BLOCKS[st.cur];
 
@@ -298,6 +316,15 @@ export function createSchedule(api) {
   function drawChart(c, V, phase) {
     if (!LY) return;
     const { compact, x, w } = LY;
+    if (st.hidden) { // only the tab shows (and, on phones with a notch, a plain strip of wall beside it)
+      if (LY.right > 0) {
+        R(c, 0, 0, LY.right, V.H, '#e9d6b8');
+        if (phase === 'title') R(c, 0, 0, LY.right, V.H, 'rgba(255,240,220,0.45)');
+        if (phase === 'night' || phase === 'reward') R(c, 0, 0, LY.right, V.H, 'rgba(20,16,50,0.35)');
+      }
+      drawTab(c);
+      return;
+    }
     // the wall panel behind the chart
     R(c, 0, 0, LY.right - 2, V.H, '#e9d6b8'); R(c, LY.right - 3, 0, 1, V.H, '#c9ab84');
     if (!compact) { // cloud header "Horario"
@@ -341,10 +368,11 @@ export function createSchedule(api) {
     D(c, clothespin(), pc.x + pc.w + (compact ? 2 : 4) - 5 + wig, Math.round(st.pinY) + Math.round((pc.h - 22) / 2));
     if (phase === 'title') { c.fillStyle = 'rgba(255,240,220,0.45)'; c.fillRect(0, 0, LY.right - 2, V.H); }
     if (phase === 'night' || phase === 'reward') { c.fillStyle = 'rgba(20,16,50,0.35)'; c.fillRect(0, 0, LY.right - 2, V.H); }
+    drawTab(c);
   }
   /** phones: the words of the current card float next to the chart for a moment */
   function drawLabel(c, ox) {
-    if (!LY || !LY.compact || G.time > st.labelUntil) return;
+    if (!LY || !LY.compact || st.hidden || G.time > st.labelUntil) return;
     const k = st.pending ? byId(st.pending.id) : st.cur, cd = LY.cards[k], b = BLOCKS[k];
     const tx = tinyText(b.words), w = tx.width + 8, h = tx.height + 6, x = 2, y = clamp(cd.y + cd.h / 2 - h / 2, 2, 400);
     R(c, x - 1 + 0, y, w + 2, h, '#b9a99a'); R(c, x, y - 1, w, h + 2, '#b9a99a'); R(c, x, y, w, h, '#fffaf0');
@@ -353,16 +381,19 @@ export function createSchedule(api) {
   }
   // a card's hit area: on phones the whole width of the column and the whole pitch (no gaps), from the screen's edge
   const hitRect = (cd) => (LY.compact ? { x: 0, y: cd.y - 1, w: LY.right - 2, h: cd.h + 1 } : { x: cd.x - 1, y: cd.y - 1, w: cd.w + 4, h: cd.h + 1 });
-  function hitCard(x, y) { return LY && x < LY.right ? LY.cards.find(cd => inRect(x, y, hitRect(cd))) : null; }
+  function hitCard(x, y) { return LY && !st.hidden && x < LY.right ? LY.cards.find(cd => inRect(x, y, hitRect(cd))) : null; }
   /** a press in full-buffer coordinates; true when the chart takes it */
   function down(x, y) {
-    if (!LY || x >= LY.right) return false;
+    if (!LY) return false;
+    if (inRect(x, y, tabHit())) { press = { tab: true }; return true; }
+    if (x >= LY.right) return false;
     press = { card: hitCard(x, y) };
     return true;
   }
   function up(x, y) {
     const p = press; press = null;
     if (!p) return false;
+    if (p.tab) { if (inRect(x, y, tabHit())) toggleChart(); return true; }
     const cd = hitCard(x, y);
     if (!cd || cd !== p.card) { if (!cd) sfx.softPop(); return true; }
     if (api.locked()) { sfx.tap(); return true; }
@@ -406,6 +437,7 @@ export function createSchedule(api) {
     markUsed() { st.used = true; },
     get nextId() { return nextId(); }, get used() { return st.used; },
     cardRects() { return LY ? LY.cards.map(cd => ({ id: cd.id, art: { x: cd.x, y: cd.y, w: cd.w, h: cd.h }, hit: hitRect(cd) })) : []; },
+    get hidden() { return st.hidden; }, tabPt() { return LY ? { x: LY.tab.x + LY.tab.w / 2, y: LY.tab.y + LY.tab.h / 2 } : null; },
     cardPt(id) { const cd = LY && LY.cards.find(q => q.id === id); return cd ? { x: cd.x + cd.w / 2, y: cd.y + cd.h / 2 } : null; },
   };
 }

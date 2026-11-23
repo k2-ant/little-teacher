@@ -2,6 +2,11 @@
 
 The version number shows in the bottom-right corner of the start screen (for example `v1.7`).
 
+## v2.8 (2026-11-23)
+The whole screen for the classroom:
+- **The Horario can tuck away.** A little yellow tab with an arrow sits on the edge of the schedule. Tap it and the schedule slides out of the way, so the classroom fills the whole screen; tap it again to bring the schedule back. The game remembers her choice (each teacher has her own).
+- With the schedule tucked away the day still moves on with the green ▶ button, which shows the picture of what comes next.
+
 ## v2.7 (2026-11-12)
 One game for everyone, no modes:
 - **The little-one switch is gone.** There is nothing to set up for a younger child.
